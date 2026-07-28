@@ -284,3 +284,24 @@
 .rchip-x:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
 .rchip-x:disabled { opacity: .4; cursor: default; }
 .shelf-spacer { flex: 1; }
+
+/* ===== Rendered readings — PDF canvas pages + .docx HTML ===== */
+.pdf-loading { color: var(--muted); font-family: var(--sans); font-style: italic; padding: 24px 8px; }
+.pdf-doc { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.pdf-page { position: relative; background: #fff; box-shadow: 0 1px 10px rgba(44,36,22,.16); border-radius: 2px; }
+.pdf-page canvas { display: block; border-radius: 2px; }
+.docx-body { font-family: var(--serif); font-size: 16.5px; line-height: 1.75; max-width: 68ch; }
+.docx-body img { max-width: 100%; height: auto; }
+.docx-body h1, .docx-body h2, .docx-body h3 { font-family: var(--serif); }
+
+/* ===== Reading view: single/continuous toggle + page nav ===== */
+.viewseg { display: inline-flex; border: 1px solid var(--comment-border); border-radius: 7px; overflow: hidden; }
+.vbtn { font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: var(--muted); background: #fff; border: none; padding: 7px 12px; cursor: pointer; }
+.vbtn + .vbtn { border-left: 1px solid var(--comment-border); }
+.vbtn:hover { background: var(--comment-bg); }
+.vbtn.on { color: var(--accent); background: var(--comment-bg); }
+.pdfnav { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 14px; background: rgba(248,244,236,.94); backdrop-filter: blur(3px); padding: 8px; margin: -8px -8px 14px; border-bottom: 1px solid var(--comment-border); }
+.pdfnav-btn { font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--accent); background: #fff; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 13px; cursor: pointer; }
+.pdfnav-btn:hover:not(:disabled) { background: var(--comment-bg); }
+.pdfnav-btn:disabled { opacity: .4; cursor: default; }
+.pdfnav-lbl { font-family: var(--sans); font-size: 13px; color: var(--muted); font-weight: 600; }

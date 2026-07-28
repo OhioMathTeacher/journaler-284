@@ -733,17 +733,104 @@ async function runReflection(rf, text) {
   }
 
   // ---------- Readings (full width, two-pane) ----------
-  // loaded readings (prototype). One sample chapter is preloaded so the shelf isn't empty.
-  const SAMPLE_DOC = `<p>Sample text — <span class="sel">select a passage to think about it in the margin</span>. Romano opens by inviting you to write about why you write; we widen it across your whole history. The gush comes first; the shaping comes after. Trust the throb, the flood of the moment.</p>
-    <p>A real voice — one only you carry — is the un-generatable thing. The machine hands you melon and ham; the tasted version is yours.</p>`;
-  let readings = (DB.readings && DB.readings.length) ? DB.readings.slice() : [{ id:'sample', name:'Romano — Write What Matters, ch. 2 (sample)', type:'txt', html:SAMPLE_DOC }];
+  // On first run the shelf holds a built-in one-page user manual (shipped PDF,
+  // fetched from ./manual.pdf, not IndexedDB). Students load their own on top.
+  const MANUAL_READING = { id:'manual', name:'How to use Journaler (start here)', type:'pdf', builtin:true, url:'./manual.pdf' };
+  let readings = (DB.readings && DB.readings.length) ? DB.readings.slice() : [ Object.assign({}, MANUAL_READING) ];
   let activeReading = DB.activeReading || 0;
   if(activeReading >= readings.length) activeReading = 0;
-  function persistReadings(){ DB.readings = readings.map(r=>({ id:r.id, name:r.name, type:r.type, html: r.type==='txt' ? r.html : undefined })); DB.activeReading = activeReading; saveDB(); }
+  function persistReadings(){ DB.readings = readings.map(r=>({ id:r.id, name:r.name, type:r.type, html: r.type==='txt' ? r.html : undefined, builtin: r.builtin||undefined, url: r.url||undefined })); DB.activeReading = activeReading; saveDB(); }
   function docBody(r){
-    if(!r) return `<div class="docstub"><strong>No reading loaded.</strong><br>Use <em>＋ Load reading</em> to load a WWM chapter (PDF or .docx).</div>`;
+    if(!r) return `<div class="docstub"><strong>No reading loaded.</strong><br>Use <em>＋ Load readings</em> to load a WWM chapter (PDF or .docx).</div>`;
     if(r.type === 'txt') return r.html;
-    return `<div class="docstub"><strong>${r.name}</strong> is loaded.<br>A <strong>${r.type.toUpperCase()}</strong> renders its pages here in the app (pdf.js / mammoth are already vendored). Nothing uploaded — it stays in your browser.</div>`;
+    return `<div class="pdf-loading">Loading ${escHtml(r.name)}…</div>`;   // filled by renderActiveDoc
+  }
+
+  // Reading view state.
+  let readPageMode = DB.readPageMode || 'single';   // 'single' | 'continuous'
+  let readPageNum = 1;                               // current page in single mode
+  let _curPdf = { id:null, doc:null };               // cache the parsed doc so paging doesn't reparse
+
+  // Wait briefly for the pdf.js ES module (index.html) to attach to window.
+  async function ensurePdfjs(){ for(let i=0; i<40 && !window.pdfjsLib; i++){ await new Promise(res=>setTimeout(res,100)); } return window.pdfjsLib; }
+  // Bytes for a reading: a built-in (shipped) reading fetches from its URL; a
+  // student-loaded one comes from IndexedDB.
+  async function readingBytesFor(r){
+    if(r.builtin && r.url){ try { const res = await fetch(r.url); return res.ok ? await res.arrayBuffer() : null; } catch(e){ return null; } }
+    return await loadReadingBytes(r.id);
+  }
+
+  // Render the active reading into #docPane. PDFs → canvas pages (pdf.js);
+  // .docx → HTML (mammoth). A token guards against fast reading switches.
+  let _readToken = 0;
+  async function renderActiveDoc(r){
+    const pane = document.getElementById('docPane');
+    if(!pane || !r) return;
+    const token = ++_readToken;
+    if(r.type === 'txt'){ pane.innerHTML = r.html; return; }
+    pane.innerHTML = `<div class="pdf-loading">Loading ${escHtml(r.name)}…</div>`;
+    if(r.type === 'pdf'){
+      const lib = await ensurePdfjs();
+      if(token !== _readToken) return;
+      if(!lib){ pane.innerHTML = `<div class="docstub"><strong>PDF engine still loading.</strong><br>Give it a moment, then reselect the reading.</div>`; return; }
+      try {
+        let doc;
+        if(_curPdf.id === r.id && _curPdf.doc){ doc = _curPdf.doc; }
+        else {
+          const bytes = await readingBytesFor(r);
+          if(token !== _readToken) return;
+          if(!bytes){ pane.innerHTML = `<div class="docstub"><strong>${escHtml(r.name)}</strong><br>This file isn’t stored in this browser. Load it again with ＋ Load readings.</div>`; return; }
+          doc = await lib.getDocument({ data: (bytes.slice ? bytes.slice(0) : bytes), ...(window.PDF_DOC_OPTS||{}) }).promise;
+          if(token !== _readToken) return;
+          _curPdf = { id:r.id, doc };
+        }
+        await renderPdfPages(pane, doc, r, token);
+      } catch(e){ console.warn('pdf render', e); if(token===_readToken) pane.innerHTML = `<div class="docstub"><strong>Could not render this PDF.</strong><br>${escHtml(String((e&&e.message)||e))}</div>`; }
+    } else if(r.type === 'docx'){
+      const bytes = await readingBytesFor(r);
+      if(token !== _readToken) return;
+      if(!bytes){ pane.innerHTML = `<div class="docstub"><strong>${escHtml(r.name)}</strong><br>This file isn’t stored in this browser. Load it again.</div>`; return; }
+      try {
+        if(!window.mammoth){ pane.innerHTML = `<div class="docstub"><strong>.docx engine not loaded.</strong></div>`; return; }
+        const res = await window.mammoth.convertToHtml({ arrayBuffer: (bytes.slice ? bytes.slice(0) : bytes) });
+        if(token !== _readToken) return;
+        pane.innerHTML = `<div class="docx-body">${res.value || '<em>Empty document.</em>'}</div>`;
+      } catch(e){ console.warn('docx render', e); if(token===_readToken) pane.innerHTML = `<div class="docstub"><strong>Could not render this .docx.</strong></div>`; }
+    }
+  }
+
+  // Paint pdf pages — one at a time (single, with ‹ ›) or all stacked (continuous).
+  async function renderPdfPages(pane, doc, r, token){
+    const single = readPageMode === 'single';
+    if(readPageNum > doc.numPages) readPageNum = doc.numPages;
+    if(readPageNum < 1) readPageNum = 1;
+    const nav = single
+      ? `<div class="pdfnav"><button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button><span class="pdfnav-lbl">Page ${readPageNum} of ${doc.numPages}</span><button class="pdfnav-btn" id="pgNext" ${readPageNum>=doc.numPages?'disabled':''}>Next ›</button></div>`
+      : `<div class="pdfnav"><span class="pdfnav-lbl">${doc.numPages} pages · scroll to read</span></div>`;
+    pane.innerHTML = nav;
+    const wrap = document.createElement('div'); wrap.className = 'pdf-doc'; pane.appendChild(wrap);
+    if(single){
+      const pv = document.getElementById('pgPrev'), nx = document.getElementById('pgNext');
+      if(pv) pv.onclick = ()=>{ if(readPageNum>1){ readPageNum--; renderActiveDoc(r); } };
+      if(nx) nx.onclick = ()=>{ if(readPageNum<doc.numPages){ readPageNum++; renderActiveDoc(r); } };
+    }
+    const avail = Math.max(320, pane.clientWidth - 64);
+    const ratio = window.devicePixelRatio || 1;
+    const pages = single ? [readPageNum] : Array.from({length:doc.numPages}, (_,i)=>i+1);
+    for(const n of pages){
+      if(token !== _readToken) return;
+      const page = await doc.getPage(n);
+      const unit = page.getViewport({ scale: 1 });
+      const scale = Math.max(0.4, Math.min(3, (avail / unit.width)));
+      const viewport = page.getViewport({ scale });
+      const pageDiv = document.createElement('div'); pageDiv.className = 'pdf-page';
+      pageDiv.style.width = viewport.width + 'px'; pageDiv.style.height = viewport.height + 'px';
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.floor(viewport.width * ratio); canvas.height = Math.floor(viewport.height * ratio);
+      canvas.style.width = viewport.width + 'px'; canvas.style.height = viewport.height + 'px';
+      pageDiv.appendChild(canvas); wrap.appendChild(pageDiv);
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport, transform: ratio !== 1 ? [ratio,0,0,ratio,0,0] : null }).promise;
+    }
   }
   // Add one or many files (multi-select or a whole folder). txt inline, PDF/.docx bytes to IndexedDB.
   async function addReadingFiles(fileList){
@@ -762,6 +849,7 @@ async function runReflection(rf, text) {
       }
     }
     activeReading = readings.length - 1;
+    readPageNum = 1; _curPdf = { id:null, doc:null };
     persistReadings();
     renderRead();
   }
@@ -777,6 +865,7 @@ async function runReflection(rf, text) {
         <span class="shelf-lbl">Reading</span>
         <select id="readingSelect" class="reading-select" ${readings.length?'':'disabled'}>${options}</select>
         <button class="rchip-x" id="removeReading" title="Remove this reading from your shelf" ${readings.length<=1?'disabled':''}>✕ Remove</button>
+        ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single">Single page</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>` : ''}
         <span class="shelf-spacer"></span>
         <button class="openbtn" id="openReading">＋ Load readings</button>
         <button class="openbtn" id="openFolder">＋ Load a folder</button>
@@ -793,14 +882,17 @@ async function runReflection(rf, text) {
           <p class="locknote" style="margin-top:10px">Send a marked passage to your Notebook →</p>
         </aside>
       </div>`;
+    if(active && (active.type === 'pdf' || active.type === 'docx')) renderActiveDoc(active);
     const sel = document.getElementById('readingSelect');
-    sel.onchange = () => { const i = +sel.value; if(i>=0){ activeReading = i; persistReadings(); renderRead(); } };
+    sel.onchange = () => { const i = +sel.value; if(i>=0){ activeReading = i; readPageNum = 1; _curPdf = { id:null, doc:null }; persistReadings(); renderRead(); } };
     document.getElementById('removeReading').onclick = () => {
       if(readings.length<=1) return;
       readings.splice(activeReading, 1);
       if(activeReading >= readings.length) activeReading = readings.length - 1;
+      readPageNum = 1; _curPdf = { id:null, doc:null };
       persistReadings(); renderRead();
     };
+    frame.querySelectorAll('.vbtn').forEach(b => b.onclick = () => { readPageMode = b.dataset.vm; DB.readPageMode = readPageMode; saveDB(); renderRead(); });
     const input = document.getElementById('readInput');
     const folderInput = document.getElementById('readFolderInput');
     document.getElementById('openReading').onclick = () => input.click();
