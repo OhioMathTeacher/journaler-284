@@ -745,12 +745,44 @@ async function runReflection(rf, text) {
     if(r.type === 'txt') return r.html;
     return `<div class="docstub"><strong>${r.name}</strong> is loaded.<br>A <strong>${r.type.toUpperCase()}</strong> renders its pages here in the app (pdf.js / mammoth are already vendored). Nothing uploaded — it stays in your browser.</div>`;
   }
+  // Add one or many files (multi-select or a whole folder). txt inline, PDF/.docx bytes to IndexedDB.
+  async function addReadingFiles(fileList){
+    const files = [...fileList].filter(f => /\.(pdf|docx|txt)$/i.test(f.name));
+    if(!files.length) return;
+    for(const f of files){
+      const ext = (f.name.split('.').pop()||'').toLowerCase();
+      const id = 'r' + Date.now() + '-' + Math.round(Math.random()*1e6);
+      if(ext === 'txt'){
+        const txt = await f.text();
+        readings.push({ id, name: f.name, type: ext, html: `<p>${escHtml(txt).replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')}</p>` });
+      } else {
+        const buf = await f.arrayBuffer();
+        await saveReadingBytes(id, buf);   // kept locally; pdf.js / mammoth rendering wired next slice
+        readings.push({ id, name: f.name, type: ext });
+      }
+    }
+    activeReading = readings.length - 1;
+    persistReadings();
+    renderRead();
+  }
+
   function renderRead(){
     body.classList.add('wide');
-    const shelf = readings.map((r,i)=>`<button class="rchip ${i===activeReading?'on':''}" data-i="${i}">${r.name}${readings.length>1?` <span class="rx" data-close="${i}" title="Remove">✕</span>`:''}</button>`).join('');
+    const options = readings.length
+      ? readings.map((r,i)=>`<option value="${i}" ${i===activeReading?'selected':''}>${escHtml(r.name)}</option>`).join('')
+      : `<option value="-1">No readings loaded yet</option>`;
     const active = readings[activeReading];
     frame.innerHTML = `<div class="head"><h1>Readings</h1><p>Open a chapter, read closely, think in the margin. Full width — the reading fills the page, your notes sit off to the side.</p></div>
-      <div class="shelf"><span class="shelf-lbl">Your readings</span>${shelf}<button class="openbtn" id="openReading">＋ Load reading</button><input type="file" id="readInput" accept=".pdf,.docx,.txt" hidden></div>
+      <div class="shelf">
+        <span class="shelf-lbl">Reading</span>
+        <select id="readingSelect" class="reading-select" ${readings.length?'':'disabled'}>${options}</select>
+        <button class="rchip-x" id="removeReading" title="Remove this reading from your shelf" ${readings.length<=1?'disabled':''}>✕ Remove</button>
+        <span class="shelf-spacer"></span>
+        <button class="openbtn" id="openReading">＋ Load readings</button>
+        <button class="openbtn" id="openFolder">＋ Load a folder</button>
+        <input type="file" id="readInput" accept=".pdf,.docx,.txt" multiple hidden>
+        <input type="file" id="readFolderInput" webkitdirectory hidden>
+      </div>
       <div class="reader">
         <div class="doc" id="docPane">${docBody(active)}</div>
         <aside class="notes">
@@ -761,30 +793,20 @@ async function runReflection(rf, text) {
           <p class="locknote" style="margin-top:10px">Send a marked passage to your Notebook →</p>
         </aside>
       </div>`;
+    const sel = document.getElementById('readingSelect');
+    sel.onchange = () => { const i = +sel.value; if(i>=0){ activeReading = i; persistReadings(); renderRead(); } };
+    document.getElementById('removeReading').onclick = () => {
+      if(readings.length<=1) return;
+      readings.splice(activeReading, 1);
+      if(activeReading >= readings.length) activeReading = readings.length - 1;
+      persistReadings(); renderRead();
+    };
     const input = document.getElementById('readInput');
-    document.getElementById('openReading').addEventListener('click', ()=>input.click());
-    input.addEventListener('change', async ()=>{
-      const f = input.files[0]; if(!f) return;
-      const ext = (f.name.split('.').pop()||'').toLowerCase();
-      const id = 'r' + Date.now() + '-' + Math.round(Math.random()*1e4);
-      if(ext === 'txt'){
-        const txt = await f.text();
-        readings.push({ id, name: f.name, type: ext, html: `<p>${escHtml(txt).replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')}</p>` });
-      } else {
-        const buf = await f.arrayBuffer();
-        await saveReadingBytes(id, buf);   // kept locally; pdf.js / mammoth rendering wired next slice
-        readings.push({ id, name: f.name, type: ext });
-      }
-      activeReading = readings.length - 1;
-      input.value = '';
-      persistReadings();
-      renderRead();
-    });
-    frame.querySelectorAll('.rchip').forEach(chip=>chip.addEventListener('click', e=>{
-      const close = e.target.getAttribute('data-close');
-      if(close!==null && close!==undefined){ e.stopPropagation(); const i=+close; readings.splice(i,1); if(activeReading>=readings.length) activeReading=readings.length-1; persistReadings(); renderRead(); return; }
-      activeReading = +chip.dataset.i; persistReadings(); renderRead();
-    }));
+    const folderInput = document.getElementById('readFolderInput');
+    document.getElementById('openReading').onclick = () => input.click();
+    document.getElementById('openFolder').onclick = () => folderInput.click();
+    input.onchange = async () => { await addReadingFiles(input.files); input.value = ''; };
+    folderInput.onchange = async () => { await addReadingFiles(folderInput.files); folderInput.value = ''; };
     document.getElementById('askbtn').addEventListener('click',()=>{const v=document.getElementById('askin').value.trim();if(!v)return;document.getElementById('newnote').insertAdjacentHTML('beforeend',`<div class="notecard"><div class="q">You asked</div>${v}<br><em style="color:var(--muted)">Stubbed reply.</em></div>`);document.getElementById('askin').value='';});
   }
 

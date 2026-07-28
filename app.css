@@ -264,3 +264,23 @@
 .entacts { margin-top: 6px; display: flex; gap: 12px; }
 .entlink { background: none; border: none; color: var(--accent); font-family: var(--sans); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline; }
 .entlink:hover { color: var(--accent-light); }
+
+/* ===== Readings shelf — dropdown selector + multi/folder load ===== */
+.reading-select {
+  font-family: var(--sans); font-size: 13.5px; color: var(--ink);
+  background: #fff; border: 1px solid var(--comment-border); border-radius: 8px;
+  padding: 8px 34px 8px 13px; cursor: pointer; max-width: min(520px, 48vw);
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%237A3B10' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.reading-select:focus { outline: none; border-color: var(--accent-light); }
+.reading-select:disabled { color: var(--muted); cursor: default; }
+.rchip-x {
+  font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--muted);
+  background: #fff; border: 1px solid var(--comment-border); border-radius: 999px;
+  padding: 7px 13px; cursor: pointer;
+}
+.rchip-x:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
+.rchip-x:disabled { opacity: .4; cursor: default; }
+.shelf-spacer { flex: 1; }
