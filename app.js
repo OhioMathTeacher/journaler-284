@@ -557,6 +557,45 @@ async function runReflection(rf, text) {
     r.readAsText(file);
   }
 
+  // ═══ Notebook journal — living, dated pages (318P model). The student ELEVATES
+  //     a draft into an entry with "＋ Add to notebook"; nothing is auto-logged.
+  //     Entries thread by piece, so one piece's passes stack across the term.
+  //     entry = { id, pieceId, pieceKind, pieceTitle, ts, date, edited, text }
+  if(!Array.isArray(DB.journal)) DB.journal = [];
+  // One-time migration of the earlier flat DB.notebook quick-writes into the journal.
+  if(DB.notebook && !DB._journalMigrated){
+    for(const date in DB.notebook){ for(const e of (DB.notebook[date]||[])){
+      DB.journal.push({ id:'j'+Date.now()+Math.round(Math.random()*1e5), pieceId:'free', pieceKind:'freewrite', pieceTitle:'Free-writes & quick-writes', ts:new Date(date+'T12:00:00').toISOString(), date, edited:new Date(date+'T12:00:00').toISOString(), text:(e&&e.x)||'' });
+    } }
+    DB._journalMigrated = true; saveDB();
+  }
+  const PIECE_ORDER = ['op1','op2','op3','op4','op5','cur-reg','cur-pro','cur-syn','free'];
+  function pieceRank(id){ const i = PIECE_ORDER.indexOf(id); return i<0 ? 99 : i; }
+  let _toastT;
+  function toast(msg){
+    let el = document.getElementById('cr284Toast');
+    if(!el){ el = document.createElement('div'); el.id = 'cr284Toast'; el.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--parchment);font-family:var(--sans);font-size:13px;padding:9px 16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:60;opacity:0;transition:opacity .2s;pointer-events:none'; document.body.appendChild(el); }
+    el.textContent = msg; el.style.opacity = '1'; clearTimeout(_toastT); _toastT = setTimeout(()=>{ el.style.opacity = '0'; }, 1700);
+  }
+  function elevate(pieceId, pieceKind, pieceTitle, text, dateKey){
+    text = (text||'').trim();
+    if(!text){ toast('Nothing to keep yet — write something first.'); return null; }
+    const now = new Date();
+    const entry = { id:'j'+now.getTime()+Math.round(Math.random()*1e5), pieceId, pieceKind, pieceTitle, ts:now.toISOString(), date: dateKey || now.toISOString().slice(0,10), edited: now.toISOString(), text };
+    DB.journal.push(entry); saveDB(); toast('Kept in your notebook ✎'); return entry;
+  }
+  function journalByDate(dateKey){ return DB.journal.filter(e=>e.date===dateKey); }
+  function journalByPiece(pieceId){ return DB.journal.filter(e=>e.pieceId===pieceId).sort((a,b)=>a.ts.localeCompare(b.ts)); }
+  function journalPieces(){ const m = {}; for(const e of DB.journal){ (m[e.pieceId] = m[e.pieceId] || { id:e.pieceId, kind:e.pieceKind, title:e.pieceTitle, entries:[] }).entries.push(e); } return Object.values(m).sort((a,b)=>pieceRank(a.id)-pieceRank(b.id) || a.title.localeCompare(b.title)); }
+  function deleteEntry(id){ DB.journal = DB.journal.filter(e=>e.id!==id); saveDB(); }
+  function updateEntry(id, text){ const e = DB.journal.find(x=>x.id===id); if(e){ e.text = text; e.edited = new Date().toISOString(); saveDB(); } }
+  // Jump from a notebook entry to the live writing surface it came from.
+  function goToPiece(pieceId){
+    if(/^op[1-5]$/.test(pieceId)){ fwCur = pieceId; show('free'); }
+    else if(pieceId.indexOf('cur-') === 0){ curCur = pieceId.slice(4); show('cur'); }
+    else { show('free'); }
+  }
+
   // ---------- FreeWrite ----------
   const OPS = {
     op1:{n:1,t:'Why You Write',f:'Why have you written, and why do you write? <span class="hint">What has it cost you? What has it given you?</span>',ph:'Shape your gush into one page — ~500–600 words, image and text.'},
@@ -606,7 +645,7 @@ async function runReflection(rf, text) {
           <span class="sep"></span><button id="imgBtn">&#128247;</button><span class="wc" id="wc">0 words</span></div>
         <div class="page" id="page" contenteditable="${fwGushed[fwCur]?'true':'false'}" data-ph="${M.ph}"></div>
         <input type="file" id="imgInput" accept="image/*" hidden ${M.photos?'multiple':''}>
-        <div class="composer-foot"><button class="btn">Export One-Pager (1-page PDF)</button><span class="note">Session + AI-use log export with it.</span></div>
+        <div class="composer-foot"><button class="btn ghost" id="opAddNb">＋ Add to notebook</button><button class="btn">Export One-Pager (1-page PDF)</button><span class="note">Keeping it dates a page in your notebook — do it again later and both passes stay.</span></div>
        </div>
       </div>`;
     wireTimer();
@@ -617,6 +656,8 @@ async function runReflection(rf, text) {
     // Save the shaped one-pager as it is typed.
     pgEl.addEventListener('input', ()=>{ DB.freewrite[fwCur] = Object.assign({}, DB.freewrite[fwCur], { shape: pgEl.innerHTML }); saveDB(); });
     document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,onEnd:()=>{fwDone[fwCur]=true;fwGushed[fwCur]=true;DB.freewrite[fwCur]=Object.assign({},DB.freewrite[fwCur],{gush:document.getElementById('gush').value,gushed:true,done:true});saveDB();document.body.classList.add('wide');const oc=document.querySelector('.op-cols');if(oc)oc.classList.add('two');const pg=document.getElementById('page');if(pg)pg.setAttribute('contenteditable','true');}}));
+    const opAdd = document.getElementById('opAddNb');
+    if(opAdd) opAdd.onclick = ()=>{ const pg = document.getElementById('page'); const txt = (pg && pg.innerText.trim()) || document.getElementById('gush').value; elevate('op'+M.n, 'one-pager', 'One-Pager '+M.n+' · '+M.t, txt); };
     wireComposer();
   }
   function renderOpen(){
@@ -626,13 +667,15 @@ async function runReflection(rf, text) {
       <div class="stems"><button class="btn ghost sm" id="stemBtn">Suggest a stem</button><span class="stem-chip" id="stemChip" style="display:none"></span></div>
       <div class="gushbar" style="margin-top:16px"><div class="timerset" id="timerset"><button class="tadj" id="tminus">−</button><span class="timer editable" id="timer">8:00</span><button class="tadj" id="tplus">+</button></div>
         <button class="btn go" id="startBtn">Start</button><button class="btn ghost sm" id="notimer">No timer</button><span class="locknote">Lands in your Notebook, dated.</span></div>
-      <textarea class="gush" id="gush" placeholder="Write to keep the practice going."></textarea>`;
+      <textarea class="gush" id="gush" placeholder="Write to keep the practice going."></textarea>
+      <div style="max-width:var(--writecol);margin:10px auto 0"><button class="btn ghost sm" id="openAddNb">＋ Add to notebook</button></div>`;
     let ix=0; document.getElementById('stemBtn').addEventListener('click',()=>{const c=document.getElementById('stemChip');c.style.display='inline-block';c.textContent=STEMS[ix++%STEMS.length];});
     wireTimer();
     // Restore + save the open-page free-write.
     const openTa = document.getElementById('gush');
     if(DB.freewrite.open && DB.freewrite.open.text){ openTa.value = DB.freewrite.open.text; }
     openTa.addEventListener('input', ()=>{ DB.freewrite.open = { text: openTa.value }; saveDB(); });
+    document.getElementById('openAddNb').onclick = ()=>{ elevate('free', 'freewrite', 'Free-writes & quick-writes', openTa.value); };
     document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true}));
     document.getElementById('notimer').addEventListener('click',()=>{const ta=document.getElementById('gush');ta.disabled=false;ta.focus();setFocus(true);});
   }
@@ -665,10 +708,12 @@ async function runReflection(rf, text) {
       st.innerHTML=`<p class="kicker">${m.k}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
         <div class="gushbar"><div class="timerset" id="timerset"><button class="tadj" id="tminus">−</button><span class="timer editable" id="timer">8:00</span><button class="tadj" id="tplus">+</button></div><button class="btn go" id="startBtn">Start the gush</button><span class="locknote" id="lockmsg">Set your minutes, then start → locks + Focus.</span></div>
         <textarea class="gush" id="gush" placeholder="Don’t stop, don’t fix." disabled></textarea>
-        <div class="reflect" id="reflect" style="display:none"><span class="lbl">Reflection partner</span><span>How did remembering go? <em>(stubbed)</em></span></div>`;
+        <div class="reflect" id="reflect" style="display:none"><span class="lbl">Reflection partner</span><span>How did remembering go? <em>(stubbed)</em></span></div>
+        <div style="margin-top:12px"><button class="btn ghost sm" id="curAddNb">＋ Add to notebook</button></div>`;
       wireTimer();
       if(curBursts[curCur]){ document.getElementById('gush').value = curBursts[curCur]; }
       document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,onEnd:()=>{curBursts[curCur]=document.getElementById('gush').value||'(gush)';DB.currere[curCur]=curBursts[curCur];saveDB();}}));
+      const curAdd = document.getElementById('curAddNb'); if(curAdd) curAdd.onclick = ()=>elevate('cur-'+curCur, 'currere', m.k+' · '+m.t, document.getElementById('gush').value);
     } else if(m.kind==='ana'){
       const pane=k=>curBursts[k]?`<div class="pane">${curBursts[k]}</div>`:`<div class="pane" style="color:var(--muted);font-style:italic">Run this gush first.</div>`;
       st.innerHTML=`<p class="kicker">${m.k}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
@@ -679,10 +724,11 @@ async function runReflection(rf, text) {
     } else {
       st.innerHTML=`<p class="kicker">${m.k}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
         <textarea class="gush" id="gush" placeholder="Write the currere — open parts, or braid it into one. Pull scenes from what you gathered."></textarea>
-        <div class="composer-foot" style="margin-top:14px"><button class="btn ghost">Craft consultant</button><button class="btn ghost">Todd-in-a-Can</button><button class="btn">Assemble Conference Packet (PDF)</button></div>`;
+        <div class="composer-foot" style="margin-top:14px"><button class="btn ghost" id="synAddNb">＋ Add to notebook</button><button class="btn ghost">Craft consultant</button><button class="btn ghost">Todd-in-a-Can</button><button class="btn">Assemble Conference Packet (PDF)</button></div>`;
       const synTa = document.getElementById('gush');
       if(DB.currere.syn){ synTa.value = DB.currere.syn; }
       synTa.addEventListener('input', ()=>{ DB.currere.syn = synTa.value; saveDB(); });
+      const synAdd = document.getElementById('synAddNb'); if(synAdd) synAdd.onclick = ()=>elevate('cur-syn', 'currere', 'Moment 4 · Synthetical', synTa.value);
     }
   }
 
@@ -742,59 +788,105 @@ async function runReflection(rf, text) {
     document.getElementById('askbtn').addEventListener('click',()=>{const v=document.getElementById('askin').value.trim();if(!v)return;document.getElementById('newnote').insertAdjacentHTML('beforeend',`<div class="notecard"><div class="q">You asked</div>${v}<br><em style="color:var(--muted)">Stubbed reply.</em></div>`);document.getElementById('askin').value='';});
   }
 
-  // ---------- Notebook (calendar navigator) ----------
-  // Real dated entries the student writes — persisted in DB.notebook.
-  const NOTE_ENTRIES = DB.notebook;
-  // July–December 2026. July is open now for testing; the term runs Aug–Dec.
-  const NOTE_MIN = 2026*12 + 6;  // July 2026
+  // ---------- Notebook — kept pages, seen two ways (by day · by piece) ----------
+  const NOTE_MIN = 2026*12 + 6;  // July 2026 (open now for testing; term is Aug–Dec)
   const NOTE_MAX = 2026*12 + 11; // December 2026
   let noteView = new Date(2026, 6, 1); // July 2026
-  let noteSel = null;
-  function noteDetail(){
-    if(!noteSel) return `<div class="notedetail"><h3>Pick a day</h3><p class="empty">Click any day to write, or to read what you wrote there. A green dot marks a day with an entry.</p></div>`;
+  let noteSel = null;          // selected calendar day (by-day lens)
+  let noteMode = 'day';        // 'day' | 'piece'
+  let notePieceSel = null;     // selected piece (by-piece lens)
+  let nbEditingId = null;      // entry being inline-edited
+
+  // One dated page. Read-only, or inline-editable when nbEditingId matches.
+  function entryCard(e, opts){
+    opts = opts || {};
+    const when = new Date(e.ts).toLocaleString(undefined, {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
+    if(nbEditingId === e.id){
+      return `<div class="entryrow"><div class="k">${escHtml(e.pieceTitle)} · ${when}</div>
+        <textarea id="edit_${e.id}" style="width:100%;min-height:92px;box-sizing:border-box;font-family:var(--serif);font-size:15px;line-height:1.6;padding:10px 12px;border:1px solid var(--accent-light);border-radius:6px;resize:vertical">${escHtml(e.text)}</textarea>
+        <div style="margin-top:6px;display:flex;gap:6px"><button class="btn sm" data-save="${e.id}">Save</button><button class="btn ghost sm" data-cancel="1">Cancel</button><button class="btn ghost sm" data-del="${e.id}">Delete</button></div></div>`;
+    }
+    const head = (opts.showPiece === false) ? when : `${escHtml(e.pieceTitle)} · ${when}`;
+    const openLink = (opts.pieceLink !== false && e.pieceId !== 'free') ? `<button class="entlink" data-open="${e.pieceId}">Open the live piece →</button>` : '';
+    return `<div class="entryrow"><div class="k">${head}</div><div class="x">${escHtml(e.text).replace(/\n/g,'<br>')}</div>
+      <div class="entacts"><button class="entlink" data-edit="${e.id}">Edit</button>${openLink}</div></div>`;
+  }
+
+  function noteDayDetail(){
+    if(!noteSel) return `<div class="notedetail"><h3>Pick a day</h3><p class="empty">Click a day to see the pages you kept that day. A green dot marks a day with a kept page.</p></div>`;
     const d = new Date(noteSel + 'T00:00:00');
     const label = d.toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
-    const list = NOTE_ENTRIES[noteSel] || [];
-    const entries = list.length
-      ? list.map(e=>`<div class="entryrow"><div class="k">${escHtml(e.k||'Notebook')}</div>${e.t?`<div class="t">${escHtml(e.t)}</div>`:''}<div class="x">${escHtml(e.x)}</div></div>`).join('')
-      : `<p class="empty">Nothing written this day yet.</p>`;
+    const list = journalByDate(noteSel).sort((a,b)=>a.ts.localeCompare(b.ts));
+    const entries = list.length ? list.map(e=>entryCard(e, {})).join('') : `<p class="empty">Nothing kept this day yet.</p>`;
     return `<div class="notedetail"><h3>${label}</h3>${entries}
-      <div class="entryrow"><textarea id="noteCompose" placeholder="Write an entry for this day…" style="width:100%;min-height:92px;box-sizing:border-box;font-family:var(--serif);font-size:15px;line-height:1.6;padding:10px 12px;border:1px solid var(--comment-border);border-radius:6px;resize:vertical"></textarea>
-      <button class="btn sm" id="noteSaveBtn" style="margin-top:8px">Save entry</button></div></div>`;
+      <div class="entryrow"><div class="k">Quick-write for this day</div><textarea id="noteCompose" placeholder="Jot a note or free-write, then keep it…" style="width:100%;min-height:88px;box-sizing:border-box;font-family:var(--serif);font-size:15px;line-height:1.6;padding:10px 12px;border:1px solid var(--comment-border);border-radius:6px;resize:vertical"></textarea>
+      <button class="btn sm" id="noteSaveBtn" style="margin-top:8px">Keep this page</button></div></div>`;
   }
+
+  function notePieceDetail(){
+    if(!notePieceSel) return `<div class="notedetail"><h3>Pick a piece</h3><p class="empty">Choose a piece on the left to watch it grow across the term — every pass you kept, earliest first.</p></div>`;
+    const list = journalByPiece(notePieceSel);
+    if(!list.length) return `<div class="notedetail"><h3>—</h3><p class="empty">No passes kept for this piece.</p></div>`;
+    const title = list[0].pieceTitle;
+    const openLink = list[0].pieceId !== 'free' ? `<button class="entlink" data-open="${list[0].pieceId}">Open the live piece →</button>` : '';
+    return `<div class="notedetail"><h3>${escHtml(title)}</h3>
+      <p class="runline" style="margin:0 0 12px">${list.length} kept pass${list.length>1?'es':''} · earliest first. ${openLink}</p>
+      ${list.map(e=>entryCard(e, {showPiece:false, pieceLink:false})).join('')}</div>`;
+  }
+
   function renderNote(){
     body.classList.add('wide');
-    const y = noteView.getFullYear(), m = noteView.getMonth();
-    const monthName = noteView.toLocaleDateString(undefined, {month:'long', year:'numeric'});
-    const first = new Date(y, m, 1).getDay(), days = new Date(y, m+1, 0).getDate();
-    const dow = ['S','M','T','W','T','F','S'].map(d=>`<div class="dow">${d}</div>`).join('');
-    let cells = '';
-    for(let i=0;i<first;i++) cells += '<div class="cell" style="visibility:hidden;border:none"></div>';
-    for(let d=1; d<=days; d++){
-      const key = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const list = NOTE_ENTRIES[key] || [];
-      const isOp = list.some(e=>/^One-Pager/.test(e.k));
-      cells += `<div class="cell ${list.length?'entry':''} ${isOp?'op':''} ${noteSel===key?'sel':''}" data-key="${key}">${d}</div>`;
+    const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button></div>`;
+    let leftPane, rightPane;
+    if(noteMode === 'day'){
+      const y = noteView.getFullYear(), m = noteView.getMonth();
+      const monthName = noteView.toLocaleDateString(undefined, {month:'long', year:'numeric'});
+      const first = new Date(y, m, 1).getDay(), days = new Date(y, m+1, 0).getDate();
+      const dow = ['S','M','T','W','T','F','S'].map(x=>`<div class="dow">${x}</div>`).join('');
+      let cells = '';
+      for(let i=0;i<first;i++) cells += '<div class="cell" style="visibility:hidden;border:none"></div>';
+      for(let dd=1; dd<=days; dd++){
+        const key = `${y}-${String(m+1).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+        const list = journalByDate(key);
+        const isOp = list.some(e=>e.pieceKind === 'one-pager');
+        cells += `<div class="cell ${list.length?'entry':''} ${isOp?'op':''} ${noteSel===key?'sel':''}" data-key="${key}">${dd}</div>`;
+      }
+      leftPane = `<div class="cal">
+        <div class="calhead"><button class="calnav" id="prevM" aria-label="Previous month" ${(y*12+m)<=NOTE_MIN?'disabled':''}>‹</button><span class="mname">${monthName}</span><button class="calnav" id="nextM" aria-label="Next month" ${(y*12+m)>=NOTE_MAX?'disabled':''}>›</button></div>
+        <div class="grid">${dow}${cells}</div>
+        <p class="runline" style="margin-top:12px">● green = a kept page · red outline = a One-Pager. Click a day to read it.</p>
+        <div class="composer-foot" style="margin-top:14px"><button class="btn">Bundle notebook → PDF</button></div></div>`;
+      rightPane = noteDayDetail();
+    } else {
+      const pieces = journalPieces();
+      const listHtml = pieces.length
+        ? pieces.map(p=>`<button class="moment has ${notePieceSel===p.id?'on':''}" data-piece="${p.id}"><span class="mname"><span class="dot"></span>${escHtml(p.title)}</span><span class="mkind">${p.entries.length} kept pass${p.entries.length>1?'es':''}</span></button>`).join('')
+        : `<p class="empty" style="font-family:var(--sans)">No kept pages yet. In any tab, write, then hit <strong>＋ Add to notebook</strong>.</p>`;
+      leftPane = `<div class="piecelist"><p class="lead">Your pieces</p>${listHtml}
+        <div class="composer-foot" style="margin-top:14px"><button class="btn">Bundle notebook → PDF</button></div></div>`;
+      rightPane = notePieceDetail();
     }
-    frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Every dated entry, in one place — free-writes, gushes, reading notes. This is the 50-pt Writer’s Notebook, and where you bundle a PDF to submit.</p></div>
-      <div class="notewrap">
-        <div class="cal">
-          <div class="calhead"><button class="calnav" id="prevM" aria-label="Previous month" ${(y*12+m)<=NOTE_MIN?'disabled':''}>‹</button><span class="mname">${monthName}</span><button class="calnav" id="nextM" aria-label="Next month" ${(y*12+m)>=NOTE_MAX?'disabled':''}>›</button></div>
-          <div class="grid">${dow}${cells}</div>
-          <p class="runline" style="margin-top:12px">● green = an entry · red outline = a One-Pager day. Click a day to read it.</p>
-          <div class="composer-foot" style="margin-top:14px"><button class="btn">Bundle notebook → PDF</button></div>
-        </div>
-        ${noteDetail()}
-      </div>`;
-    document.getElementById('prevM').onclick = () => { if((y*12+m)<=NOTE_MIN) return; noteView = new Date(y, m-1, 1); renderNote(); };
-    document.getElementById('nextM').onclick = () => { if((y*12+m)>=NOTE_MAX) return; noteView = new Date(y, m+1, 1); renderNote(); };
-    frame.querySelectorAll('.cell[data-key]').forEach(c => c.onclick = () => { noteSel = c.dataset.key; renderNote(); });
-    const nsb = document.getElementById('noteSaveBtn');
-    if(nsb) nsb.onclick = () => {
-      const box = document.getElementById('noteCompose'); const txt = (box.value||'').trim(); if(!txt) return;
-      (NOTE_ENTRIES[noteSel] = NOTE_ENTRIES[noteSel] || []).push({ k:'Notebook', t:'', x:txt, id: Date.now() });
-      saveDB(); renderNote();
-    };
+    frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Your kept pages — the writing you elevated with <strong>＋ Add to notebook</strong>. See them <strong>by day</strong>, or watch one piece grow <strong>by piece</strong>. This is the 50-pt Writer’s Notebook.</p>${toggle}</div>
+      <div class="notewrap">${leftPane}${rightPane}</div>`;
+
+    frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+    if(noteMode === 'day'){
+      const y = noteView.getFullYear(), m = noteView.getMonth();
+      const pm = document.getElementById('prevM'), nm = document.getElementById('nextM');
+      if(pm) pm.onclick = () => { if((y*12+m)<=NOTE_MIN) return; noteView = new Date(y, m-1, 1); renderNote(); };
+      if(nm) nm.onclick = () => { if((y*12+m)>=NOTE_MAX) return; noteView = new Date(y, m+1, 1); renderNote(); };
+      frame.querySelectorAll('.cell[data-key]').forEach(c => c.onclick = () => { noteSel = c.dataset.key; nbEditingId = null; renderNote(); });
+      const nsb = document.getElementById('noteSaveBtn');
+      if(nsb) nsb.onclick = () => { const box = document.getElementById('noteCompose'); const txt = (box.value||'').trim(); if(!txt) return; elevate('free', 'freewrite', 'Free-writes & quick-writes', txt, noteSel); renderNote(); };
+    } else {
+      frame.querySelectorAll('[data-piece]').forEach(b => b.onclick = () => { notePieceSel = b.dataset.piece; nbEditingId = null; renderNote(); });
+    }
+    // Entry actions — shared across both lenses.
+    frame.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { nbEditingId = b.dataset.edit; renderNote(); });
+    frame.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => { nbEditingId = null; renderNote(); });
+    frame.querySelectorAll('[data-save]').forEach(b => b.onclick = () => { const id = b.dataset.save; const ta = document.getElementById('edit_'+id); if(ta) updateEntry(id, ta.value); nbEditingId = null; renderNote(); });
+    frame.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if(confirm('Delete this page? This cannot be undone.')){ deleteEntry(b.dataset.del); nbEditingId = null; renderNote(); } });
+    frame.querySelectorAll('[data-open]').forEach(b => b.onclick = () => goToPiece(b.dataset.open));
   }
 
   // ---------- tabs + focus ----------
