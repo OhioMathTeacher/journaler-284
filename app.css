@@ -305,3 +305,9 @@
 .pdfnav-btn:hover:not(:disabled) { background: var(--comment-bg); }
 .pdfnav-btn:disabled { opacity: .4; cursor: default; }
 .pdfnav-lbl { font-family: var(--sans); font-size: 13px; color: var(--muted); font-weight: 600; }
+
+/* ===== PDF selectable text layer (highlighting) — harvested from 318P ===== */
+.textLayer { position: absolute; inset: 0; overflow: clip; opacity: 1; line-height: 1; text-align: initial; -webkit-text-size-adjust: none; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; caret-color: CanvasText; z-index: 2; }
+.textLayer span, .textLayer br { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0 0; }
+.textLayer span.markedContent { top: 0; height: 0; }
+.textLayer ::selection { background: rgba(198,154,92,.45); }

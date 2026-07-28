@@ -740,6 +740,32 @@ async function runReflection(rf, text) {
   let activeReading = DB.activeReading || 0;
   if(activeReading >= readings.length) activeReading = 0;
   function persistReadings(){ DB.readings = readings.map(r=>({ id:r.id, name:r.name, type:r.type, html: r.type==='txt' ? r.html : undefined, builtin: r.builtin||undefined, url: r.url||undefined })); DB.activeReading = activeReading; saveDB(); }
+
+  // Order the shelf sensibly: built-in manual first, then an intro, then chapters
+  // in NUMERIC order (ch1 < ch2 < ch10), then everything else alphabetically.
+  function readingRank(r){
+    if(r.builtin) return [0, 0, ''];
+    const low = r.name.toLowerCase();
+    if(/intro/.test(low)) return [1, 0, low];
+    const m = /^(?:wwm[\s._-]*)?ch(?:apter)?[\s._-]*(\d+)/i.exec(r.name);
+    if(m) return [2, parseInt(m[1], 10), low];
+    return [3, 0, low];
+  }
+  function sortReadings(){
+    const activeId = readings[activeReading] && readings[activeReading].id;
+    readings.sort((a,b)=>{ const ra = readingRank(a), rb = readingRank(b); return ra[0]-rb[0] || ra[1]-rb[1] || ra[2].localeCompare(rb[2]); });
+    const idx = readings.findIndex(r=>r.id === activeId);
+    activeReading = idx >= 0 ? idx : 0;
+  }
+  // A cleaner label for the dropdown (the underlying filename is kept as r.name).
+  function readingLabel(r){
+    if(r.builtin) return r.name;
+    let n = r.name.replace(/\.(pdf|docx|txt)$/i, '');
+    if(/intro/i.test(n)) return 'Introduction';
+    const m = /^(?:wwm[\s._-]*)?ch(?:apter)?[\s._-]*(\d+)[\s._-]*(.*)$/i.exec(n);
+    if(m){ const rest = (m[2]||'').replace(/[-_]+/g,' ').trim(); return 'Ch ' + m[1] + (rest ? ' · ' + rest.charAt(0).toUpperCase() + rest.slice(1) : ''); }
+    const s = n.replace(/[-_]+/g,' ').trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : r.name;
+  }
   function docBody(r){
     if(!r) return `<div class="docstub"><strong>No reading loaded.</strong><br>Use <em>＋ Load readings</em> to load a WWM chapter (PDF or .docx).</div>`;
     if(r.type === 'txt') return r.html;
@@ -830,6 +856,18 @@ async function runReflection(rf, text) {
       canvas.style.width = viewport.width + 'px'; canvas.style.height = viewport.height + 'px';
       pageDiv.appendChild(canvas); wrap.appendChild(pageDiv);
       await page.render({ canvasContext: canvas.getContext('2d'), viewport, transform: ratio !== 1 ? [ratio,0,0,ratio,0,0] : null }).promise;
+      if(token !== _readToken) return;
+      // Selectable text layer over the canvas (so passages can be highlighted / sent to Socrates).
+      try {
+        const tc = await page.getTextContent();
+        if(token !== _readToken) return;
+        const tlDiv = document.createElement('div'); tlDiv.className = 'textLayer';
+        tlDiv.style.setProperty('--scale-factor', scale);
+        tlDiv.style.setProperty('--total-scale-factor', scale);
+        pageDiv.appendChild(tlDiv);
+        const TL = window.pdfjsLib && window.pdfjsLib.TextLayer;
+        if(TL){ await new TL({ textContentSource: tc, container: tlDiv, viewport }).render(); }
+      } catch(e){ console.warn('text layer', e); }
     }
   }
   // Add one or many files (multi-select or a whole folder). txt inline, PDF/.docx bytes to IndexedDB.
@@ -856,8 +894,9 @@ async function runReflection(rf, text) {
 
   function renderRead(){
     body.classList.add('wide');
+    sortReadings();
     const options = readings.length
-      ? readings.map((r,i)=>`<option value="${i}" ${i===activeReading?'selected':''}>${escHtml(r.name)}</option>`).join('')
+      ? readings.map((r,i)=>`<option value="${i}" ${i===activeReading?'selected':''} title="${escHtml(r.name)}">${escHtml(readingLabel(r))}</option>`).join('')
       : `<option value="-1">No readings loaded yet</option>`;
     const active = readings[activeReading];
     frame.innerHTML = `<div class="head"><h1>Readings</h1><p>Open a chapter, read closely, think in the margin. Full width — the reading fills the page, your notes sit off to the side.</p></div>
