@@ -388,3 +388,39 @@ body:not(.marquee-on) .marquee-overlay { cursor: default; }
 .hl-goto, .hl-nb, .hl-del { font: inherit; font-size: .78rem; border: 1px solid var(--comment-border, rgba(0,0,0,.14)); background: transparent; border-radius: 6px; padding: .2rem .5rem; cursor: pointer; color: var(--muted); }
 .hl-goto:hover, .hl-nb:hover { color: var(--ink, #2b2a26); }
 .hl-del:hover { color: #a33; border-color: #a33; }
+
+/* ── Bundle notebook → PDF. The 50-pt turn-in artifact, printed through the
+   browser's own "Save as PDF" so the app keeps its no-build, no-CDN shape.
+   #printBundle is built on demand and removed after printing. */
+#printBundle { display: none; }
+@media print {
+  /* Hide the app chrome, not the bundle. Anything that isn't on the path from
+     <body> down to #printBundle would otherwise print behind it. */
+  body.printing > *:not(#printBundle) { display: none !important; }
+  body.printing { background: #fff; color: #000; }
+  #printBundle { display: block; font-family: var(--serif, Georgia, serif); color: #000; }
+
+  @page { margin: 20mm 18mm; }
+
+  #printBundle h1 { font-size: 26pt; margin: 0 0 .3em; }
+  #printBundle h2 { font-size: 15pt; margin: 0 0 .2em; border-bottom: 1px solid #999; padding-bottom: .18em; }
+  #printBundle h3 { font-size: 11pt; font-weight: 600; margin: 0 0 .25em; color: #333; }
+  #printBundle p { font-size: 11pt; line-height: 1.5; margin: 0 0 .55em; orphans: 3; widows: 3; }
+  #printBundle .pb-sub { font-size: 10pt; color: #555; margin-bottom: 1.2em; }
+  #printBundle .pb-note { margin-top: 3em; font-size: 11pt; }
+
+  #printBundle dl { margin: 1.5em 0 0; font-size: 11pt; }
+  #printBundle dt { float: left; clear: left; width: 9em; color: #555; }
+  #printBundle dd { margin: 0 0 .35em 9em; }
+
+  /* Only the cover takes a page of its own. Sections FLOW: a term is 25-40 kept
+     passes across ~30 pieces, and a page break per piece would print mostly white
+     space. Separation comes from spacing and the rule under each heading instead.
+     An entry still never splits across pages, so the grader reads one pass whole. */
+  #printBundle .pb-cover { break-after: page; page-break-after: always; }
+  #printBundle .pb-day, #printBundle .pb-piece { margin: 0 0 1.6em; break-inside: auto; }
+  #printBundle .pb-day + .pb-day, #printBundle .pb-piece + .pb-piece { margin-top: 2.2em; }
+  /* Never strand a heading at the foot of a page. */
+  #printBundle h2, #printBundle h3 { break-after: avoid-page; page-break-after: avoid; }
+  #printBundle article { break-inside: avoid-page; page-break-inside: avoid; margin: 0 0 1.1em; }
+}

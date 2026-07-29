@@ -6,7 +6,7 @@
 // Build stamp — bump on every shipped change so we can confirm the browser has the
 // latest code (shown bottom-right + logged to console). Old highlights keep the
 // rects they were SAVED with, so re-test the fix with a FRESH highlight.
-const BUILD = '2026-07-29 · notebook-by-reading-9';
+const BUILD = '2026-07-29 · bundle-pdf-10';
 (function showBuildTag(){
   function paint(){
     try { console.log('%cJournaler build: ' + BUILD, 'color:#c69a5c;font-weight:bold'); } catch(e){}
@@ -1738,6 +1738,69 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       ${list.map(e=>entryCard(e, {showPiece:false, pieceLink:false})).join('')}</div>`;
   }
 
+  // ── Bundle notebook → PDF. The 50-pt Writer's Notebook turn-in artifact.
+  //    Printed through the browser rather than a PDF library: this app has no build
+  //    step and ships no CDN calls, and "Save as PDF" is in every print dialog. It
+  //    also honours the student's paper size and needs no new vendored dependency.
+  //    The bundle follows the lens you're in — By day shows kept practice in date
+  //    order (what the notebook is graded on), By piece shows each piece growing.
+  function bundleNotebookPDF(){
+    const entries = (DB.journal || []).slice();
+    if(!entries.length){ toast('Nothing kept yet — add a page to your notebook first.'); return; }
+    const fmtDate = k => { const [y,m,d] = String(k).split('-').map(Number);
+      return new Date(y, (m||1)-1, d||1).toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric', year:'numeric'}); };
+    const para = t => String(t||'').split(/\n{2,}/).map(p => `<p>${escHtml(p).replace(/\n/g,'<br>')}</p>`).join('');
+
+    let sections = '';
+    if(noteMode === 'day'){
+      const byDate = {};
+      for(const e of entries) (byDate[e.date] = byDate[e.date] || []).push(e);
+      sections = Object.keys(byDate).sort().map(k => `
+        <section class="pb-day">
+          <h2>${escHtml(fmtDate(k))}</h2>
+          ${byDate[k].sort((a,b)=>a.ts.localeCompare(b.ts)).map(e => `
+            <article><h3>${escHtml(e.pieceTitle||'')}</h3>${para(e.text)}</article>`).join('')}
+        </section>`).join('');
+    } else {
+      sections = journalPieces().map(p => `
+        <section class="pb-piece">
+          <h2>${escHtml(p.title)}</h2>
+          <p class="pb-sub">${p.entries.length} kept pass${p.entries.length>1?'es':''} · earliest first</p>
+          ${p.entries.slice().sort((a,b)=>a.ts.localeCompare(b.ts)).map(e => `
+            <article><h3>${escHtml(fmtDate(e.date))}</h3>${para(e.text)}</article>`).join('')}
+        </section>`).join('');
+    }
+
+    const dates = entries.map(e => e.date).sort();
+    const kinds = {};
+    for(const e of entries) kinds[e.pieceKind] = (kinds[e.pieceKind]||0) + 1;
+    const tally = Object.keys(kinds).sort().map(k => `${escHtml(k)}: ${kinds[k]}`).join(' · ');
+
+    const host = document.createElement('div');
+    host.id = 'printBundle';
+    host.innerHTML = `
+      <section class="pb-cover">
+        <h1>Writer's Notebook</h1>
+        <p class="pb-sub">TCE 284 · kept pages, ${noteMode === 'day' ? 'by day' : 'by piece'}</p>
+        <dl>
+          <dt>Kept passes</dt><dd>${entries.length}</dd>
+          <dt>Span</dt><dd>${escHtml(fmtDate(dates[0]))} — ${escHtml(fmtDate(dates[dates.length-1]))}</dd>
+          <dt>Days written</dt><dd>${new Set(dates).size}</dd>
+          <dt>By kind</dt><dd>${tally}</dd>
+        </dl>
+        <p class="pb-note">Name: ______________________________</p>
+      </section>
+      ${sections}`;
+    document.body.appendChild(host);
+    document.body.classList.add('printing');
+    const done = () => { document.body.classList.remove('printing'); host.remove(); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    // Safari/older engines don't always fire afterprint; don't strand the app in
+    // print mode if it never arrives.
+    setTimeout(() => { if(document.getElementById('printBundle')) done(); }, 60000);
+    window.print();
+  }
+
   function renderNote(){
     body.classList.add('wide');
     const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button></div>`;
@@ -1759,7 +1822,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <div class="calhead"><button class="calnav" id="prevM" aria-label="Previous month" ${(y*12+m)<=NOTE_MIN?'disabled':''}>‹</button><span class="mname">${monthName}</span><button class="calnav" id="nextM" aria-label="Next month" ${(y*12+m)>=NOTE_MAX?'disabled':''}>›</button></div>
         <div class="grid">${dow}${cells}</div>
         <p class="runline" style="margin-top:12px">● green = a kept page · red outline = a One-Pager. Click a day to read it.</p>
-        <div class="composer-foot" style="margin-top:14px"><button class="btn">Bundle notebook → PDF</button></div></div>`;
+        <div class="composer-foot" style="margin-top:14px"><button class="btn" id="bundleBtn">Bundle notebook → PDF</button></div></div>`;
       rightPane = noteDayDetail();
     } else {
       const pieces = journalPieces();
@@ -1767,13 +1830,16 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         ? pieces.map(p=>`<button class="moment has ${notePieceSel===p.id?'on':''}" data-piece="${p.id}"><span class="mname"><span class="dot"></span>${escHtml(p.title)}</span><span class="mkind">${p.entries.length} kept pass${p.entries.length>1?'es':''}</span></button>`).join('')
         : `<p class="empty" style="font-family:var(--sans)">No kept pages yet. In any tab, write, then hit <strong>＋ Add to notebook</strong>.</p>`;
       leftPane = `<div class="piecelist"><p class="lead">Your pieces</p>${listHtml}
-        <div class="composer-foot" style="margin-top:14px"><button class="btn">Bundle notebook → PDF</button></div></div>`;
+        <div class="composer-foot" style="margin-top:14px"><button class="btn" id="bundleBtn">Bundle notebook → PDF</button></div></div>`;
       rightPane = notePieceDetail();
     }
     frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Your kept pages — the writing you elevated with <strong>＋ Add to notebook</strong>. See them <strong>by day</strong>, or watch one piece grow <strong>by piece</strong>. This is the 50-pt Writer’s Notebook.</p>${toggle}</div>
       <div class="notewrap">${leftPane}${rightPane}</div>`;
 
     frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+    // Only one lens renders at a time, so only one bundle button exists.
+    const bBtn = document.getElementById('bundleBtn');
+    if(bBtn) bBtn.onclick = bundleNotebookPDF;
     if(noteMode === 'day'){
       const y = noteView.getFullYear(), m = noteView.getMonth();
       const pm = document.getElementById('prevM'), nm = document.getElementById('nextM');
