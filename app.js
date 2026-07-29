@@ -973,6 +973,10 @@ async function runReflection(rf, text, hooks) {
     });
     // Pasted images bypass the picker entirely, so shrink them once they have landed.
     page.addEventListener('paste',()=>{ setTimeout(()=>shrinkImagesIn(page,save),0); });
+    // Sweep restored content once as well: anything inserted before this build is still
+    // full-resolution in localStorage and in every PDF it exports. data-shrunk makes it
+    // a one-time cost per image, not work repeated on every render.
+    shrinkImagesIn(page, save);
     upd();
   }
 
