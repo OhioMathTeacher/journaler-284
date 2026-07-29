@@ -905,31 +905,20 @@ async function runReflection(rf, text) {
     });
   }
   function handleMarqueeCapture(boxRect, canvas, textLayerDiv){
-    // exact text: spans whose box mostly falls inside the marquee, in reading order
+    // spans whose box mostly falls inside the marquee (>=35% area) …
     const hits = [];
     textLayerDiv.querySelectorAll('span').forEach(sp => {
+      if(!sp.textContent || !sp.textContent.trim() || sp.classList.contains('markedContent')) return;
       const r = sp.getBoundingClientRect();
       if(!r.width || !r.height) return;
       const ix = Math.max(0, Math.min(r.right,boxRect.right)-Math.max(r.left,boxRect.left));
       const iy = Math.max(0, Math.min(r.bottom,boxRect.bottom)-Math.max(r.top,boxRect.top));
-      if(ix*iy >= 0.35*(r.width*r.height)) hits.push({sp, top:r.top, left:r.left});
+      if(ix*iy >= 0.35*(r.width*r.height)) hits.push(sp);
     });
-    hits.sort((a,b)=>(Math.abs(a.top-b.top)>4 ? a.top-b.top : a.left-b.left));
-    const uniq = [];
-    for(const h of hits){
-      const prev = uniq[uniq.length-1];
-      if(prev && (h.sp.textContent||'')===(prev.sp.textContent||'') && Math.abs(h.top-prev.top)<2 && Math.abs(h.left-prev.left)<2) continue;
-      uniq.push(h);
-    }
-    let text='', lastTop=null;
-    uniq.forEach(h => {
-      const piece = h.sp.textContent || '';
-      if(lastTop!==null && Math.abs(h.top-lastTop)>4) text += '\n';
-      else if(text && !text.endsWith('\n')) text += ' ';
-      text += piece; lastTop = h.top;
-    });
-    text = text.replace(/[ \t]+/g,' ').replace(/([A-Za-z])-\n([a-z])/g,'$1$2').replace(/\n+/g,' ').trim();
-    const rects = normalizeRectsToPages(mergeRectsByLine(uniq.map(h => h.sp.getBoundingClientRect())));
+    // … then expand to complete lines between the first and last hit word.
+    const passage = expandToPassage(hits);
+    const text = spansToText(passage);
+    const rects = normalizeRectsToPages(mergeRectsByLine(passage.map(s => s.getBoundingClientRect())));
     // cropped image of the region (for figures / to keep with a note)
     let imgData = '';
     try {
@@ -951,20 +940,71 @@ async function runReflection(rf, text) {
     return el ? el.closest('#docPane .textLayer span') : null;
   }
   // Collapse per-word rects into one rect per text line (continuous highlight,
-  // spaces included). Buckets by y; fine for single-column prose (the WWM chapters).
+  // spaces included). Buckets by line-center with a height-scaled tolerance so OCR
+  // baseline jitter never splits a line. Single-column prose (the WWM chapters).
   function mergeRectsByLine(rects){
     const lines = [];
     rects.forEach(r => {
-      const g = lines.find(l => Math.abs(l.top - r.top) < 6 || Math.abs((l.top+l.bottom)/2 - (r.top+r.bottom)/2) < 6);
-      if(g){ g.top=Math.min(g.top,r.top); g.bottom=Math.max(g.bottom,r.bottom); g.left=Math.min(g.left,r.left); g.right=Math.max(g.right,r.right); }
-      else lines.push({ top:r.top, bottom:r.bottom, left:r.left, right:r.right });
+      const mid = (r.top + r.bottom)/2, h = r.bottom - r.top;
+      const g = lines.find(l => Math.abs(l.mid - mid) <= Math.max(6, Math.min(l.h, h) * 0.6));
+      if(g){ g.top=Math.min(g.top,r.top); g.bottom=Math.max(g.bottom,r.bottom); g.left=Math.min(g.left,r.left); g.right=Math.max(g.right,r.right); g.mid=(g.top+g.bottom)/2; g.h=g.bottom-g.top; }
+      else lines.push({ top:r.top, bottom:r.bottom, left:r.left, right:r.right, mid, h });
     });
     return lines.map(g => ({ left:g.left, top:g.top, right:g.right, bottom:g.bottom, width:g.right-g.left, height:g.bottom-g.top }));
   }
-  // Native text selection (Select mode). Rather than trust the browser's (often
-  // rectangular) selection geometry over word-level OCR spans, take only the start
-  // and end words, order ALL spans by reading position (top, then left), and take
-  // the contiguous slice between them — so full intermediate lines are covered.
+  // Group every visible text-layer span into reading-order LINES, tolerant of the
+  // per-word baseline jitter OCR produces — so a line never scrambles left↔right.
+  function docLines(){
+    const items = [...document.querySelectorAll('#docPane .textLayer span')]
+      .filter(sp => sp.textContent && sp.textContent.trim() && !sp.classList.contains('markedContent'))
+      .map(sp => { const r = sp.getBoundingClientRect(); return { sp, top:r.top, bottom:r.bottom, left:r.left, right:r.right, mid:(r.top+r.bottom)/2, h:r.height }; })
+      .sort((a,b) => a.top - b.top || a.left - b.left);
+    const lines = [];
+    items.forEach(it => {
+      const ln = lines[lines.length-1];
+      if(ln && Math.abs(it.mid - ln.mid) <= Math.max(6, ln.h * 0.6)){ ln.items.push(it); ln.mid = (ln.mid*ln.n + it.mid)/(ln.n+1); ln.n++; ln.h = Math.max(ln.h, it.h); }
+      else lines.push({ mid:it.mid, h:it.h, n:1, items:[it] });
+    });
+    lines.forEach(l => l.items.sort((a,b) => a.left - b.left));
+    return lines;
+  }
+  // From anchor spans (marquee hits, or the two selection-boundary words) build the
+  // full passage: first→last word with every intermediate LINE complete. The first
+  // line runs from the start word to its end; the last line up to the end word.
+  function expandToPassage(anchors){
+    if(!anchors || !anchors.length) return [];
+    const set = new Set(anchors);
+    const lines = docLines();
+    let firstLine = -1, lastLine = -1, firstLeft = Infinity, lastRight = -Infinity;
+    lines.forEach((ln, li) => {
+      ln.items.forEach(it => {
+        if(!set.has(it.sp)) return;
+        if(firstLine === -1 || li < firstLine){ firstLine = li; firstLeft = it.left; }
+        else if(li === firstLine){ firstLeft = Math.min(firstLeft, it.left); }
+        if(li > lastLine){ lastLine = li; lastRight = it.right; }
+        else if(li === lastLine){ lastRight = Math.max(lastRight, it.right); }
+      });
+    });
+    if(firstLine === -1) return anchors.slice();
+    const out = [];
+    for(let li = firstLine; li <= lastLine; li++){
+      lines[li].items.forEach(it => {
+        const okL = (li > firstLine) || (it.left >= firstLeft - 2);
+        const okR = (li < lastLine) || (it.right <= lastRight + 2);
+        if(okL && okR) out.push(it.sp);
+      });
+    }
+    return out;
+  }
+  // Passage spans → clean text (line-break de-hyphenation + collapsed whitespace).
+  function spansToText(spans){
+    return spans.map(s => s.textContent || '').join(' ')
+      .replace(/([A-Za-z])[-­]\s+([a-z])/g, '$1$2')
+      .replace(/\s+/g, ' ').trim();
+  }
+  // Native text selection (Select mode). Take only the start & end words the user
+  // touched, then expandToPassage fills complete lines between them — so coverage
+  // never follows the browser's rectangular selection geometry.
   function handleSelectionCapture(){
     if(pdfCaptureMode !== 'select') return;
     const sel = window.getSelection();
@@ -972,20 +1012,11 @@ async function runReflection(rf, text) {
     const range = sel.getRangeAt(0);
     const startSpan = spanOf(range.startContainer), endSpan = spanOf(range.endContainer);
     if(!startSpan || !endSpan) return;
-    const ordered = [...document.querySelectorAll('#docPane .textLayer span')]
-      .filter(sp => sp.textContent && sp.textContent.trim() && !sp.classList.contains('markedContent'))
-      .map(sp => { const r = sp.getBoundingClientRect(); return { sp, top:r.top, left:r.left }; })
-      .sort((a,b) => (Math.abs(a.top - b.top) > 6 ? a.top - b.top : a.left - b.left))
-      .map(o => o.sp);
-    let i0 = ordered.indexOf(startSpan), i1 = ordered.indexOf(endSpan);
-    if(i0 === -1 || i1 === -1) return;
-    if(i0 > i1){ const t = i0; i0 = i1; i1 = t; }
-    const spans = ordered.slice(i0, i1 + 1);
-    if(!spans.length) return;
-    let text = spans.map(s => s.textContent).join(' ')
-      .replace(/([A-Za-z])-\s+([a-z])/g,'$1$2').replace(/\s+/g,' ').trim();
+    const passage = expandToPassage([startSpan, endSpan]);
+    if(!passage.length) return;
+    const text = spansToText(passage);
     if(text.length < 3) return;
-    const rects = normalizeRectsToPages(mergeRectsByLine(spans.map(s => s.getBoundingClientRect())));
+    const rects = normalizeRectsToPages(mergeRectsByLine(passage.map(s => s.getBoundingClientRect())));
     if(!rects.length) return;
     openCapturePopup(text, '', range.getBoundingClientRect(), rects);
   }
