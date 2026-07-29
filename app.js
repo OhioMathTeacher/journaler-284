@@ -830,8 +830,8 @@ async function runReflection(rf, text) {
   // so "box" mode is the default: drag a rectangle and harvest the spans it covers, in
   // reading order, plus a cropped image (figures). "select" = native text selection.
   // Toggle with the shelf button. See app.css .marquee-* / .selection-popup.
-  let pdfCaptureMode = (typeof DB === 'object' && DB && DB.pdfCaptureMode) || 'box';
-  let captureText = '', captureImage = '';
+  let pdfCaptureMode = (typeof DB === 'object' && DB && DB.pdfCaptureMode) || 'select';
+  let captureText = '', captureImage = '', captureRects = null;
 
   // Reorder OCR text items into reading order when the page has clear columns.
   function orderByReadingColumns(items, pageWidth){
@@ -929,6 +929,7 @@ async function runReflection(rf, text) {
       text += piece; lastTop = h.top;
     });
     text = text.replace(/[ \t]+/g,' ').replace(/([A-Za-z])-\n([a-z])/g,'$1$2').replace(/\n+/g,' ').trim();
+    const rects = normalizeRectsToPages(mergeRectsByLine(uniq.map(h => h.sp.getBoundingClientRect())));
     // cropped image of the region (for figures / to keep with a note)
     let imgData = '';
     try {
@@ -942,7 +943,51 @@ async function runReflection(rf, text) {
       tmp.getContext('2d').drawImage(canvas, sx,sy,sw,sh, 0,0, tmp.width,tmp.height);
       imgData = tmp.toDataURL('image/png');
     } catch(e){ console.warn('crop', e); }
-    openCapturePopup(text, imgData, boxRect);
+    openCapturePopup(text, imgData, boxRect, rects);
+  }
+  // The text-layer span containing a selection boundary node.
+  function spanOf(node){
+    const el = node && (node.nodeType === 1 ? node : node.parentElement);
+    return el ? el.closest('#docPane .textLayer span') : null;
+  }
+  // Collapse per-word rects into one rect per text line (continuous highlight,
+  // spaces included). Buckets by y; fine for single-column prose (the WWM chapters).
+  function mergeRectsByLine(rects){
+    const lines = [];
+    rects.forEach(r => {
+      const g = lines.find(l => Math.abs(l.top - r.top) < 6 || Math.abs((l.top+l.bottom)/2 - (r.top+r.bottom)/2) < 6);
+      if(g){ g.top=Math.min(g.top,r.top); g.bottom=Math.max(g.bottom,r.bottom); g.left=Math.min(g.left,r.left); g.right=Math.max(g.right,r.right); }
+      else lines.push({ top:r.top, bottom:r.bottom, left:r.left, right:r.right });
+    });
+    return lines.map(g => ({ left:g.left, top:g.top, right:g.right, bottom:g.bottom, width:g.right-g.left, height:g.bottom-g.top }));
+  }
+  // Native text selection (Select mode). Rather than trust the browser's (often
+  // rectangular) selection geometry over word-level OCR spans, take only the start
+  // and end words, order ALL spans by reading position (top, then left), and take
+  // the contiguous slice between them — so full intermediate lines are covered.
+  function handleSelectionCapture(){
+    if(pdfCaptureMode !== 'select') return;
+    const sel = window.getSelection();
+    if(!sel || sel.isCollapsed || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const startSpan = spanOf(range.startContainer), endSpan = spanOf(range.endContainer);
+    if(!startSpan || !endSpan) return;
+    const ordered = [...document.querySelectorAll('#docPane .textLayer span')]
+      .filter(sp => sp.textContent && sp.textContent.trim() && !sp.classList.contains('markedContent'))
+      .map(sp => { const r = sp.getBoundingClientRect(); return { sp, top:r.top, left:r.left }; })
+      .sort((a,b) => (Math.abs(a.top - b.top) > 6 ? a.top - b.top : a.left - b.left))
+      .map(o => o.sp);
+    let i0 = ordered.indexOf(startSpan), i1 = ordered.indexOf(endSpan);
+    if(i0 === -1 || i1 === -1) return;
+    if(i0 > i1){ const t = i0; i0 = i1; i1 = t; }
+    const spans = ordered.slice(i0, i1 + 1);
+    if(!spans.length) return;
+    let text = spans.map(s => s.textContent).join(' ')
+      .replace(/([A-Za-z])-\s+([a-z])/g,'$1$2').replace(/\s+/g,' ').trim();
+    if(text.length < 3) return;
+    const rects = normalizeRectsToPages(mergeRectsByLine(spans.map(s => s.getBoundingClientRect())));
+    if(!rects.length) return;
+    openCapturePopup(text, '', range.getBoundingClientRect(), rects);
   }
 
   function ensureCapturePopup(){
@@ -969,8 +1014,8 @@ async function runReflection(rf, text) {
     });
     return pop;
   }
-  function openCapturePopup(text, imgData, boxRect){
-    captureText = text || ''; captureImage = imgData || '';
+  function openCapturePopup(text, imgData, boxRect, rects){
+    captureText = text || ''; captureImage = imgData || ''; captureRects = rects || null;
     const pop = ensureCapturePopup();
     const thumb = pop.querySelector('#captureThumb');
     const figBtn = pop.querySelector('#captureFigBtn');
@@ -996,14 +1041,16 @@ async function runReflection(rf, text) {
     const pop = document.getElementById('capturePopup');
     const note = pop ? pop.querySelector('#captureInput').value.trim() : '';
     if(!captureText && !captureImage){ closeCapture(); return; }
-    const passage = captureText, image = captureImage;
-    const box = document.getElementById('newnote');
-    if(box){
-      const img = image ? `<img src="${image}" alt="figure" style="max-width:100%;border-radius:4px;margin:.35rem 0;border:1px solid rgba(0,0,0,.12)">` : '';
-      const psg = passage ? `<div class="q">Highlight</div>${escHtml(passage)}` : `<div class="q">Figure</div>`;
-      const nt = note ? `<br><em style="color:var(--muted)">${escHtml(note)}</em>` : '';
-      box.insertAdjacentHTML('beforeend', `<div class="notecard">${psg}${img}${nt}</div>`);
-    }
+    const passage = captureText;
+    const rects = captureRects || [];
+    const rec = {
+      id: 'h' + Date.now() + '-' + Math.round(Math.random()*1e6),
+      text: passage || '', image: captureImage || '', note,
+      rects, page: (rects[0] && rects[0].page) || readPageNum, ts: Date.now()
+    };
+    addHighlight(rec);
+    repaintHighlights();
+    renderHighlightList();
     closeCapture();
     if(ask && passage) askRomanoInto(passage, note);
   }
@@ -1043,6 +1090,86 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     catch(e){ replyEl.innerHTML = '<em>Romano is unavailable right now.</em>'; }
   }
 
+  // ── Persistent highlights. Stored per reading in DB.highlights[readingId] as
+  // page-normalized rects (0..1 of the page box), so they survive zoom / page nav /
+  // single↔continuous by re-mapping to the current page size on every render.
+  function currentReadingId(){ const r = readings[activeReading]; return r ? r.id : null; }
+  function allHighlights(){ if(!DB.highlights) DB.highlights = {}; return DB.highlights; }
+  function getHighlights(rid){ return (rid && allHighlights()[rid]) || []; }
+  function persistHighlights(rid, list){ allHighlights()[rid] = list; saveDB(); }
+  function addHighlight(rec){
+    const rid = currentReadingId(); if(!rid) return null;
+    persistHighlights(rid, getHighlights(rid).concat([rec])); return rec;
+  }
+  function removeHighlight(id){
+    const rid = currentReadingId(); if(!rid) return;
+    persistHighlights(rid, getHighlights(rid).filter(h => h.id !== id));
+    document.querySelectorAll(`.hl-mark[data-hl="${id}"]`).forEach(el => el.remove());
+    renderHighlightList();
+  }
+  // Map a list of DOM client rects to {page,x,y,w,h} fractions of the page they sit on.
+  function normalizeRectsToPages(clientRects){
+    const pages = [...document.querySelectorAll('#docPane .pdf-page')];
+    const out = [];
+    clientRects.forEach(r => {
+      const cx = r.left + r.width/2, cy = r.top + r.height/2;
+      for(const pg of pages){
+        const p = pg.getBoundingClientRect();
+        if(cx>=p.left && cx<=p.right && cy>=p.top && cy<=p.bottom){
+          out.push({ page:+(pg.dataset.page||1), x:(r.left-p.left)/p.width, y:(r.top-p.top)/p.height, w:r.width/p.width, h:r.height/p.height });
+          break;
+        }
+      }
+    });
+    return out;
+  }
+  function paintHighlightsForPage(pageDiv, pageNum, rid){
+    let layer = pageDiv.querySelector('.hl-layer');
+    if(!layer){ layer = document.createElement('div'); layer.className = 'hl-layer'; pageDiv.appendChild(layer); }
+    layer.innerHTML = '';
+    getHighlights(rid).forEach(h => {
+      (h.rects||[]).filter(rc => (rc.page||1) === pageNum).forEach(rc => {
+        const m = document.createElement('div'); m.className = 'hl-mark'; m.dataset.hl = h.id;
+        m.style.left = (rc.x*100)+'%'; m.style.top = (rc.y*100)+'%';
+        m.style.width = (rc.w*100)+'%'; m.style.height = (rc.h*100)+'%';
+        layer.appendChild(m);
+      });
+    });
+  }
+  function repaintHighlights(){
+    const rid = currentReadingId();
+    document.querySelectorAll('#docPane .pdf-page').forEach(pg => paintHighlightsForPage(pg, +(pg.dataset.page||1), rid));
+  }
+  function flashMark(id){
+    document.querySelectorAll(`.hl-mark[data-hl="${id}"]`).forEach(el => { el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'), 1200); });
+  }
+  function scrollToHighlight(id){
+    const el = document.querySelector(`.hl-mark[data-hl="${id}"]`);
+    if(el){ el.scrollIntoView({ behavior:'smooth', block:'center' }); flashMark(id); return; }
+    const rec = getHighlights(currentReadingId()).find(h => h.id === id);
+    if(!rec) return;
+    const pg = (rec.rects && rec.rects[0] && rec.rects[0].page) || rec.page || 1;
+    if(readPageMode === 'single' && pg !== readPageNum){
+      readPageNum = pg;
+      renderActiveDoc(readings[activeReading]);
+      setTimeout(()=>{ const e2 = document.querySelector(`.hl-mark[data-hl="${id}"]`); if(e2){ e2.scrollIntoView({ behavior:'smooth', block:'center' }); flashMark(id); } }, 450);
+    }
+  }
+  function renderHighlightList(){
+    const el = document.getElementById('hlList'); if(!el) return;
+    const list = getHighlights(currentReadingId());
+    if(!list.length){ el.innerHTML = '<p class="hl-empty">No highlights yet. Select a passage (or ▭ box one) and choose ✎ Highlight.</p>'; return; }
+    el.innerHTML = list.map(h => {
+      const snip = escHtml(h.text ? (h.text.length>140 ? h.text.slice(0,140)+'…' : h.text) : '(figure)');
+      const thumb = h.image ? `<img src="${h.image}" alt="figure" class="hl-thumb">` : '';
+      const note = h.note ? `<div class="hl-note">${escHtml(h.note)}</div>` : '';
+      return `<div class="hl-card" data-hl="${h.id}"><div class="hl-quote">${snip}</div>${thumb}${note}<div class="hl-row"><button class="hl-goto" data-hl="${h.id}">Go to</button><button class="hl-del" data-hl="${h.id}">Remove</button></div></div>`;
+    }).join('');
+    el.querySelectorAll('.hl-quote').forEach(q => q.onclick = () => scrollToHighlight(q.closest('.hl-card').dataset.hl));
+    el.querySelectorAll('.hl-goto').forEach(b => b.onclick = () => scrollToHighlight(b.dataset.hl));
+    el.querySelectorAll('.hl-del').forEach(b => b.onclick = () => removeHighlight(b.dataset.hl));
+  }
+
   // Paint pdf pages — one at a time (single, with ‹ ›) or all stacked (continuous).
   async function renderPdfPages(pane, doc, r, token){
     const single = readPageMode === 'single';
@@ -1067,7 +1194,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       const unit = page.getViewport({ scale: 1 });
       const scale = Math.max(0.4, Math.min(3, (avail / unit.width)));
       const viewport = page.getViewport({ scale });
-      const pageDiv = document.createElement('div'); pageDiv.className = 'pdf-page';
+      const pageDiv = document.createElement('div'); pageDiv.className = 'pdf-page'; pageDiv.dataset.page = n;
       pageDiv.style.width = viewport.width + 'px'; pageDiv.style.height = viewport.height + 'px';
       const canvas = document.createElement('canvas');
       canvas.width = Math.floor(viewport.width * ratio); canvas.height = Math.floor(viewport.height * ratio);
@@ -1103,6 +1230,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         overlay.style.pointerEvents = (pdfCaptureMode === 'box') ? 'auto' : 'none';
         pageDiv.appendChild(overlay);
         attachMarquee(overlay, canvas, tlDiv);
+        paintHighlightsForPage(pageDiv, n, r.id);
       } catch(e){ console.warn('text layer', e); }
     }
   }
@@ -1150,11 +1278,11 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       <div class="reader">
         <div class="doc" id="docPane">${docBody(active)}</div>
         <aside class="notes">
-          <h4>Margin · your notes</h4>
-          <div class="notecard"><div class="q">Ask Romano</div>Box a passage (or type below) and Tom Romano — the book's author — will think it through with you. <em style="color:var(--muted)">Connect an AI up top; optional.</em></div>
+          <h4>Your highlights</h4>
+          <div id="hlList"></div>
+          <div class="askbar"><input placeholder="Ask Romano about the reading…" id="askin"><button class="btn sm" id="askbtn">Ask</button></div>
           <div id="newnote"></div>
-          <div class="askbar"><input placeholder="Ask about the selection…" id="askin"><button class="btn sm" id="askbtn">Ask</button></div>
-          <p class="locknote" style="margin-top:10px">Send a marked passage to your Notebook →</p>
+          <p class="locknote" style="margin-top:10px">Highlights save automatically · export to your Notebook →</p>
         </aside>
       </div>`;
     if(active && (active.type === 'pdf' || active.type === 'docx')) renderActiveDoc(active);
@@ -1170,6 +1298,9 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     frame.querySelectorAll('.vbtn[data-vm]').forEach(b => b.onclick = () => { readPageMode = b.dataset.vm; DB.readPageMode = readPageMode; saveDB(); renderRead(); });
     const cmBtn = document.getElementById('captureModeBtn');
     if(cmBtn){ cmBtn.onclick = toggleCaptureMode; setCaptureMode(pdfCaptureMode); }
+    renderHighlightList();
+    const dp = document.getElementById('docPane');
+    if(dp) dp.addEventListener('mouseup', handleSelectionCapture);
     const input = document.getElementById('readInput');
     const folderInput = document.getElementById('readFolderInput');
     document.getElementById('openReading').onclick = () => input.click();
