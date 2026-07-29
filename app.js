@@ -6,7 +6,7 @@
 // Build stamp — bump on every shipped change so we can confirm the browser has the
 // latest code (shown bottom-right + logged to console). Old highlights keep the
 // rects they were SAVED with, so re-test the fix with a FRESH highlight.
-const BUILD = '2026-07-29 · shelf-order-7';
+const BUILD = '2026-07-29 · readings-folder-8';
 (function showBuildTag(){
   function paint(){
     try { console.log('%cJournaler build: ' + BUILD, 'color:#c69a5c;font-weight:bold'); } catch(e){}
@@ -549,9 +549,17 @@ async function runReflection(rf, text) {
 
   // Big reading files (PDF/.docx bytes) are too large for localStorage → IndexedDB.
   const READ_DB_NAME = 'cr284_readings';
-  function _readingDB(){ return new Promise((resolve,reject)=>{ let req; try{ req = indexedDB.open(READ_DB_NAME,1); }catch(e){ reject(e); return; } req.onupgradeneeded = ()=>{ req.result.createObjectStore('files'); }; req.onsuccess = ()=>resolve(req.result); req.onerror = ()=>reject(req.error); }); }
-  async function saveReadingBytes(id, buf){ try{ const db = await _readingDB(); await new Promise((res,rej)=>{ const tx = db.transaction('files','readwrite'); tx.objectStore('files').put(buf,id); tx.oncomplete = res; tx.onerror = ()=>rej(tx.error); tx.onabort = ()=>rej(tx.error); }); }catch(e){ console.warn('saveReadingBytes',e); } }
-  async function loadReadingBytes(id){ try{ const db = await _readingDB(); return await new Promise((res,rej)=>{ const tx = db.transaction('files','readonly'); const r = tx.objectStore('files').get(id); r.onsuccess = ()=>res(r.result||null); r.onerror = ()=>rej(r.error); }); }catch(e){ console.warn('loadReadingBytes',e); return null; } }
+  // v2 adds 'handles' for the readings-folder handle. The upgrade is idempotent so
+  // an existing v1 database keeps its files.
+  function _readingDB(){ return new Promise((resolve,reject)=>{ let req; try{ req = indexedDB.open(READ_DB_NAME,2); }catch(e){ reject(e); return; } req.onupgradeneeded = ()=>{ const db = req.result; if(!db.objectStoreNames.contains('files')) db.createObjectStore('files'); if(!db.objectStoreNames.contains('handles')) db.createObjectStore('handles'); }; req.onsuccess = ()=>resolve(req.result); req.onerror = ()=>reject(req.error); req.onblocked = ()=>reject(new Error('Journaler is open in another tab — close it so storage can upgrade.')); }); }
+  async function idbPut(store, key, val){ const db = await _readingDB(); return new Promise((res,rej)=>{ const tx = db.transaction(store,'readwrite'); tx.objectStore(store).put(val,key); tx.oncomplete = res; tx.onerror = ()=>rej(tx.error); tx.onabort = ()=>rej(tx.error); }); }
+  async function idbGet(store, key){ const db = await _readingDB(); return new Promise((res,rej)=>{ const tx = db.transaction(store,'readonly'); const r = tx.objectStore(store).get(key); r.onsuccess = ()=>res(r.result||null); r.onerror = ()=>rej(r.error); }); }
+  async function idbDel(store, key){ const db = await _readingDB(); return new Promise((res,rej)=>{ const tx = db.transaction(store,'readwrite'); tx.objectStore(store).delete(key); tx.oncomplete = res; tx.onerror = ()=>rej(tx.error); }); }
+  // NB: this used to swallow write failures, so a reading could be added to the
+  // shelf with no bytes behind it and only fail later at render ("This file isn't
+  // stored in this browser"). It now throws; the caller decides what to show.
+  async function saveReadingBytes(id, buf){ await idbPut('files', id, buf); }
+  async function loadReadingBytes(id){ try{ return await idbGet('files', id); }catch(e){ console.warn('loadReadingBytes',e); return null; } }
 
   // Export EVERYTHING typed as one file; import restores it, then reloads to re-init.
   function saveWork(){
@@ -757,7 +765,7 @@ async function runReflection(rf, text) {
   let readings = (DB.readings && DB.readings.length) ? DB.readings.slice() : [ Object.assign({}, MANUAL_READING) ];
   let activeReading = DB.activeReading || 0;
   if(activeReading >= readings.length) activeReading = 0;
-  function persistReadings(){ DB.readings = readings.map(r=>({ id:r.id, name:r.name, type:r.type, html: r.type==='txt' ? r.html : undefined, builtin: r.builtin||undefined, url: r.url||undefined })); DB.activeReading = activeReading; saveDB(); }
+  function persistReadings(){ DB.readings = readings.map(r=>({ id:r.id, name:r.name, type:r.type, html: r.type==='txt' ? r.html : undefined, builtin: r.builtin||undefined, url: r.url||undefined, fromDir: r.fromDir||undefined })); DB.activeReading = activeReading; saveDB(); }
 
   // Order the shelf sensibly: built-in manual first, then an intro, then chapters
   // in NUMERIC order (ch1 < ch2 < ch10), then everything else alphabetically.
@@ -817,13 +825,107 @@ async function runReflection(rf, text) {
 
   // Wait briefly for the pdf.js ES module (index.html) to attach to window.
   async function ensurePdfjs(){ for(let i=0; i<40 && !window.pdfjsLib; i++){ await new Promise(res=>setTimeout(res,100)); } return window.pdfjsLib; }
+  // ── Readings folder. Point Journaler at a folder ONCE — a course folder or a
+  //    thumb drive — and the shelf refills itself every visit instead of loading
+  //    files by hand. Files are read on demand, never copied into IndexedDB, so a
+  //    73MB set of chapters costs no browser storage at all.
+  //    Chromium only (File System Access API). Everywhere else the ＋ Load pickers
+  //    remain, unchanged — this is additive.
+  const FS_OK = typeof window.showDirectoryPicker === 'function';
+  let readingsDir = null;              // FileSystemDirectoryHandle
+  let readingsDirState = 'none';       // none | granted | prompt | missing
+  function readingsDirName(){ return readingsDir ? readingsDir.name : (DB.readingsDirName || ''); }
+
+  async function pickReadingsFolder(){
+    if(!FS_OK) return;
+    let h;
+    try { h = await window.showDirectoryPicker({ id:'journaler-readings', mode:'read' }); }
+    catch(e){ return; }                // user cancelled the picker
+    readingsDir = h; readingsDirState = 'granted';
+    DB.readingsDirName = h.name; saveDB();
+    try { await idbPut('handles','readingsDir', h); }
+    catch(e){ console.warn('store dir handle', e); toast('Folder connected, but it won’t be remembered next time.'); }
+    await syncFolderReadings();
+  }
+  // Re-granting needs a user gesture, which is why this is a button and not
+  // something that can run on load.
+  async function reconnectReadingsFolder(){
+    if(!readingsDir){ await pickReadingsFolder(); return; }
+    try {
+      const p = await readingsDir.requestPermission({ mode:'read' });
+      if(p !== 'granted'){ readingsDirState = 'prompt'; renderRead(); return; }
+      readingsDirState = 'granted';
+      await syncFolderReadings();
+    } catch(e){ readingsDirState = 'missing'; renderRead(); }
+  }
+  async function forgetReadingsFolder(){
+    for(let i = readings.length - 1; i >= 0; i--) if(readings[i].fromDir) readings.splice(i,1);
+    readingsDir = null; readingsDirState = 'none';
+    delete DB.readingsDirName; saveDB();
+    try { await idbDel('handles','readingsDir'); } catch(e){}
+    if(activeReading >= readings.length) activeReading = Math.max(0, readings.length - 1);
+    _curPdf = { id:null, doc:null };
+    persistReadings(); renderRead();
+  }
+  // Reconcile the shelf with what's actually in the folder — new files appear,
+  // deleted ones drop off. IDs are derived from the filename ('d:<name>') rather
+  // than random, so highlights and Romano's thread survive across sessions and
+  // machines; a re-picked folder finds the same work waiting.
+  async function syncFolderReadings(){
+    if(!readingsDir) return;
+    const found = [];
+    try {
+      for await (const [name, handle] of readingsDir.entries()){
+        if(handle.kind === 'file' && /\.(pdf|docx|txt)$/i.test(name)) found.push(name);
+      }
+    } catch(e){ readingsDirState = 'missing'; rerenderReadIfVisible(); return; }
+    readingsDirState = 'granted';
+    const names = new Set(found);
+    for(let i = readings.length - 1; i >= 0; i--){
+      if(readings[i].fromDir && !names.has(readings[i].name)) readings.splice(i,1);
+    }
+    const have = new Set(readings.filter(r => r.fromDir).map(r => r.name));
+    for(const name of found){
+      if(have.has(name)) continue;
+      const ext = (name.split('.').pop()||'').toLowerCase();
+      const rec = { id:'d:'+name, name, type:ext, fromDir:true };
+      if(ext === 'txt'){
+        // .txt renders from r.html, so it has to be read up front like the picker does.
+        try { const txt = await (await (await readingsDir.getFileHandle(name)).getFile()).text();
+              rec.html = `<p>${escHtml(txt).replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')}</p>`; }
+        catch(e){ continue; }
+      }
+      readings.push(rec);
+    }
+    if(activeReading >= readings.length) activeReading = Math.max(0, readings.length - 1);
+    persistReadings(); rerenderReadIfVisible();
+  }
+  // A folder sync can fire on load while the reader is on another tab; renderRead()
+  // would overwrite that tab's DOM, so only repaint when Readings is on screen.
+  function rerenderReadIfVisible(){ if(document.getElementById('readingSelect')) renderRead(); }
+
   // Bytes for a reading: a built-in (shipped) reading fetches from its URL; a
-  // student-loaded one comes from IndexedDB.
+  // folder-backed one is read from disk on demand; a picker-loaded one from IndexedDB.
   async function readingBytesFor(r){
     if(r.builtin && r.url){ try { const res = await fetch(r.url); return res.ok ? await res.arrayBuffer() : null; } catch(e){ return null; } }
+    if(r.fromDir){
+      if(!readingsDir) return null;
+      try { return await (await (await readingsDir.getFileHandle(r.name)).getFile()).arrayBuffer(); }
+      catch(e){ readingsDirState = 'missing'; return null; }
+    }
     return await loadReadingBytes(r.id);
   }
 
+  // Why a reading has no bytes: a folder reading only needs the folder reconnected
+  // (or the drive plugged back in) — telling a student to "load it again" there
+  // would be wrong advice.
+  function missingBytesStub(r){
+    if(r.fromDir){
+      const where = readingsDirName() ? ' <em>' + escHtml(readingsDirName()) + '</em>' : '';
+      return `<div class="docstub"><strong>${escHtml(r.name)}</strong><br>Your readings folder${where} isn’t connected right now.<br>Use <em>Reconnect folder</em> above — if it’s on a thumb drive, plug it back in first.</div>`;
+    }
+    return `<div class="docstub"><strong>${escHtml(r.name)}</strong><br>This file isn’t stored in this browser. Load it again with <em>＋ Load readings</em>.</div>`;
+  }
   // Render the active reading into #docPane. PDFs → canvas pages (pdf.js);
   // .docx → HTML (mammoth). A token guards against fast reading switches.
   let _readToken = 0;
@@ -843,7 +945,7 @@ async function runReflection(rf, text) {
         else {
           const bytes = await readingBytesFor(r);
           if(token !== _readToken) return;
-          if(!bytes){ pane.innerHTML = `<div class="docstub"><strong>${escHtml(r.name)}</strong><br>This file isn’t stored in this browser. Load it again with ＋ Load readings.</div>`; return; }
+          if(!bytes){ pane.innerHTML = missingBytesStub(r); return; }
           doc = await lib.getDocument({ data: (bytes.slice ? bytes.slice(0) : bytes), ...(window.PDF_DOC_OPTS||{}) }).promise;
           if(token !== _readToken) return;
           _curPdf = { id:r.id, doc };
@@ -853,7 +955,7 @@ async function runReflection(rf, text) {
     } else if(r.type === 'docx'){
       const bytes = await readingBytesFor(r);
       if(token !== _readToken) return;
-      if(!bytes){ pane.innerHTML = `<div class="docstub"><strong>${escHtml(r.name)}</strong><br>This file isn’t stored in this browser. Load it again.</div>`; return; }
+      if(!bytes){ pane.innerHTML = missingBytesStub(r); return; }
       try {
         if(!window.mammoth){ pane.innerHTML = `<div class="docstub"><strong>.docx engine not loaded.</strong></div>`; return; }
         const res = await window.mammoth.convertToHtml({ arrayBuffer: (bytes.slice ? bytes.slice(0) : bytes) });
@@ -1460,7 +1562,11 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         readings.push({ id, name: f.name, type: ext, html: `<p>${escHtml(txt).replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')}</p>` });
       } else {
         const buf = await f.arrayBuffer();
-        await saveReadingBytes(id, buf);   // kept locally; pdf.js / mammoth rendering wired next slice
+        // Only shelve it if the bytes actually landed. This used to push
+        // unconditionally, so a failed write produced a phantom reading that only
+        // announced itself at render time.
+        try { await saveReadingBytes(id, buf); }
+        catch(e){ console.warn('saveReadingBytes', e); toast('Couldn’t store ' + f.name + ' — browser storage may be full. Try 📁 Use a readings folder.'); continue; }
         readings.push({ id, name: f.name, type: ext });
       }
     }
@@ -1470,6 +1576,18 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     renderRead();
   }
 
+  // The shelf's folder control. Four states, because "connected" and "remembered
+  // but not yet re-authorised" and "drive isn't here" are genuinely different and
+  // need different advice.
+  function folderChip(){
+    if(!FS_OK) return '';
+    const nm = readingsDirName();
+    if(!nm) return `<button class="openbtn" id="pickDir" title="Point Journaler at a folder of readings — it reloads them every visit">📁 Use a readings folder</button>`;
+    if(readingsDirState === 'granted')
+      return `<span class="dirchip on" title="Reading from this folder — files are read from disk, not copied into the browser">📁 ${escHtml(nm)}<button class="dirchip-x" id="forgetDir" title="Stop using this folder">✕</button></span>`;
+    const why = readingsDirState === 'missing' ? 'Folder not found — plug the drive back in?' : 'Reconnect to read from this folder again';
+    return `<span class="dirchip off" title="${escHtml(why)}">📁 ${escHtml(nm)}<button class="dirchip-go" id="reconnectDir">Reconnect folder</button><button class="dirchip-x" id="forgetDir" title="Stop using this folder">✕</button></span>`;
+  }
   function renderRead(){
     body.classList.add('wide');
     sortReadings();
@@ -1484,6 +1602,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <button class="rchip-x" id="removeReading" title="Remove this reading from your shelf" ${readings.length<=1?'disabled':''}>✕ Remove</button>
         ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single">Single page</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span><button class="vbtn capmode" id="captureModeBtn" title="Box: drag a box on the page to capture a passage or figure. Toggle to select text normally.">▭ Box</button>` : ''}
         <span class="shelf-spacer"></span>
+        ${folderChip()}
         <button class="openbtn" id="openReading">＋ Load readings</button>
         <button class="openbtn" id="openFolder">＋ Load a folder</button>
         <input type="file" id="readInput" accept=".pdf,.docx,.txt" multiple hidden>
@@ -1520,6 +1639,12 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     const folderInput = document.getElementById('readFolderInput');
     document.getElementById('openReading').onclick = () => input.click();
     document.getElementById('openFolder').onclick = () => folderInput.click();
+    const pickBtn = document.getElementById('pickDir');
+    if(pickBtn) pickBtn.onclick = pickReadingsFolder;
+    const reBtn = document.getElementById('reconnectDir');
+    if(reBtn) reBtn.onclick = reconnectReadingsFolder;
+    const fgBtn = document.getElementById('forgetDir');
+    if(fgBtn) fgBtn.onclick = forgetReadingsFolder;
     input.onchange = async () => { await addReadingFiles(input.files); input.value = ''; };
     folderInput.onchange = async () => { await addReadingFiles(folderInput.files); folderInput.value = ''; };
     // The ask bar is for the reading at large — no passage. It used to pass the
@@ -1643,6 +1768,21 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   const _wfi = document.getElementById('workFileInput');
   const _openBtn = document.getElementById('openWorkBtn');
   if(_openBtn && _wfi){ _openBtn.addEventListener('click', ()=>_wfi.click()); _wfi.addEventListener('change', ()=>{ if(_wfi.files[0]) openWork(_wfi.files[0]); _wfi.value=''; }); }
+
+  // Restore the readings folder on load. queryPermission needs no user gesture, so
+  // a folder that is still granted refills the shelf silently; anything else waits
+  // behind the Reconnect button, since requestPermission DOES need a gesture.
+  if(FS_OK) (async () => {
+    let h = null;
+    try { h = await idbGet('handles','readingsDir'); } catch(e){ return; }
+    if(!h) return;
+    readingsDir = h;
+    try {
+      const p = await h.queryPermission({ mode:'read' });
+      if(p === 'granted') await syncFolderReadings();
+      else { readingsDirState = 'prompt'; rerenderReadIfVisible(); }
+    } catch(e){ readingsDirState = 'missing'; rerenderReadIfVisible(); }
+  })();
 
   show('free');
 })();

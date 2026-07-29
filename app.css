@@ -343,6 +343,18 @@ body:not(.marquee-on) .marquee-overlay { cursor: default; }
 .hl-mark.flash { background: rgba(255,160,50,.8); }
 
 /* Margin "Your highlights" list. */
+/* The readings-folder chip in the shelf. "on" = connected and reading from disk;
+   "off" = remembered but needs reconnecting (or the drive isn't plugged in). */
+.dirchip { display: inline-flex; align-items: center; gap: .35rem; font-size: .8rem;
+  border: 1px solid var(--comment-border, rgba(0,0,0,.14)); border-radius: 999px;
+  padding: .18rem .3rem .18rem .6rem; color: var(--muted); white-space: nowrap; }
+.dirchip.on { border-color: var(--accent); color: var(--ink, #2b2a26); }
+.dirchip.off { opacity: .8; border-style: dashed; }
+.dirchip-go, .dirchip-x { font: inherit; border: 0; background: transparent; cursor: pointer;
+  color: var(--muted); border-radius: 999px; padding: .1rem .4rem; }
+.dirchip-go { border: 1px solid var(--comment-border, rgba(0,0,0,.14)); }
+.dirchip-go:hover { color: var(--ink, #2b2a26); }
+.dirchip-x:hover { color: #a33; }
 .hl-empty { color: var(--muted); font-size: .85rem; line-height: 1.45; }
 .hl-card { border: 1px solid var(--comment-border, rgba(0,0,0,.12)); border-radius: 8px; padding: .5rem .6rem; margin-bottom: .5rem; background: rgba(0,0,0,.02); }
 /* Clamp long passages to a comment-sized card; the card opens on click and the
