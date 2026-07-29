@@ -6,7 +6,7 @@
 // Build stamp — bump on every shipped change so we can confirm the browser has the
 // latest code (shown bottom-right + logged to console). Old highlights keep the
 // rects they were SAVED with, so re-test the fix with a FRESH highlight.
-const BUILD = '2026-07-29 · readings-folder-8';
+const BUILD = '2026-07-29 · notebook-by-reading-9';
 (function showBuildTag(){
   function paint(){
     try { console.log('%cJournaler build: ' + BUILD, 'color:#c69a5c;font-weight:bold'); } catch(e){}
@@ -595,7 +595,12 @@ async function runReflection(rf, text) {
     DB._journalMigrated = true; saveDB();
   }
   const PIECE_ORDER = ['op1','op2','op3','op4','op5','cur-reg','cur-pro','cur-syn','free','reading'];
-  function pieceRank(id){ const i = PIECE_ORDER.indexOf(id); return i<0 ? 99 : i; }
+  // Reading pieces are one-per-chapter, so they share a rank and cluster together
+  // after the writing pieces instead of scattering into the unknown bucket.
+  function pieceRank(id){
+    if(String(id).indexOf('reading') === 0) return PIECE_ORDER.length;
+    const i = PIECE_ORDER.indexOf(id); return i<0 ? 99 : i;
+  }
   let _toastT;
   function toast(msg){
     let el = document.getElementById('cr284Toast');
@@ -611,14 +616,44 @@ async function runReflection(rf, text) {
   }
   function journalByDate(dateKey){ return DB.journal.filter(e=>e.date===dateKey); }
   function journalByPiece(pieceId){ return DB.journal.filter(e=>e.pieceId===pieceId).sort((a,b)=>a.ts.localeCompare(b.ts)); }
-  function journalPieces(){ const m = {}; for(const e of DB.journal){ (m[e.pieceId] = m[e.pieceId] || { id:e.pieceId, kind:e.pieceKind, title:e.pieceTitle, entries:[] }).entries.push(e); } return Object.values(m).sort((a,b)=>pieceRank(a.id)-pieceRank(b.id) || a.title.localeCompare(b.title)); }
+  // [group, number] for a reading piece's title — same buckets as readingRank, so
+  // the notebook's piece list reads in the same order as the Readings shelf.
+  function readingPieceOrder(title){
+    const t = String(title||'').replace(/^reading\s*·\s*/i, '');
+    if(FRONT_RE.test(t)) return [0, 0];
+    if(BACK_RE.test(t))  return [2, 0];
+    const n = chapterNum(t);
+    return n !== null ? [1, n] : [3, 0];
+  }
+  function journalPieces(){
+    const m = {};
+    for(const e of DB.journal){ (m[e.pieceId] = m[e.pieceId] || { id:e.pieceId, kind:e.pieceKind, title:e.pieceTitle, entries:[] }).entries.push(e); }
+    return Object.values(m).sort((a,b) => {
+      const d = pieceRank(a.id) - pieceRank(b.id);
+      if(d) return d;
+      // Within the readings, mirror the shelf exactly: front matter, then chapters
+      // in NUMERIC order ("Ch 10" must not precede "Ch 2"), then back matter.
+      if(a.kind === 'reading' && b.kind === 'reading'){
+        const ka = readingPieceOrder(a.title), kb = readingPieceOrder(b.title);
+        if(ka[0] !== kb[0]) return ka[0] - kb[0];
+        if(ka[1] !== kb[1]) return ka[1] - kb[1];
+      }
+      return a.title.localeCompare(b.title);
+    });
+  }
   function deleteEntry(id){ DB.journal = DB.journal.filter(e=>e.id!==id); saveDB(); }
   function updateEntry(id, text){ const e = DB.journal.find(x=>x.id===id); if(e){ e.text = text; e.edited = new Date().toISOString(); saveDB(); } }
   // Jump from a notebook entry to the live writing surface it came from.
   function goToPiece(pieceId){
     if(/^op[1-5]$/.test(pieceId)){ fwCur = pieceId; show('free'); }
     else if(pieceId.indexOf('cur-') === 0){ curCur = pieceId.slice(4); show('cur'); }
-    else if(pieceId === 'reading'){ show('read'); }
+    else if(pieceId.indexOf('reading') === 0){
+      // Open the chapter the notes came from, not just the Readings tab.
+      const rid = pieceId.slice(8);   // "reading:" → the reading's id
+      const idx = rid ? readings.findIndex(r => r.id === rid) : -1;
+      if(idx >= 0){ activeReading = idx; readPageNum = 1; _curPdf = { id:null, doc:null }; persistReadings(); }
+      show('read');
+    }
     else { show('free'); }
   }
 
@@ -1247,13 +1282,18 @@ async function runReflection(rf, text) {
   function elevateHighlight(rec){
     if(!rec) return;
     const r = readings[activeReading];
-    const where = r ? readingLabel(r) + (rec.page ? ', p. ' + rec.page : '') : '';
+    const label = r ? readingLabel(r) : '';
+    const where = label + (rec.page ? ', p. ' + rec.page : '');
     const body = [
       rec.text ? '“' + rec.text + '”' : '(figure)',
-      where ? '— ' + where : '',
+      where.trim() ? '— ' + where : '',
       rec.note ? '\n' + rec.note : ''
     ].filter(Boolean).join('\n');
-    elevate('reading', 'reading', 'Reading notes', body);
+    // One piece PER READING rather than a single "Reading notes" bucket, so the
+    // notebook shows which chapter each pass came from and a chapter's notes
+    // stack together the way a One-Pager's passes do.
+    const pieceId = r ? 'reading:' + r.id : 'reading';
+    elevate(pieceId, 'reading', label ? 'Reading · ' + label : 'Reading notes', body);
   }
   function downloadCapture(){
     if(!captureImage) return;
