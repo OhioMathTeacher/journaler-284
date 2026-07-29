@@ -6,7 +6,7 @@
 // Build stamp — bump on every shipped change so we can confirm the browser has the
 // latest code (shown bottom-right + logged to console). Old highlights keep the
 // rects they were SAVED with, so re-test the fix with a FRESH highlight.
-const BUILD = '2026-07-29 · reader-complete-6';
+const BUILD = '2026-07-29 · shelf-order-7';
 (function showBuildTag(){
   function paint(){
     try { console.log('%cJournaler build: ' + BUILD, 'color:#c69a5c;font-weight:bold'); } catch(e){}
@@ -761,12 +761,26 @@ async function runReflection(rf, text) {
 
   // Order the shelf sensibly: built-in manual first, then an intro, then chapters
   // in NUMERIC order (ch1 < ch2 < ch10), then everything else alphabetically.
+  // Chapter number from a filename. Accepts "ch7", "chapter 7", "wwm-ch7" AND a
+  // BARE leading number ("7-seek-surprise.pdf") — the scans are named that way,
+  // and requiring the "ch" prefix dropped every chapter into the alphabetical
+  // bucket, so the shelf read 1, 10, 11 … 19, 2, 20.
+  function chapterNum(name){
+    const n = String(name||'').replace(/\.(pdf|docx|txt)$/i, '');
+    const m = /^(?:wwm[\s._-]*)?(?:ch(?:apter)?[\s._-]*)?(\d+)(?=[\s._-]|$)/i.exec(n);
+    return m ? parseInt(m[1], 10) : null;
+  }
+  const FRONT_RE = /^\s*\d*[\s._-]*(intro|front[\s._-]*matter|preface|foreword)/i;
+  const BACK_RE  = /^\s*\d*[\s._-]*(end[\s._-]*matter|back[\s._-]*matter|appendix|index|works[\s._-]*cited|bibliograph)/i;
   function readingRank(r){
     if(r.builtin) return [0, 0, ''];
     const low = r.name.toLowerCase();
-    if(/intro/.test(low)) return [1, 0, low];
-    const m = /^(?:wwm[\s._-]*)?ch(?:apter)?[\s._-]*(\d+)/i.exec(r.name);
-    if(m) return [2, parseInt(m[1], 10), low];
+    // Front and back matter are numbered too (0-front-matter, 26-end-matter), so
+    // they must be classified BEFORE the numeric branch or they sort as chapters.
+    if(FRONT_RE.test(r.name)) return [1, 0, low];
+    if(BACK_RE.test(r.name))  return [4, 0, low];
+    const n = chapterNum(r.name);
+    if(n !== null) return [2, n, low];
     return [3, 0, low];
   }
   function sortReadings(){
@@ -778,11 +792,17 @@ async function runReflection(rf, text) {
   // A cleaner label for the dropdown (the underlying filename is kept as r.name).
   function readingLabel(r){
     if(r.builtin) return r.name;
-    let n = r.name.replace(/\.(pdf|docx|txt)$/i, '');
-    if(/intro/i.test(n)) return 'Introduction';
-    const m = /^(?:wwm[\s._-]*)?ch(?:apter)?[\s._-]*(\d+)[\s._-]*(.*)$/i.exec(n);
-    if(m){ const rest = (m[2]||'').replace(/[-_]+/g,' ').trim(); return 'Ch ' + m[1] + (rest ? ' · ' + rest.charAt(0).toUpperCase() + rest.slice(1) : ''); }
-    const s = n.replace(/[-_]+/g,' ').trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : r.name;
+    const n = r.name.replace(/\.(pdf|docx|txt)$/i, '');
+    const tidy = s => { s = (s||'').replace(/[-_]+/g,' ').trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; };
+    // Same order as readingRank: matter before numbers, since both start with digits.
+    if(FRONT_RE.test(n)) return /front[\s._-]*matter/i.test(n) ? 'Front matter' : 'Introduction';
+    if(BACK_RE.test(n))  return tidy(n.replace(/^\s*\d+[\s._-]*/, '')) || 'End matter';
+    const num = chapterNum(n);
+    if(num !== null){
+      const rest = tidy(n.replace(/^(?:wwm[\s._-]*)?(?:ch(?:apter)?[\s._-]*)?\d+[\s._-]*/i, ''));
+      return 'Ch ' + num + (rest ? ' · ' + rest : '');
+    }
+    return tidy(n) || r.name;
   }
   function docBody(r){
     if(!r) return `<div class="docstub"><strong>No reading loaded.</strong><br>Use <em>＋ Load readings</em> to load a WWM chapter (PDF or .docx).</div>`;
