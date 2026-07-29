@@ -3,6 +3,23 @@
  * `node --check app.js` before shipping (port lesson: a stray smart-quote once
  * blanked the whole app). */
 
+// Build stamp — bump on every shipped change so we can confirm the browser has the
+// latest code (shown bottom-right + logged to console). Old highlights keep the
+// rects they were SAVED with, so re-test the fix with a FRESH highlight.
+const BUILD = '2026-07-28 · highlight-coverage-4';
+(function showBuildTag(){
+  function paint(){
+    try { console.log('%cJournaler build: ' + BUILD, 'color:#c69a5c;font-weight:bold'); } catch(e){}
+    if(document.getElementById('buildTag')) return;
+    const b = document.createElement('div');
+    b.id = 'buildTag'; b.textContent = 'build ' + BUILD;
+    b.title = 'Journaler build (hover to confirm the loaded code version)';
+    b.style.cssText = 'position:fixed;bottom:6px;right:8px;z-index:3000;font:11px/1.4 ui-monospace,monospace;color:#8a8175;background:rgba(250,247,240,.82);border:1px solid rgba(0,0,0,.08);padding:2px 7px;border-radius:6px;pointer-events:none';
+    document.body.appendChild(b);
+  }
+  if(document.readyState !== 'loading') paint(); else window.addEventListener('DOMContentLoaded', paint);
+})();
+
 // ===== AI provider subsystem (harvested from 318P source) =====
 const PROVIDER_KEY  = 'cr_provider';
 const ANTHROPIC_KEY = 'cr_anthropic_key';
@@ -916,9 +933,10 @@ async function runReflection(rf, text) {
       if(ix*iy >= 0.35*(r.width*r.height)) hits.push(sp);
     });
     // … then expand to complete lines between the first and last hit word.
-    const passage = expandToPassage(hits);
-    const text = spansToText(passage);
-    const rects = normalizeRectsToPages(mergeRectsByLine(passage.map(s => s.getBoundingClientRect())));
+    const pr = passageLineRects(hits);
+    const text = spansToText(pr.spans);
+    const rects = normalizeRectsToPages(pr.rects);
+    if(pr.rects.length) console.log('[hl] box capture →', pr.rects.length, 'line(s), build', BUILD);
     // cropped image of the region (for figures / to keep with a note)
     let imgData = '';
     try {
@@ -996,6 +1014,38 @@ async function runReflection(rf, text) {
     }
     return out;
   }
+  // Build one full-width rect per line straight from the document's line geometry
+  // (NOT the selection): middle lines span the whole line, first/last run from/to the
+  // boundary word. Cannot clip a middle line even with jittery OCR spans.
+  function passageLineRects(anchors){
+    if(!anchors || !anchors.length) return { rects:[], spans:[] };
+    const set = new Set(anchors);
+    const lines = docLines();
+    let firstLine = -1, lastLine = -1, firstLeft = Infinity, lastRight = -Infinity;
+    lines.forEach((ln, li) => {
+      ln.items.forEach(it => {
+        if(!set.has(it.sp)) return;
+        if(firstLine === -1 || li < firstLine){ firstLine = li; firstLeft = it.left; }
+        else if(li === firstLine){ firstLeft = Math.min(firstLeft, it.left); }
+        if(li > lastLine){ lastLine = li; lastRight = it.right; }
+        else if(li === lastLine){ lastRight = Math.max(lastRight, it.right); }
+      });
+    });
+    if(firstLine === -1) return { rects:[], spans:[] };
+    const rects = [], spans = [];
+    for(let li = firstLine; li <= lastLine; li++){
+      const items = lines[li].items;
+      const lineLeft = Math.min(...items.map(i => i.left));
+      const lineRight = Math.max(...items.map(i => i.right));
+      const left = (li === firstLine) ? firstLeft : lineLeft;
+      const right = (li === lastLine) ? lastRight : lineRight;
+      const top = Math.min(...items.map(i => i.top));
+      const bottom = Math.max(...items.map(i => i.bottom));
+      rects.push({ left, top, right, bottom, width: right - left, height: bottom - top });
+      items.forEach(it => { if(it.right > left - 2 && it.left < right + 2) spans.push(it.sp); });
+    }
+    return { rects, spans };
+  }
   // Passage spans → clean text (line-break de-hyphenation + collapsed whitespace).
   function spansToText(spans){
     return spans.map(s => s.textContent || '').join(' ')
@@ -1012,12 +1062,13 @@ async function runReflection(rf, text) {
     const range = sel.getRangeAt(0);
     const startSpan = spanOf(range.startContainer), endSpan = spanOf(range.endContainer);
     if(!startSpan || !endSpan) return;
-    const passage = expandToPassage([startSpan, endSpan]);
-    if(!passage.length) return;
-    const text = spansToText(passage);
+    const pr = passageLineRects([startSpan, endSpan]);
+    if(!pr.spans.length) return;
+    const text = spansToText(pr.spans);
     if(text.length < 3) return;
-    const rects = normalizeRectsToPages(mergeRectsByLine(passage.map(s => s.getBoundingClientRect())));
+    const rects = normalizeRectsToPages(pr.rects);
     if(!rects.length) return;
+    console.log('[hl] select capture →', pr.rects.length, 'line(s), build', BUILD);
     openCapturePopup(text, '', range.getBoundingClientRect(), rects);
   }
 
