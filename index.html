@@ -8,7 +8,7 @@
      every deploy: GitHub Pages will otherwise serve the cached files after a push.
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-07-29-11">
+<link rel="stylesheet" href="app.css?v=2026-07-29-17">
 </head>
 <body>
 <button class="focusbtn exitfocus" id="exitFocus">✕ Exit focus (Esc)</button>
@@ -20,6 +20,10 @@
     <button data-t="read">Readings</button>
     <button data-t="note">Notebook</button>
   </div>
+  <label class="namewrap" for="nameField" title="Type your name once. It goes on every PDF you export.">
+    <span>Name</span>
+    <input type="text" id="nameField" class="namefield" placeholder="your name" autocomplete="name" spellcheck="false">
+  </label>
   <button class="focusbtn" id="saveWorkBtn" title="Save everything you have written as one file — put it on Google Drive, Dropbox, or a thumb drive">⤓ Save my work</button>
   <button class="focusbtn" id="openWorkBtn" title="Open a saved Journaler file to pick up where you left off (on any computer)">⤒ Open my file</button>
   <input type="file" id="workFileInput" accept=".json,application/json" hidden>
@@ -102,6 +106,6 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="app.js?v=2026-07-29-11"></script>
+<script src="app.js?v=2026-07-29-17"></script>
 </body>
 </html>

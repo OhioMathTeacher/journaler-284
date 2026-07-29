@@ -45,6 +45,21 @@ const LOCAL_ENDPOINT_KEY = 'cr_local_endpoint';
 const LOCAL_MODEL_KEY    = 'cr_local_model';
 
 function getProvider() { return localStorage.getItem(PROVIDER_KEY) || 'none'; }
+
+// Which model was connected, in plain words, for the AI-use log printed on every
+// export. Act I allows the machine ONE job — asking how the writing went — so the
+// log names the model and the job, and the reader can see nothing else was on.
+function aiLabel() {
+  const p = getProvider();
+  if (p === 'none')      return 'None — no AI was connected';
+  if (p === 'local')     return 'Local model on this computer (Ollama · ' + (getLocalModel() || 'unnamed') + ')';
+  if (p === 'anthropic') return 'Anthropic Claude Sonnet';
+  if (p === 'gemini')    return 'Google Gemini 2.5 Flash';
+  if (p === 'groq')      return 'Groq Llama 3.3 70B';
+  if (p === 'custom')    return (localStorage.getItem(CUSTOM_MODEL_KEY) || 'OpenAI-compatible model')
+    + ' (' + (localStorage.getItem(CUSTOM_ENDPOINT_KEY) || 'custom endpoint') + ')';
+  return p;
+}
 function getLocalEndpoint() { return localStorage.getItem(LOCAL_ENDPOINT_KEY) || 'http://localhost:11434'; }
 function getLocalModel()    { return localStorage.getItem(LOCAL_MODEL_KEY) || ''; }
 
@@ -453,10 +468,36 @@ const REFLECTION_PARTNER = [
   'One sentence each. No preamble, no praise. Just the questions.'
 ].join(' ');
 
-async function runReflection(rf, text) {
+// Paint the exchange: the partner's question, then a box to answer it in. The OP1
+// handout tells students to "answer the app's questions about how the writing went,"
+// so the question on its own is half a conversation. The answer is saved and prints
+// on the session record. Callers that pass no hooks get the question only.
+function paintReflection(rf, question, hooks) {
+  rf.innerHTML = '<span class="lbl">After the buzzer — reflection partner</span>'
+    + '<span id="reflectBody"></span>';
+  rf.querySelector('#reflectBody').textContent = question;
+  if (!hooks) return;
+  const ta = document.createElement('textarea');
+  ta.className = 'reflect-answer';
+  ta.id = 'reflectAnswer';
+  ta.placeholder = 'Your answer — how did the writing go?';
+  ta.value = hooks.answer || '';
+  ta.addEventListener('input', () => hooks.onAnswer(ta.value));
+  rf.appendChild(ta);
+}
+
+async function runReflection(rf, text, hooks) {
   rf.innerHTML = '<span class="lbl">After the buzzer — reflection partner</span>'
     + '<span id="reflectBody"><em>Reading your pace…</em></span>';
   const bodyEl = rf.querySelector('#reflectBody');
+  // Nothing was typed, so there is no session to reflect on. Without this the model
+  // cheerfully asks where your pace slowed down on a gush of zero words, and that
+  // invented question gets printed on a submitted artifact. Say the true thing instead.
+  if ((String(text || '').trim().match(/\S+/g) || []).length < 10) {
+    bodyEl.innerHTML = '<em>Nothing came down on the page this time. Reset the clock and '
+      + 'gush again — there is nothing to reflect on yet.</em>';
+    return;
+  }
   if (getProvider() === 'none') {
     bodyEl.innerHTML = '<em>Connect an AI (top right) and a reflection partner will ask you '
       + 'a couple of questions about how the gush went. Optional — the gush is what matters.</em>';
@@ -466,7 +507,8 @@ async function runReflection(rf, text) {
     const reply = await callModel(REFLECTION_PARTNER
       + '\n\n(For pacing context only — never quote or critique this:)\n"""\n'
       + String(text || '').slice(0, 4000) + '\n"""');
-    bodyEl.textContent = reply;
+    if (hooks) hooks.onQuestion(reply);
+    paintReflection(rf, reply, hooks);
   } catch (e) {
     bodyEl.innerHTML = '<em>Reflection partner is unavailable right now.</em>';
   }
@@ -541,7 +583,7 @@ async function runReflection(rf, text) {
         ta.removeEventListener('keydown',guard); ta.classList.remove('locked'); ta.disabled=true;
         if(lm) lm.textContent='Time. The page is yours again.';
         if(opts.focus) setFocus(false);
-        const rf = document.getElementById('reflect'); if(rf){ rf.style.display='block'; runReflection(rf, ta.value); }
+        const rf = document.getElementById('reflect'); if(rf){ rf.style.display='block'; runReflection(rf, ta.value, opts.reflect); }
         if(opts.onEnd) opts.onEnd();
       }
     }, 1000);
@@ -552,13 +594,81 @@ async function runReflection(rf, text) {
   //     Typed text lives in localStorage; the big reading files live in IndexedDB.
   const LS_KEY = 'cr284_state';
   function loadDB(){ try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch(e){ return {}; } }
-  const DB = Object.assign({ v:1, freewrite:{}, currere:{}, notebook:{}, readings:null, activeReading:0 }, loadDB());
+  // ── Schema version. `v` was being written and never read, which is the setup for a
+  //    mid-semester revision that quietly orphans student work. The hook exists now,
+  //    while there is no student data to get wrong.
+  //    ADDING a field needs no migration — the Object.assign below gives an older save
+  //    the new default (that is how `name` and `session` landed harmlessly). Only
+  //    RENAMING or RESTRUCTURING does. Add a step, bump DB_SCHEMA, ship.
+  //    An older build reading a newer save is also safe: it ignores `v` and Object.assign
+  //    preserves keys it knows nothing about.
+  const DB_SCHEMA = 2;
+  function migrateDB(db){
+    const from = Number(db.v) || 1;
+    if(from >= DB_SCHEMA){ db.v = DB_SCHEMA; return; }
+    // v1 → v2: `name` and the per-OP `session` block were pure additions, so there is
+    // nothing to move. Stamping the version is the whole step.
+    db.v = DB_SCHEMA;
+  }
+
+  const DB = Object.assign({ v:DB_SCHEMA, name:'', freewrite:{}, currere:{}, notebook:{}, readings:null, activeReading:0 }, loadDB());
+  migrateDB(DB);
   if(!DB.freewrite) DB.freewrite = {};
   if(!DB.currere)   DB.currere   = {};
   if(!DB.notebook)  DB.notebook  = {};
   let _saveT;
-  function saveDB(){ clearTimeout(_saveT); _saveT = setTimeout(()=>{ try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch(e){ console.warn('saveDB', e); } }, 250); }
+  // A failed save used to console.warn and nothing else: the student kept typing into
+  // an app that had silently stopped recording, and found out at the end of the term.
+  // Now it says so on screen and stays said until a save succeeds. The advice is the
+  // one thing that actually rescues the work — export the file.
+  let _saveBroken = false;
+  function saveAlarm(on){
+    if(on === _saveBroken) return;
+    _saveBroken = on;
+    let el = document.getElementById('saveAlarm');
+    if(!on){ if(el) el.remove(); return; }
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'saveAlarm';
+      el.innerHTML = '<b>This browser could not save your work.</b> Its storage is full. '
+        + 'Use <b>⤓ Save my work</b> now to keep a copy of everything, then remove a large '
+        + 'image or two from your page.';
+      document.body.appendChild(el);
+    }
+    toast('Your work could not be saved — see the banner.');
+  }
+  function saveDB(){ clearTimeout(_saveT); _saveT = setTimeout(()=>{
+    try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); saveAlarm(false); }
+    catch(e){ console.warn('saveDB', e); saveAlarm(true); }
+  }, 250); }
   function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // The name printed on every export. Typed once into the topbar field and stored, so
+  // a student never hand-writes it on a PDF. Left empty it prints the blank rule, which
+  // is what a paper copy wants.
+  const NAME_RULE = '______________________________';
+  function printedName(){ const n = (DB.name || '').trim(); return n ? escHtml(n) : NAME_RULE; }
+  function wireNameField(){
+    const f = document.getElementById('nameField');
+    if(!f) return;
+    f.value = DB.name || '';
+    f.addEventListener('input', () => { DB.name = f.value; saveDB(); });
+  }
+  // Asked once, at the moment it matters. The topbar field is easy to walk past, and a
+  // submitted PDF with a blank name line is a real cost to a student — so the export
+  // itself asks rather than trusting anyone to find a box they were never pointed at.
+  // Answered once, it never asks again; left blank, the printed rule stands and the
+  // export still goes through.
+  function ensureName(){
+    if((DB.name || '').trim()) return;
+    let n = null;
+    try { n = window.prompt('Your name, for the top of the PDF:', ''); } catch(e){ return; }
+    if(n === null) return;                 // Cancelled — print the blank rule.
+    n = n.trim();
+    if(!n) return;
+    DB.name = n; saveDB();
+    const f = document.getElementById('nameField'); if(f) f.value = n;
+  }
 
   // Big reading files (PDF/.docx bytes) are too large for localStorage → IndexedDB.
   const READ_DB_NAME = 'cr284_readings';
@@ -696,6 +806,24 @@ async function runReflection(rf, text) {
     frame.querySelectorAll('[data-op]').forEach(b=>b.addEventListener('click',()=>{ if(G.running) return; fwCur=b.dataset.op; renderFree(); }));
     fwCur==='open' ? renderOpen() : renderOPStage(OPS[fwCur]);
   }
+  // ── The writing session. OP1 says the session record and AI-use log travel with
+  //    the exported PDF, so what happened during the gush has to be recorded, not
+  //    just displayed. Written when the buzzer sounds, then topped up with the
+  //    reflection exchange as it happens.
+  //    session = { minutes, endedAt, words, ai, question, answer }
+  function sessionPatch(key, patch){
+    const s = DB.freewrite[key] || (DB.freewrite[key] = {});
+    s.session = Object.assign({}, s.session, patch);
+    saveDB();
+  }
+  function reflectHooks(key){
+    return {
+      answer: ((DB.freewrite[key] || {}).session || {}).answer || '',
+      onQuestion: q => sessionPatch(key, { question: q }),
+      onAnswer:   v => sessionPatch(key, { answer: v }),
+    };
+  }
+
   function renderOPStage(M){
     body.classList.toggle('wide', !!fwGushed[fwCur]);
     document.getElementById('stage').innerHTML = `
@@ -719,7 +847,7 @@ async function runReflection(rf, text) {
           <span class="sep"></span><button id="imgBtn">&#128247;</button><span class="wc" id="wc">0 words</span></div>
         <div class="page" id="page" contenteditable="${fwGushed[fwCur]?'true':'false'}" data-ph="${M.ph}"></div>
         <input type="file" id="imgInput" accept="image/*" hidden ${M.photos?'multiple':''}>
-        <div class="composer-foot"><button class="btn ghost" id="opAddNb">＋ Add to notebook</button><button class="btn">Export One-Pager (1-page PDF)</button><span class="note">Keeping it dates a page in your notebook — do it again later and both passes stay.</span></div>
+        <div class="composer-foot"><button class="btn" id="opExport">Export One-Pager (1-page PDF)</button><span class="note">The PDF you submit: your One-Pager, then your writing session and AI-use log.</span></div>
        </div>
       </div>`;
     wireTimer();
@@ -729,10 +857,17 @@ async function runReflection(rf, text) {
     const pgEl = document.getElementById('page'); if(saved.shape){ pgEl.innerHTML = saved.shape; }
     // Save the shaped one-pager as it is typed.
     pgEl.addEventListener('input', ()=>{ DB.freewrite[fwCur] = Object.assign({}, DB.freewrite[fwCur], { shape: pgEl.innerHTML }); saveDB(); });
-    document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,onEnd:()=>{fwDone[fwCur]=true;fwGushed[fwCur]=true;DB.freewrite[fwCur]=Object.assign({},DB.freewrite[fwCur],{gush:document.getElementById('gush').value,gushed:true,done:true});saveDB();document.body.classList.add('wide');const oc=document.querySelector('.op-cols');if(oc)oc.classList.add('two');const pg=document.getElementById('page');if(pg)pg.setAttribute('contenteditable','true');}}));
-    const opAdd = document.getElementById('opAddNb');
-    if(opAdd) opAdd.onclick = ()=>{ const pg = document.getElementById('page'); const txt = (pg && pg.innerText.trim()) || document.getElementById('gush').value; elevate('op'+M.n, 'one-pager', 'One-Pager '+M.n+' · '+M.t, txt); };
-    wireComposer();
+    // Repaint a saved reflection so a student who comes back tomorrow still sees the
+    // question they were asked and the answer they gave.
+    if(saved.session && saved.session.question){
+      const rf0 = document.getElementById('reflect');
+      if(rf0){ rf0.style.display = 'block'; paintReflection(rf0, saved.session.question, reflectHooks(fwCur)); }
+    }
+    const opKey = fwCur;
+    document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,reflect:reflectHooks(opKey),onEnd:()=>{fwDone[fwCur]=true;fwGushed[fwCur]=true;const gtxt=document.getElementById('gush').value;DB.freewrite[fwCur]=Object.assign({},DB.freewrite[fwCur],{gush:gtxt,gushed:true,done:true});sessionPatch(opKey,{minutes:Math.round(gushSecs/60),endedAt:new Date().toISOString(),words:(gtxt.trim().match(/\S+/g)||[]).length,ai:aiLabel()});saveDB();document.body.classList.add('wide');const oc=document.querySelector('.op-cols');if(oc)oc.classList.add('two');const pg=document.getElementById('page');if(pg)pg.setAttribute('contenteditable','true');}}));
+    const opExp = document.getElementById('opExport');
+    if(opExp) opExp.onclick = ()=> exportOnePagerPDF(M);
+    wireComposer(opKey);
   }
   function renderOpen(){
     document.getElementById('stage').innerHTML = `
@@ -753,14 +888,91 @@ async function runReflection(rf, text) {
     document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true}));
     document.getElementById('notimer').addEventListener('click',()=>{const ta=document.getElementById('gush');ta.disabled=false;ta.focus();setFocus(true);});
   }
-  function wireComposer(){
+  // ═══ Images. A phone photo is 2–4MB, and base64 adds a third on top. Inserted raw it
+  //     lands in TWO bad places at once: localStorage (which holds the whole DB in a
+  //     5–10MB budget, so one OP2 with photos can blow it) and the exported PDF (which
+  //     embeds the full-resolution bytes no matter how small the picture prints).
+  //     So every image is re-encoded on the way in — long edge to IMG_MAX_PX, JPEG at
+  //     IMG_QUALITY. A 4MB photo becomes a couple of hundred KB and still prints
+  //     crisply: 1600px across the 2.6in the print CSS allows is over 600dpi.
+  const IMG_MAX_PX  = 1600;
+  const IMG_QUALITY = 0.85;
+
+  // Re-encode a data URI down to size. Returns the original untouched when it is
+  // already small enough, so re-running this over a page is safe and idempotent.
+  function shrinkDataURL(src){
+    return new Promise(resolve => {
+      if(!/^data:image\//i.test(src)) return resolve(src);
+      const img = new Image();
+      img.onload = () => {
+        const long = Math.max(img.naturalWidth, img.naturalHeight);
+        if(long <= IMG_MAX_PX && src.length < 400000) return resolve(src);
+        const scale = Math.min(1, IMG_MAX_PX / long);
+        const w = Math.max(1, Math.round(img.naturalWidth  * scale));
+        const h = Math.max(1, Math.round(img.naturalHeight * scale));
+        try {
+          const c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          const ctx = c.getContext('2d');
+          // JPEG has no alpha: paint white first or transparency comes out black.
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          const out = c.toDataURL('image/jpeg', IMG_QUALITY);
+          resolve(out.length < src.length ? out : src);
+        } catch(e){ resolve(src); }
+      };
+      img.onerror = () => resolve(src);
+      img.src = src;
+    });
+  }
+
+  function fileToShrunkDataURL(file){
+    return new Promise(resolve => {
+      const r = new FileReader();
+      r.onload = () => shrinkDataURL(String(r.result)).then(resolve);
+      r.onerror = () => resolve(null);
+      r.readAsDataURL(file);
+    });
+  }
+
+  // Catch-all for the paste route. Todd pastes images straight into the page, and the
+  // browser inserts those as full-size data URIs without going near the ＋ picker, so
+  // sweep the page afterwards. data-shrunk marks what has already been through.
+  async function shrinkImagesIn(pageEl, after){
+    const imgs = [...pageEl.querySelectorAll('img:not([data-shrunk])')];
+    if(!imgs.length) return;
+    for(const el of imgs){
+      const src = el.getAttribute('src') || '';
+      if(/^data:image\//i.test(src)){
+        const out = await shrinkDataURL(src);
+        if(out !== src) el.setAttribute('src', out);
+      }
+      el.setAttribute('data-shrunk', '1');
+    }
+    if(after) after();
+  }
+
+  // opKey is captured, not read off fwCur at event time: shrinking is async, so an
+  // insert can land after the student has clicked away to another One-Pager.
+  function wireComposer(opKey){
     const page=document.getElementById('page'),wc=document.getElementById('wc');
     const upd=()=>{const n=(page.innerText.trim().match(/\S+/g)||[]).length;wc.textContent=n+' words';wc.classList.toggle('good',n>=500&&n<=650);};
+    const save=()=>{ if(!page.isConnected) return; DB.freewrite[opKey]=Object.assign({},DB.freewrite[opKey],{shape:page.innerHTML}); saveDB(); upd(); };
     page.addEventListener('input',upd);
     document.querySelectorAll('.toolbar button[data-cmd]').forEach(btn=>btn.addEventListener('mousedown',e=>{e.preventDefault();page.focus();document.execCommand(btn.dataset.cmd,false,btn.dataset.val||null);}));
     const imgInput=document.getElementById('imgInput');
     document.getElementById('imgBtn').addEventListener('mousedown',e=>{e.preventDefault();imgInput.click();});
-    imgInput.addEventListener('change',()=>{[...imgInput.files].forEach(f=>{const r=new FileReader();r.onload=()=>{page.focus();document.execCommand('insertHTML',false,`<img src="${r.result}" alt="">`);upd();};r.readAsDataURL(f);});});
+    imgInput.addEventListener('change',async ()=>{
+      for(const f of [...imgInput.files]){
+        const src = await fileToShrunkDataURL(f);
+        if(!src || !page.isConnected) continue;
+        page.focus();
+        document.execCommand('insertHTML',false,`<img src="${src}" alt="" data-shrunk="1">`);
+      }
+      save();
+    });
+    // Pasted images bypass the picker entirely, so shrink them once they have landed.
+    page.addEventListener('paste',()=>{ setTimeout(()=>shrinkImagesIn(page,save),0); });
     upd();
   }
 
@@ -1751,15 +1963,36 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       ${list.map(e=>entryCard(e, {showPiece:false, pieceLink:false})).join('')}</div>`;
   }
 
+  // ── PDF export. Both exports print through the browser rather than a PDF library:
+  //    this app has no build step and ships no CDN calls, "Save as PDF" is in every
+  //    print dialog, and it honours the student's paper size. The print host is built
+  //    on demand and removed once printing ends.
+  function printDoc(id, html, title){
+    const host = document.createElement('div');
+    host.id = id; host.className = 'printdoc';
+    host.innerHTML = html;
+    document.body.appendChild(host);
+    document.body.classList.add('printing');
+    // Print dialogs seed the "Save as PDF" filename from document.title, so a student
+    // gets "One-Pager 2 …" instead of whatever the tab happens to be called.
+    const prevTitle = document.title;
+    if(title) document.title = title;
+    const done = () => { document.body.classList.remove('printing'); document.title = prevTitle;
+      host.remove(); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    // Safari/older engines don't always fire afterprint; don't strand the app in
+    // print mode if it never arrives.
+    setTimeout(() => { if(document.getElementById(id)) done(); }, 60000);
+    window.print();
+  }
+
   // ── Bundle notebook → PDF. The 50-pt Writer's Notebook turn-in artifact.
-  //    Printed through the browser rather than a PDF library: this app has no build
-  //    step and ships no CDN calls, and "Save as PDF" is in every print dialog. It
-  //    also honours the student's paper size and needs no new vendored dependency.
   //    The bundle follows the lens you're in — By day shows kept practice in date
   //    order (what the notebook is graded on), By piece shows each piece growing.
   function bundleNotebookPDF(){
     const entries = (DB.journal || []).slice();
     if(!entries.length){ toast('Nothing kept yet — add a page to your notebook first.'); return; }
+    ensureName();
     const fmtDate = k => { const [y,m,d] = String(k).split('-').map(Number);
       return new Date(y, (m||1)-1, d||1).toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric', year:'numeric'}); };
     const para = t => String(t||'').split(/\n{2,}/).map(p => `<p>${escHtml(p).replace(/\n/g,'<br>')}</p>`).join('');
@@ -1789,9 +2022,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     for(const e of entries) kinds[e.pieceKind] = (kinds[e.pieceKind]||0) + 1;
     const tally = Object.keys(kinds).sort().map(k => `${escHtml(k)}: ${kinds[k]}`).join(' · ');
 
-    const host = document.createElement('div');
-    host.id = 'printBundle';
-    host.innerHTML = `
+    const html = `
       <section class="pb-cover">
         <h1>Writer's Notebook</h1>
         <p class="pb-sub">TCE 284 · kept pages, ${noteMode === 'day' ? 'by day' : 'by piece'}</p>
@@ -1801,17 +2032,98 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
           <dt>Days written</dt><dd>${new Set(dates).size}</dd>
           <dt>By kind</dt><dd>${tally}</dd>
         </dl>
-        <p class="pb-note">Name: ______________________________</p>
+        <p class="pb-note">Name: ${printedName()}</p>
       </section>
       ${sections}`;
-    document.body.appendChild(host);
-    document.body.classList.add('printing');
-    const done = () => { document.body.classList.remove('printing'); host.remove(); window.removeEventListener('afterprint', done); };
-    window.addEventListener('afterprint', done);
-    // Safari/older engines don't always fire afterprint; don't strand the app in
-    // print mode if it never arrives.
-    setTimeout(() => { if(document.getElementById('printBundle')) done(); }, 60000);
-    window.print();
+    printDoc('printBundle', html, "Writer's Notebook — TCE 284");
+  }
+
+  // ── Export One-Pager → PDF.
+  //    The One-Pager is a ONE PAGE assignment, so the export measures the shaped page
+  //    against a single sheet before printing and says so when it runs over. It does
+  //    NOT shrink the type to fit: what to cut is the student's decision, and making
+  //    that decision is the assignment. The shaped page prints as HTML, not innerText,
+  //    so embedded images survive — OP2 is explicitly image + text.
+  //    Sheet is US Letter at 96dpi less the 20mm/18mm @page margins. A4 is taller and
+  //    narrower, so a page that fits Letter fits A4 on height; the estimate is a
+  //    warning, never a gate.
+  const SHEET_PX = { w: 680, h: 905 };
+
+  // The second page of the export. OP1: "Your writing session and AI-use log go with
+  // it." This is that page — what the gush was, the gush itself, the reflection
+  // exchange, and what the machine was allowed to do. It is evidence, so when there
+  // is no recorded session it says so plainly rather than implying one happened.
+  function sessionRecordHTML(M){
+    const s = ((DB.freewrite[fwCur] || {}).session) || {};
+    const gush = ((DB.freewrite[fwCur] || {}).gush || '').trim();
+    const para = t => String(t||'').split(/\n{2,}/).map(p => `<p>${escHtml(p).replace(/\n/g,'<br>')}</p>`).join('');
+    const when = s.endedAt ? new Date(s.endedAt).toLocaleString(undefined,
+      {month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'}) : '';
+
+    let facts;
+    if(s.minutes){
+      facts = `<dl>
+        <dt>Gushed</dt><dd>${s.minutes} minute${s.minutes===1?'':'s'}, ${s.words||0} words</dd>
+        <dt>Finished</dt><dd>${escHtml(when)}</dd>
+        <dt>AI connected</dt><dd>${escHtml(s.ai || 'None')}</dd>
+      </dl>`;
+    } else {
+      facts = `<p class="op-none">No timed gush was recorded in Journaler for this One-Pager.</p>`;
+    }
+
+    const exchange = s.question ? `
+      <h3>The reflection partner asked</h3>
+      ${para(s.question)}
+      <h3>I answered</h3>
+      ${s.answer && s.answer.trim() ? para(s.answer) : '<p class="op-none">Not answered.</p>'}` : '';
+
+    return `
+      <section class="op-session">
+        <h2>Writing session · One-Pager ${M.n}</h2>
+        <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}${escHtml(M.t)}</p>
+        ${facts}
+        ${gush ? `<h3>The gush, unedited</h3>${para(gush)}` : ''}
+        ${exchange}
+        <h3>AI use</h3>
+        <p>${s.question
+          ? 'The reflection partner asked how the writing went, about the experience and not the content. It supplied none of the words in the One-Pager.'
+          : 'No AI was used on this One-Pager.'}</p>
+      </section>`;
+  }
+
+  function exportOnePagerPDF(M){
+    const pg = document.getElementById('page');
+    const shaped = pg ? pg.innerHTML.trim() : '';
+    if(!shaped || !pg.innerText.trim()){ toast('Nothing to export yet — shape your One-Pager first.'); return; }
+    ensureName();
+
+    const today = new Date().toLocaleDateString(undefined, {month:'long', day:'numeric', year:'numeric'});
+    // The One-Pager itself is sheet one. The session record follows on its own page and
+    // is deliberately NOT measured — it is as long as the writing was, and the one-page
+    // rule is about the composed page the student made.
+    const sheet = `
+      <header class="op-head">
+        <p class="op-kicker">TCE 284 · One-Pager ${M.n}</p>
+        <h1>${escHtml(M.t)}</h1>
+        <p class="op-byline"><span>Name: ${printedName()}</span><span>${escHtml(today)}</span></p>
+      </header>
+      <div class="op-body">${shaped}</div>`;
+
+    // Measure at print size before the dialog opens. The one-pager's print typography
+    // is declared OUTSIDE @media print for exactly this reason — the probe is laid out
+    // on screen under the same rules the sheet will use.
+    const probe = document.createElement('div');
+    probe.id = 'printOnePager'; probe.className = 'printdoc measuring';
+    probe.innerHTML = sheet;
+    document.body.appendChild(probe);
+    const measured = probe.scrollHeight;
+    probe.remove();
+
+    if(measured > SHEET_PX.h){
+      const pages = Math.ceil(measured / SHEET_PX.h);
+      if(!confirm(`Your One-Pager runs about ${pages} pages at print size. A One-Pager is one page.\n\nCancel to cut it down, or OK to print it as it is.`)) return;
+    }
+    printDoc('printOnePager', sheet + sessionRecordHTML(M), `One-Pager ${M.n} — ${M.t}`);
   }
 
   function renderNote(){
@@ -1828,13 +2140,16 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       for(let dd=1; dd<=days; dd++){
         const key = `${y}-${String(m+1).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
         const list = journalByDate(key);
+        // Legacy only: One-Pagers are submitted as their own PDF and no longer
+        // elevate into the notebook, so nothing new carries this kind. Entries saved
+        // before that change still render with their marker.
         const isOp = list.some(e=>e.pieceKind === 'one-pager');
         cells += `<div class="cell ${list.length?'entry':''} ${isOp?'op':''} ${noteSel===key?'sel':''}" data-key="${key}">${dd}</div>`;
       }
       leftPane = `<div class="cal">
         <div class="calhead"><button class="calnav" id="prevM" aria-label="Previous month" ${(y*12+m)<=NOTE_MIN?'disabled':''}>‹</button><span class="mname">${monthName}</span><button class="calnav" id="nextM" aria-label="Next month" ${(y*12+m)>=NOTE_MAX?'disabled':''}>›</button></div>
         <div class="grid">${dow}${cells}</div>
-        <p class="runline" style="margin-top:12px">● green = a kept page · red outline = a One-Pager. Click a day to read it.</p>
+        <p class="runline" style="margin-top:12px">● green = a kept page. Click a day to read it.</p>
         <div class="composer-foot" style="margin-top:14px"><button class="btn" id="bundleBtn">Bundle notebook → PDF</button></div></div>`;
       rightPane = noteDayDetail();
     } else {
@@ -1887,6 +2202,8 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   const _wfi = document.getElementById('workFileInput');
   const _openBtn = document.getElementById('openWorkBtn');
   if(_openBtn && _wfi){ _openBtn.addEventListener('click', ()=>_wfi.click()); _wfi.addEventListener('change', ()=>{ if(_wfi.files[0]) openWork(_wfi.files[0]); _wfi.value=''; }); }
+
+  wireNameField();
 
   // Restore the readings folder on load. queryPermission needs no user gesture, so
   // a folder that is still granted refills the shelf silently; anything else waits

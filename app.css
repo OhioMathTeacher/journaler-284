@@ -23,6 +23,15 @@
   .tabbar button.on { color: var(--accent); border-bottom-color: var(--accent); }
   .focusbtn { font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: var(--accent); background: none; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 11px; cursor: pointer; white-space: nowrap; }
   .focusbtn:hover { background: var(--comment-bg); }
+  /* Typed once, stored in DB, printed on every export. Empty leaves the blank rule
+     on the sheet so a printed page can still be signed by hand. */
+  /* flex-shrink:0 — the topbar is crowded, and an unlabelled input that collapses to a
+     sliver is a field nobody can find. Also why the export asks outright (ensureName). */
+  .namewrap { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+  .namewrap > span { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .namefield { font-family: var(--sans); font-size: 12.5px; color: var(--ink, #2b2a26); background: none; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 10px; width: 13ch; min-width: 0; }
+  .namefield:focus { outline: none; border-color: var(--accent); }
+  .namefield::placeholder { color: var(--muted); }
 
   /* width is contextual */
   .frame { max-width: 1180px; margin: 0 auto; padding: 22px clamp(12px,3vw,28px) 60px; }
@@ -70,6 +79,10 @@
   textarea.gush { display: block; width: 100%; max-width: var(--writecol); margin: 0 auto; height: 52vh; min-height: 320px; max-height: 600px; overflow-y: auto; resize: none; font-family: var(--serif); font-size: 16px; line-height: 1.7; background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; padding: 32px 40px; color: var(--ink); }
   textarea.gush:disabled { background: #fdfbf6; color: var(--ink); } textarea.locked { border-color: var(--accent-light); box-shadow: 0 0 0 3px var(--highlight-soft); }
   .reflect { margin-top: 14px; background: var(--margin-bg); border-radius: 7px; padding: 13px 15px; font-size: 14px; } .reflect .lbl { font-weight: 700; font-size: 12.5px; color: var(--accent); display: block; margin-bottom: 4px; } .reflect em { color: var(--muted); }
+  /* Where the student answers the partner's question. Saved, and printed on the
+     session record that ships with the One-Pager PDF. */
+  .reflect-answer { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; min-height: 76px; resize: vertical; font-family: var(--serif, Georgia, serif); font-size: 14px; line-height: 1.5; color: var(--ink, #2b2a26); background: var(--parchment); border: 1px solid var(--comment-border); border-radius: 6px; padding: 9px 11px; }
+  .reflect-answer:focus { outline: none; border-color: var(--accent); }
 
   .toolbar { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
   .toolbar button { font-family: var(--serif); font-size: 15px; width: 34px; height: 32px; border: 1px solid var(--comment-border); background: #fff; border-radius: 5px; cursor: pointer; }
@@ -142,8 +155,19 @@
 
   /* FOCUS / distraction-free */
   .op-cols { display: grid; grid-template-columns: 1fr; gap: 26px; }
-  body.wide .op-cols.two { grid-template-columns: 1fr 1fr; }
   .op-col { display: flex; flex-direction: column; min-width: 0; }
+
+  /* Two-column OP stage: the bands must line up across the columns — stage label,
+     stage note, controls, writing surface, footer. As two independent flex stacks they
+     drifted, because the gushbar's lock message wraps onto a second line and the
+     toolbar's does not, pushing the gush box below the shaped page. Subgrid gives both
+     columns the SAME five row tracks, so each band is as tall as its taller side and
+     every line starts at one baseline. row-gap:0 leaves the vertical rhythm to the
+     existing element margins rather than doubling it with the 26px column gap. */
+  body.wide .op-cols.two { grid-template-columns: 1fr 1fr; column-gap: 26px; row-gap: 0;
+    grid-template-rows: auto auto auto auto auto; }
+  body.wide .op-cols.two .op-col,
+  body.wide .op-cols.two .op-col.shape { display: grid; grid-row: 1 / -1; grid-template-rows: subgrid; align-content: start; }
   body.wide .op-cols.two .op-col textarea.gush, body.wide .op-cols.two .op-col .page { max-width: 100%; height: 58vh; max-height: none; }
   body.wide .op-col .stagelabel { border-top: none; padding-top: 0; margin-top: 4px; }
   .stagenote { font-size: 12.5px; color: var(--muted); margin: -4px 0 10px; font-style: italic; }
@@ -389,16 +413,61 @@ body:not(.marquee-on) .marquee-overlay { cursor: default; }
 .hl-goto:hover, .hl-nb:hover { color: var(--ink, #2b2a26); }
 .hl-del:hover { color: #a33; border-color: #a33; }
 
-/* ── Bundle notebook → PDF. The 50-pt turn-in artifact, printed through the
+/* Storage failed. Loud on purpose and not dismissible: the alternative is a student
+   typing into an app that stopped recording an hour ago. Cleared when a save succeeds. */
+#saveAlarm { position: fixed; left: 50%; transform: translateX(-50%); bottom: 34px; z-index: 200;
+  max-width: min(620px, calc(100vw - 32px)); font-family: var(--sans); font-size: 13px; line-height: 1.5;
+  color: #fff; background: var(--danger, #a33); border-radius: 8px; padding: 11px 16px;
+  box-shadow: 0 8px 26px rgba(0,0,0,.3); }
+#saveAlarm b { font-weight: 700; }
+
+/* ── PDF export. Both the notebook bundle and the One-Pager print through the
    browser's own "Save as PDF" so the app keeps its no-build, no-CDN shape.
-   #printBundle is built on demand and removed after printing. */
-#printBundle { display: none; }
+   The .printdoc host is built on demand and removed after printing. */
+.printdoc { display: none; }
+
+/* The One-Pager's print typography lives OUTSIDE @media print, unlike the bundle's:
+   the export measures the shaped page against one sheet before opening the dialog,
+   and the probe has to lay out on screen under the rules the sheet will use. These
+   rules are inert until something makes the host visible — printing, or .measuring. */
+#printOnePager { font-family: var(--serif, Georgia, serif); color: #000; }
+#printOnePager.measuring { display: block; position: fixed; left: -10000px; top: 0; width: 680px; }
+#printOnePager .op-head { border-bottom: 1px solid #999; padding-bottom: .5em; margin-bottom: 1.2em; }
+#printOnePager .op-kicker { font-size: 9.5pt; letter-spacing: .06em; text-transform: uppercase; color: #555; margin: 0 0 .25em; }
+#printOnePager h1 { font-size: 19pt; margin: 0 0 .35em; line-height: 1.15; }
+#printOnePager .op-byline { display: flex; justify-content: space-between; gap: 2em; font-size: 10pt; color: #555; margin: 0; }
+#printOnePager .op-body { font-size: 11pt; line-height: 1.5; }
+#printOnePager .op-body p { font-size: 11pt; line-height: 1.5; margin: 0 0 .55em; orphans: 3; widows: 3; }
+#printOnePager .op-body h3 { font-size: 12pt; font-weight: 600; margin: .9em 0 .3em; }
+#printOnePager .op-body ul, #printOnePager .op-body ol { margin: 0 0 .55em 1.4em; padding: 0; }
+#printOnePager .op-body li { font-size: 11pt; line-height: 1.5; margin: 0 0 .2em; }
+/* A full-bleed photo would eat the sheet on its own; OP2 wants 2-3 of them. */
+#printOnePager .op-body img { max-width: 100%; max-height: 2.6in; height: auto; display: block; margin: .6em 0; }
+
+/* The session record — sheet two. Plainer than the One-Pager: this is evidence a
+   grader reads, not a composed page. */
+#printOnePager .op-session h2 { font-size: 15pt; margin: 0 0 .2em; border-bottom: 1px solid #999; padding-bottom: .18em; }
+#printOnePager .op-session .op-sub { font-size: 10pt; color: #555; margin: 0 0 1.2em; }
+#printOnePager .op-session h3 { font-size: 11pt; font-weight: 600; margin: 1.3em 0 .35em; color: #333; }
+#printOnePager .op-session p { font-size: 10.5pt; line-height: 1.45; margin: 0 0 .5em; orphans: 3; widows: 3; }
+#printOnePager .op-session .op-none { color: #555; font-style: italic; }
+#printOnePager .op-session dl { margin: 0 0 .4em; font-size: 10.5pt; }
+#printOnePager .op-session dt { float: left; clear: left; width: 9em; color: #555; }
+#printOnePager .op-session dd { margin: 0 0 .3em 9em; }
+
 @media print {
-  /* Hide the app chrome, not the bundle. Anything that isn't on the path from
-     <body> down to #printBundle would otherwise print behind it. */
-  body.printing > *:not(#printBundle) { display: none !important; }
+  /* Hide the app chrome, not the export. Anything that isn't on the path from
+     <body> down to the .printdoc host would otherwise print behind it. */
+  body.printing > *:not(.printdoc) { display: none !important; }
   body.printing { background: #fff; color: #000; }
   #printBundle { display: block; font-family: var(--serif, Georgia, serif); color: #000; }
+  #printOnePager { display: block; }
+  /* Measuring never overlaps printing, but a stray probe must not print offscreen. */
+  #printOnePager.measuring { position: static; left: auto; width: auto; }
+  #printOnePager .op-body img { break-inside: avoid-page; page-break-inside: avoid; }
+  /* The One-Pager owns sheet one whatever its length; the record starts a new sheet. */
+  #printOnePager .op-session { break-before: page; page-break-before: always; }
+  #printOnePager .op-session h2, #printOnePager .op-session h3 { break-after: avoid-page; page-break-after: avoid; }
 
   @page { margin: 20mm 18mm; }
 
