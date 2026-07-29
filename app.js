@@ -3,10 +3,23 @@
  * `node --check app.js` before shipping (port lesson: a stray smart-quote once
  * blanked the whole app). */
 
-// Build stamp — bump on every shipped change so we can confirm the browser has the
-// latest code (shown bottom-right + logged to console). Old highlights keep the
-// rects they were SAVED with, so re-test the fix with a FRESH highlight.
-const BUILD = '2026-07-29 · bundle-pdf-10';
+// Build stamp — READ FROM THE ?v= ON THIS SCRIPT'S OWN URL (set in index.html), so
+// what the badge shows is provably the file the browser actually loaded rather than
+// a constant that can disagree with it.
+//
+// Bump ?v= in index.html on every shipped change. On GitHub Pages that query string
+// is what stops a cached app.js/app.css being served after a deploy — the stale-JS
+// class of "phantom bug" this stamp exists to catch. Forget to bump it and the old
+// value stays visible in the corner, which is the point: it tells on itself.
+//
+// Old highlights keep the rects they were SAVED with, so re-test with a FRESH one.
+const BUILD = (function(){
+  try {
+    const s = document.currentScript;
+    if(s && s.src){ const v = new URL(s.src, location.href).searchParams.get('v'); if(v) return v; }
+  } catch(e){}
+  return 'dev (no ?v=)';
+})();
 (function showBuildTag(){
   function paint(){
     try { console.log('%cJournaler build: ' + BUILD, 'color:#c69a5c;font-weight:bold'); } catch(e){}

@@ -4,7 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Journaler · TCE 284</title>
-<link rel="stylesheet" href="app.css">
+<!-- ?v= is the cache buster. Bump BOTH tags (here and app.js at the end of body) on
+     every deploy: GitHub Pages will otherwise serve the cached files after a push.
+     app.js reads this same value back off its own URL for the build badge, so if it
+     is not bumped the stale version shows on screen instead of failing silently. -->
+<link rel="stylesheet" href="app.css?v=2026-07-29-11">
 </head>
 <body>
 <button class="focusbtn exitfocus" id="exitFocus">✕ Exit focus (Esc)</button>
@@ -98,6 +102,6 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="app.js"></script>
+<script src="app.js?v=2026-07-29-11"></script>
 </body>
 </html>
