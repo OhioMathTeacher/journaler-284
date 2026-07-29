@@ -311,3 +311,27 @@
 .textLayer span, .textLayer br { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0 0; }
 .textLayer span.markedContent { top: 0; height: 0; }
 .textLayer ::selection { background: rgba(198,154,92,.45); }
+/* Selectable block behind the text; when a drag starts it covers the whole layer
+   so multi-line selection flows as text instead of a rectangular column. */
+.textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: -1; cursor: default; user-select: none; }
+.textLayer .endOfContent.active { top: 0; }
+
+/* Marquee "box" capture (default reading mode): drag a rectangle over the page. */
+.marquee-overlay { position: absolute; inset: 0; z-index: 3; cursor: crosshair; }
+body:not(.marquee-on) .marquee-overlay { cursor: default; }
+.marquee-box { position: absolute; border: 1.5px solid #3a5a40; background: rgba(90,150,110,.16); pointer-events: none; z-index: 4; border-radius: 2px; }
+
+/* Passage-capture popup (highlight / Ask Romano). */
+.selection-popup { position: fixed; z-index: 1500; width: 320px; max-width: calc(100vw - 16px); background: #2b2a26; color: #f4efe6; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: .7rem .8rem; box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: .9rem; }
+.selection-popup .popup-passage { max-height: 90px; overflow: auto; line-height: 1.4; margin-bottom: .55rem; color: #e7e0d4; }
+.selection-popup input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #f4efe6; border-radius: 6px; padding: .4rem .5rem; font: inherit; margin-bottom: .55rem; }
+.selection-popup input::placeholder { color: rgba(244,239,230,.4); }
+.selection-popup input:focus { outline: none; border-color: #c69a5c; }
+.popup-quick { margin-bottom: .5rem; }
+.popup-chip { background: rgba(255,255,255,.08); color: #e7e0d4; border: 1px solid rgba(255,255,255,.14); border-radius: 6px; padding: .28rem .5rem; font: inherit; cursor: pointer; }
+.popup-actions { display: flex; gap: .5rem; }
+.popup-btn { border: 0; border-radius: 6px; padding: .42rem .7rem; font: inherit; cursor: pointer; }
+.popup-btn.primary { background: #c69a5c; color: #2b2a26; flex: 1; font-weight: 600; }
+.popup-btn.primary:hover { background: #d8ac6a; }
+.popup-btn.secondary { background: rgba(255,255,255,.08); color: #cfc7b8; }
+.popup-btn.secondary:hover { background: rgba(255,255,255,.14); }

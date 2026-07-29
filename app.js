@@ -825,6 +825,224 @@ async function runReflection(rf, text) {
     }
   }
 
+  // ── PDF passage capture — lifted from the 318P journaler. On OCR'd scans the bare
+  // text layer's native selection is unreliable (word-level spans → rectangular drags),
+  // so "box" mode is the default: drag a rectangle and harvest the spans it covers, in
+  // reading order, plus a cropped image (figures). "select" = native text selection.
+  // Toggle with the shelf button. See app.css .marquee-* / .selection-popup.
+  let pdfCaptureMode = (typeof DB === 'object' && DB && DB.pdfCaptureMode) || 'box';
+  let captureText = '', captureImage = '';
+
+  // Reorder OCR text items into reading order when the page has clear columns.
+  function orderByReadingColumns(items, pageWidth){
+    const good = items.filter(it => (it.str || '').trim().length);
+    if(good.length < 10 || !pageWidth) return items;
+    const lefts = good.map(it => it.transform[4]).sort((a,b)=>a-b);
+    const gap = pageWidth * 0.06;
+    const clusters = []; let sum = lefts[0], count = 1, prev = lefts[0];
+    for(let i=1;i<lefts.length;i++){
+      if(lefts[i]-prev > gap){ clusters.push({x:sum/count,n:count}); sum=0; count=0; }
+      sum += lefts[i]; count += 1; prev = lefts[i];
+    }
+    clusters.push({x:sum/count,n:count});
+    const cols = clusters.filter(c=>c.n >= good.length*0.04).map(c=>c.x).sort((a,b)=>a-b);
+    if(cols.length < 2) return items; // single column — natural order is fine
+    const colOf = x => { let bi=0,bd=Infinity; cols.forEach((cx,ci)=>{const d=Math.abs(x-cx); if(d<bd){bd=d;bi=ci;}}); return bi; };
+    return items
+      .map((it,idx)=>({it,idx,col:(it.str||'').trim().length?colOf(it.transform[4]):0,y:it.transform[5]}))
+      .sort((A,B)=>(A.col-B.col)||(B.y-A.y)||(A.idx-B.idx))
+      .map(o=>o.it);
+  }
+  // Some OCR'd scans embed the same text 2–3× at one spot; drop exact duplicates.
+  function dedupeTextItems(items){
+    const seen = new Set(); const out = [];
+    for(const it of items){
+      const s = it.str || '';
+      if(!s.trim()){ out.push(it); continue; } // keep whitespace/EOL items for spacing
+      const tr = it.transform || [];
+      const key = s + '@' + Math.round(tr[4]||0) + ',' + Math.round(tr[5]||0);
+      if(seen.has(key)) continue;
+      seen.add(key); out.push(it);
+    }
+    return out;
+  }
+  function setCaptureMode(m){
+    pdfCaptureMode = m;
+    document.querySelectorAll('.marquee-overlay').forEach(o=>{ o.style.pointerEvents = (m==='box')?'auto':'none'; });
+    const btn = document.getElementById('captureModeBtn');
+    if(btn){ btn.textContent = (m==='box') ? '▭ Box' : '✎ Select'; btn.classList.toggle('on', m==='box'); }
+    document.body.classList.toggle('marquee-on', m==='box');
+    if(typeof DB === 'object' && DB){ DB.pdfCaptureMode = m; saveDB(); }
+  }
+  function toggleCaptureMode(){ setCaptureMode(pdfCaptureMode==='box'?'select':'box'); }
+
+  function attachMarquee(overlay, canvas, textLayerDiv){
+    let startX=0, startY=0, boxEl=null, dragging=false;
+    overlay.addEventListener('mousedown', e => {
+      if(pdfCaptureMode!=='box' || e.button!==0) return;
+      document.querySelectorAll('.marquee-box').forEach(b=>b.remove());
+      dragging = true;
+      const r = overlay.getBoundingClientRect();
+      startX = e.clientX - r.left; startY = e.clientY - r.top;
+      boxEl = document.createElement('div'); boxEl.className='marquee-box';
+      boxEl.style.left = startX+'px'; boxEl.style.top = startY+'px';
+      overlay.appendChild(boxEl); e.preventDefault();
+    });
+    window.addEventListener('mousemove', e => {
+      if(!dragging || !boxEl) return;
+      const r = overlay.getBoundingClientRect();
+      const cx = e.clientX - r.left, cy = e.clientY - r.top;
+      boxEl.style.left = Math.min(startX,cx)+'px'; boxEl.style.top = Math.min(startY,cy)+'px';
+      boxEl.style.width = Math.abs(cx-startX)+'px'; boxEl.style.height = Math.abs(cy-startY)+'px';
+    });
+    window.addEventListener('mouseup', () => {
+      if(!dragging) return; dragging=false;
+      if(!boxEl) return;
+      const r = boxEl.getBoundingClientRect();
+      if(r.width<6 || r.height<6){ boxEl.remove(); boxEl=null; return; }
+      handleMarqueeCapture(r, canvas, textLayerDiv);
+      boxEl = null;
+    });
+  }
+  function handleMarqueeCapture(boxRect, canvas, textLayerDiv){
+    // exact text: spans whose box mostly falls inside the marquee, in reading order
+    const hits = [];
+    textLayerDiv.querySelectorAll('span').forEach(sp => {
+      const r = sp.getBoundingClientRect();
+      if(!r.width || !r.height) return;
+      const ix = Math.max(0, Math.min(r.right,boxRect.right)-Math.max(r.left,boxRect.left));
+      const iy = Math.max(0, Math.min(r.bottom,boxRect.bottom)-Math.max(r.top,boxRect.top));
+      if(ix*iy >= 0.35*(r.width*r.height)) hits.push({sp, top:r.top, left:r.left});
+    });
+    hits.sort((a,b)=>(Math.abs(a.top-b.top)>4 ? a.top-b.top : a.left-b.left));
+    const uniq = [];
+    for(const h of hits){
+      const prev = uniq[uniq.length-1];
+      if(prev && (h.sp.textContent||'')===(prev.sp.textContent||'') && Math.abs(h.top-prev.top)<2 && Math.abs(h.left-prev.left)<2) continue;
+      uniq.push(h);
+    }
+    let text='', lastTop=null;
+    uniq.forEach(h => {
+      const piece = h.sp.textContent || '';
+      if(lastTop!==null && Math.abs(h.top-lastTop)>4) text += '\n';
+      else if(text && !text.endsWith('\n')) text += ' ';
+      text += piece; lastTop = h.top;
+    });
+    text = text.replace(/[ \t]+/g,' ').replace(/([A-Za-z])-\n([a-z])/g,'$1$2').replace(/\n+/g,' ').trim();
+    // cropped image of the region (for figures / to keep with a note)
+    let imgData = '';
+    try {
+      const cRect = canvas.getBoundingClientRect();
+      const sx = (boxRect.left-cRect.left)/cRect.width*canvas.width;
+      const sy = (boxRect.top-cRect.top)/cRect.height*canvas.height;
+      const sw = boxRect.width/cRect.width*canvas.width;
+      const sh = boxRect.height/cRect.height*canvas.height;
+      const tmp = document.createElement('canvas');
+      tmp.width = Math.max(1,Math.round(sw)); tmp.height = Math.max(1,Math.round(sh));
+      tmp.getContext('2d').drawImage(canvas, sx,sy,sw,sh, 0,0, tmp.width,tmp.height);
+      imgData = tmp.toDataURL('image/png');
+    } catch(e){ console.warn('crop', e); }
+    openCapturePopup(text, imgData, boxRect);
+  }
+
+  function ensureCapturePopup(){
+    let pop = document.getElementById('capturePopup');
+    if(pop) return pop;
+    pop = document.createElement('div'); pop.className='selection-popup'; pop.id='capturePopup'; pop.style.display='none';
+    pop.innerHTML = `<img id="captureThumb" alt="captured region" style="display:none;max-width:100%;max-height:130px;border-radius:4px;margin-bottom:.5rem;border:1px solid rgba(0,0,0,.15)">
+      <div class="popup-passage" id="capturePassage"></div>
+      <input type="text" id="captureInput" placeholder="Add a note (optional)…" autocomplete="off">
+      <div class="popup-quick"><button class="popup-chip" id="captureFigBtn" style="display:none">↓ Save figure</button></div>
+      <div class="popup-actions">
+        <button class="popup-btn secondary" id="captureCancelBtn">Cancel</button>
+        <button class="popup-btn secondary" id="captureSaveBtn">✎ Highlight</button>
+        <button class="popup-btn primary" id="captureAskBtn">Ask Romano</button>
+      </div>`;
+    document.body.appendChild(pop);
+    pop.querySelector('#captureCancelBtn').onclick = closeCapture;
+    pop.querySelector('#captureSaveBtn').onclick = () => saveHighlight(false);
+    pop.querySelector('#captureAskBtn').onclick  = () => saveHighlight(true);
+    pop.querySelector('#captureFigBtn').onclick = downloadCapture;
+    pop.querySelector('#captureInput').addEventListener('keydown', e => {
+      if(e.key==='Enter'){ e.preventDefault(); saveHighlight(true); }
+      if(e.key==='Escape') closeCapture();
+    });
+    return pop;
+  }
+  function openCapturePopup(text, imgData, boxRect){
+    captureText = text || ''; captureImage = imgData || '';
+    const pop = ensureCapturePopup();
+    const thumb = pop.querySelector('#captureThumb');
+    const figBtn = pop.querySelector('#captureFigBtn');
+    if(captureImage){ thumb.src = captureImage; thumb.style.display='block'; figBtn.style.display=''; }
+    else { thumb.removeAttribute('src'); thumb.style.display='none'; figBtn.style.display='none'; }
+    pop.querySelector('#capturePassage').textContent = captureText
+      ? (captureText.length>150 ? captureText.slice(0,150)+'…' : captureText)
+      : '(figure — no text in this box)';
+    const input = pop.querySelector('#captureInput'); input.value='';
+    let left = boxRect.left, top = boxRect.bottom + 8;
+    if(left+320 > window.innerWidth) left = window.innerWidth-330;
+    if(left<8) left=8;
+    if(top+240 > window.innerHeight) top = Math.max(8, boxRect.top-240);
+    pop.style.left = left+'px'; pop.style.top = top+'px'; pop.style.display='block';
+    setTimeout(()=>input.focus(), 50);
+  }
+  function closeCapture(){
+    const pop = document.getElementById('capturePopup');
+    if(pop) pop.style.display='none';
+    document.querySelectorAll('.marquee-box').forEach(b=>b.remove());
+  }
+  function saveHighlight(ask){
+    const pop = document.getElementById('capturePopup');
+    const note = pop ? pop.querySelector('#captureInput').value.trim() : '';
+    if(!captureText && !captureImage){ closeCapture(); return; }
+    const passage = captureText, image = captureImage;
+    const box = document.getElementById('newnote');
+    if(box){
+      const img = image ? `<img src="${image}" alt="figure" style="max-width:100%;border-radius:4px;margin:.35rem 0;border:1px solid rgba(0,0,0,.12)">` : '';
+      const psg = passage ? `<div class="q">Highlight</div>${escHtml(passage)}` : `<div class="q">Figure</div>`;
+      const nt = note ? `<br><em style="color:var(--muted)">${escHtml(note)}</em>` : '';
+      box.insertAdjacentHTML('beforeend', `<div class="notecard">${psg}${img}${nt}</div>`);
+    }
+    closeCapture();
+    if(ask && passage) askRomanoInto(passage, note);
+  }
+  function downloadCapture(){
+    if(!captureImage) return;
+    const a = document.createElement('a');
+    a.href = captureImage; a.download = 'figure.png';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  // Romano — the reading partner (Tom Romano, author of the book). Warm, first
+  // person, ≤2 sentences, turns a question back. Uses the shared callModel client.
+  const READING_PARTNER = `You are Tom Romano — writer, teacher, and author of "Write What Matters" — a warm reading-and-writing partner for a college student reading your book. You help them think about the passage and their own writing life; you never lecture or summarize for them.
+
+Voice: warm, first person, plainspoken, a little wry — a writer talking to a writer, not a critic. Draw the reader out; one real question put back to them beats a clever answer.
+
+Hard rule on length: no more than TWO short sentences. Often make the second a single question back to them. No lists, no preamble, no flattery. Stop early rather than late.`;
+  async function romanoReply(passage, question){
+    const q = question || 'Help me think about this passage.';
+    const prompt = passage
+      ? `${READING_PARTNER}\n\nThe reader highlighted this passage from the book:\n"${passage}"\n\nThey ask: ${q}\n\nReply as Romano in ONE or TWO short sentences — illuminate it, then perhaps turn one question back to them.`
+      : `${READING_PARTNER}\n\nThe reader asks: ${q}\n\nReply as Romano in ONE or TWO short sentences.`;
+    return callModel(prompt);
+  }
+  async function askRomanoInto(passage, question){
+    const box = document.getElementById('newnote');
+    if(!box) return;
+    const head = passage
+      ? `<div class="q">You highlighted → asked Romano</div>${escHtml(passage.length>150?passage.slice(0,150)+'…':passage)}<br>`
+      : `<div class="q">You asked Romano</div>${escHtml(question||'')}<br>`;
+    const card = document.createElement('div'); card.className='notecard';
+    card.innerHTML = head + `<span class="rmreply"><em style="color:var(--muted)">Romano is thinking…</em></span>`;
+    box.appendChild(card);
+    const replyEl = card.querySelector('.rmreply');
+    if(getProvider()==='none'){ replyEl.innerHTML = '<em>Connect an AI (top right) and Romano will answer — optional; your reading and notes work without it.</em>'; return; }
+    try { replyEl.textContent = await romanoReply(passage, question); }
+    catch(e){ replyEl.innerHTML = '<em>Romano is unavailable right now.</em>'; }
+  }
+
   // Paint pdf pages — one at a time (single, with ‹ ›) or all stacked (continuous).
   async function renderPdfPages(pane, doc, r, token){
     const single = readPageMode === 'single';
@@ -857,16 +1075,34 @@ async function runReflection(rf, text) {
       pageDiv.appendChild(canvas); wrap.appendChild(pageDiv);
       await page.render({ canvasContext: canvas.getContext('2d'), viewport, transform: ratio !== 1 ? [ratio,0,0,ratio,0,0] : null }).promise;
       if(token !== _readToken) return;
-      // Selectable text layer over the canvas (so passages can be highlighted / sent to Socrates).
+      // Selectable text layer + marquee capture overlay (passages → Romano / Notebook).
       try {
         const tc = await page.getTextContent();
         if(token !== _readToken) return;
+        // Clean OCR items before building the layer: drop duplicate-embedded text and
+        // put them in reading order — helps both native selection and marquee capture.
+        try { tc.items = orderByReadingColumns(dedupeTextItems(tc.items), unit.width); } catch(e2){ console.warn('column order', e2); }
         const tlDiv = document.createElement('div'); tlDiv.className = 'textLayer';
         tlDiv.style.setProperty('--scale-factor', scale);
         tlDiv.style.setProperty('--total-scale-factor', scale);
         pageDiv.appendChild(tlDiv);
         const TL = window.pdfjsLib && window.pdfjsLib.TextLayer;
         if(TL){ await new TL({ textContentSource: tc, container: tlDiv, viewport }).render(); }
+        // Cross-line native selection fix ("endOfContent" trick), used in "select" mode:
+        // a full-layer selectable block behind the text lets the browser flow the
+        // selection to end-of-line and wrap instead of a rectangular column.
+        const eoc = document.createElement('div'); eoc.className = 'endOfContent';
+        tlDiv.appendChild(eoc);
+        tlDiv.addEventListener('pointerdown', () => {
+          eoc.classList.add('active');
+          const clear = () => { eoc.classList.remove('active'); document.removeEventListener('pointerup', clear); };
+          document.addEventListener('pointerup', clear);
+        });
+        // Marquee "box" capture overlay (default; reliable on OCR'd scans).
+        const overlay = document.createElement('div'); overlay.className = 'marquee-overlay';
+        overlay.style.pointerEvents = (pdfCaptureMode === 'box') ? 'auto' : 'none';
+        pageDiv.appendChild(overlay);
+        attachMarquee(overlay, canvas, tlDiv);
       } catch(e){ console.warn('text layer', e); }
     }
   }
@@ -904,7 +1140,7 @@ async function runReflection(rf, text) {
         <span class="shelf-lbl">Reading</span>
         <select id="readingSelect" class="reading-select" ${readings.length?'':'disabled'}>${options}</select>
         <button class="rchip-x" id="removeReading" title="Remove this reading from your shelf" ${readings.length<=1?'disabled':''}>✕ Remove</button>
-        ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single">Single page</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>` : ''}
+        ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single">Single page</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span><button class="vbtn capmode" id="captureModeBtn" title="Box: drag a box on the page to capture a passage or figure. Toggle to select text normally.">▭ Box</button>` : ''}
         <span class="shelf-spacer"></span>
         <button class="openbtn" id="openReading">＋ Load readings</button>
         <button class="openbtn" id="openFolder">＋ Load a folder</button>
@@ -915,7 +1151,7 @@ async function runReflection(rf, text) {
         <div class="doc" id="docPane">${docBody(active)}</div>
         <aside class="notes">
           <h4>Margin · your notes</h4>
-          <div class="notecard"><div class="q">You asked Socrates</div>What does Romano mean by “trust the gush”? <em style="color:var(--muted)">(AI reply stubbed — wires to your API key.)</em></div>
+          <div class="notecard"><div class="q">Ask Romano</div>Box a passage (or type below) and Tom Romano — the book's author — will think it through with you. <em style="color:var(--muted)">Connect an AI up top; optional.</em></div>
           <div id="newnote"></div>
           <div class="askbar"><input placeholder="Ask about the selection…" id="askin"><button class="btn sm" id="askbtn">Ask</button></div>
           <p class="locknote" style="margin-top:10px">Send a marked passage to your Notebook →</p>
@@ -931,14 +1167,16 @@ async function runReflection(rf, text) {
       readPageNum = 1; _curPdf = { id:null, doc:null };
       persistReadings(); renderRead();
     };
-    frame.querySelectorAll('.vbtn').forEach(b => b.onclick = () => { readPageMode = b.dataset.vm; DB.readPageMode = readPageMode; saveDB(); renderRead(); });
+    frame.querySelectorAll('.vbtn[data-vm]').forEach(b => b.onclick = () => { readPageMode = b.dataset.vm; DB.readPageMode = readPageMode; saveDB(); renderRead(); });
+    const cmBtn = document.getElementById('captureModeBtn');
+    if(cmBtn){ cmBtn.onclick = toggleCaptureMode; setCaptureMode(pdfCaptureMode); }
     const input = document.getElementById('readInput');
     const folderInput = document.getElementById('readFolderInput');
     document.getElementById('openReading').onclick = () => input.click();
     document.getElementById('openFolder').onclick = () => folderInput.click();
     input.onchange = async () => { await addReadingFiles(input.files); input.value = ''; };
     folderInput.onchange = async () => { await addReadingFiles(folderInput.files); folderInput.value = ''; };
-    document.getElementById('askbtn').addEventListener('click',()=>{const v=document.getElementById('askin').value.trim();if(!v)return;document.getElementById('newnote').insertAdjacentHTML('beforeend',`<div class="notecard"><div class="q">You asked</div>${v}<br><em style="color:var(--muted)">Stubbed reply.</em></div>`);document.getElementById('askin').value='';});
+    document.getElementById('askbtn').addEventListener('click',()=>{const el=document.getElementById('askin');const v=el.value.trim();if(!v)return;el.value='';askRomanoInto(captureText||'', v);});
   }
 
   // ---------- Notebook — kept pages, seen two ways (by day · by piece) ----------
