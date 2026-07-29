@@ -6,7 +6,7 @@
 // Build stamp — bump on every shipped change so we can confirm the browser has the
 // latest code (shown bottom-right + logged to console). Old highlights keep the
 // rects they were SAVED with, so re-test the fix with a FRESH highlight.
-const BUILD = '2026-07-28 · highlight-coverage-4';
+const BUILD = '2026-07-29 · reader-complete-6';
 (function showBuildTag(){
   function paint(){
     try { console.log('%cJournaler build: ' + BUILD, 'color:#c69a5c;font-weight:bold'); } catch(e){}
@@ -586,7 +586,7 @@ async function runReflection(rf, text) {
     } }
     DB._journalMigrated = true; saveDB();
   }
-  const PIECE_ORDER = ['op1','op2','op3','op4','op5','cur-reg','cur-pro','cur-syn','free'];
+  const PIECE_ORDER = ['op1','op2','op3','op4','op5','cur-reg','cur-pro','cur-syn','free','reading'];
   function pieceRank(id){ const i = PIECE_ORDER.indexOf(id); return i<0 ? 99 : i; }
   let _toastT;
   function toast(msg){
@@ -610,6 +610,7 @@ async function runReflection(rf, text) {
   function goToPiece(pieceId){
     if(/^op[1-5]$/.test(pieceId)){ fwCur = pieceId; show('free'); }
     else if(pieceId.indexOf('cur-') === 0){ curCur = pieceId.slice(4); show('cur'); }
+    else if(pieceId === 'reading'){ show('read'); }
     else { show('free'); }
   }
 
@@ -893,32 +894,44 @@ async function runReflection(rf, text) {
   }
   function toggleCaptureMode(){ setCaptureMode(pdfCaptureMode==='box'?'select':'box'); }
 
+  // Only one marquee can be dragged at a time, so the window listeners belong to
+  // the module, not to a page. attachMarquee() runs per page per render, and it
+  // used to add a mousemove/mouseup pair each time without ever removing them —
+  // a continuous-mode repaint of a 14-page chapter leaked 28 listeners.
+  let _mq = null;            // live drag: { overlay, canvas, textLayerDiv, startX, startY, boxEl }
+  let _mqWired = false;
+  function wireMarqueeWindowListeners(){
+    if(_mqWired) return;
+    _mqWired = true;
+    window.addEventListener('mousemove', e => {
+      if(!_mq) return;
+      const r = _mq.overlay.getBoundingClientRect();
+      const cx = e.clientX - r.left, cy = e.clientY - r.top;
+      _mq.boxEl.style.left   = Math.min(_mq.startX, cx)+'px';
+      _mq.boxEl.style.top    = Math.min(_mq.startY, cy)+'px';
+      _mq.boxEl.style.width  = Math.abs(cx - _mq.startX)+'px';
+      _mq.boxEl.style.height = Math.abs(cy - _mq.startY)+'px';
+    });
+    window.addEventListener('mouseup', () => {
+      if(!_mq) return;
+      const m = _mq; _mq = null;
+      const r = m.boxEl.getBoundingClientRect();
+      if(r.width < 6 || r.height < 6){ m.boxEl.remove(); return; }
+      handleMarqueeCapture(r, m.canvas, m.textLayerDiv);
+    });
+  }
   function attachMarquee(overlay, canvas, textLayerDiv){
-    let startX=0, startY=0, boxEl=null, dragging=false;
+    wireMarqueeWindowListeners();
     overlay.addEventListener('mousedown', e => {
       if(pdfCaptureMode!=='box' || e.button!==0) return;
       document.querySelectorAll('.marquee-box').forEach(b=>b.remove());
-      dragging = true;
       const r = overlay.getBoundingClientRect();
-      startX = e.clientX - r.left; startY = e.clientY - r.top;
-      boxEl = document.createElement('div'); boxEl.className='marquee-box';
+      const startX = e.clientX - r.left, startY = e.clientY - r.top;
+      const boxEl = document.createElement('div'); boxEl.className='marquee-box';
       boxEl.style.left = startX+'px'; boxEl.style.top = startY+'px';
-      overlay.appendChild(boxEl); e.preventDefault();
-    });
-    window.addEventListener('mousemove', e => {
-      if(!dragging || !boxEl) return;
-      const r = overlay.getBoundingClientRect();
-      const cx = e.clientX - r.left, cy = e.clientY - r.top;
-      boxEl.style.left = Math.min(startX,cx)+'px'; boxEl.style.top = Math.min(startY,cy)+'px';
-      boxEl.style.width = Math.abs(cx-startX)+'px'; boxEl.style.height = Math.abs(cy-startY)+'px';
-    });
-    window.addEventListener('mouseup', () => {
-      if(!dragging) return; dragging=false;
-      if(!boxEl) return;
-      const r = boxEl.getBoundingClientRect();
-      if(r.width<6 || r.height<6){ boxEl.remove(); boxEl=null; return; }
-      handleMarqueeCapture(r, canvas, textLayerDiv);
-      boxEl = null;
+      overlay.appendChild(boxEl);
+      _mq = { overlay, canvas, textLayerDiv, startX, startY, boxEl };
+      e.preventDefault();
     });
   }
   function handleMarqueeCapture(boxRect, canvas, textLayerDiv){
@@ -957,19 +970,6 @@ async function runReflection(rf, text) {
     const el = node && (node.nodeType === 1 ? node : node.parentElement);
     return el ? el.closest('#docPane .textLayer span') : null;
   }
-  // Collapse per-word rects into one rect per text line (continuous highlight,
-  // spaces included). Buckets by line-center with a height-scaled tolerance so OCR
-  // baseline jitter never splits a line. Single-column prose (the WWM chapters).
-  function mergeRectsByLine(rects){
-    const lines = [];
-    rects.forEach(r => {
-      const mid = (r.top + r.bottom)/2, h = r.bottom - r.top;
-      const g = lines.find(l => Math.abs(l.mid - mid) <= Math.max(6, Math.min(l.h, h) * 0.6));
-      if(g){ g.top=Math.min(g.top,r.top); g.bottom=Math.max(g.bottom,r.bottom); g.left=Math.min(g.left,r.left); g.right=Math.max(g.right,r.right); g.mid=(g.top+g.bottom)/2; g.h=g.bottom-g.top; }
-      else lines.push({ top:r.top, bottom:r.bottom, left:r.left, right:r.right, mid, h });
-    });
-    return lines.map(g => ({ left:g.left, top:g.top, right:g.right, bottom:g.bottom, width:g.right-g.left, height:g.bottom-g.top }));
-  }
   // Group every visible text-layer span into reading-order LINES, tolerant of the
   // per-word baseline jitter OCR produces — so a line never scrambles left↔right.
   function docLines(){
@@ -985,34 +985,6 @@ async function runReflection(rf, text) {
     });
     lines.forEach(l => l.items.sort((a,b) => a.left - b.left));
     return lines;
-  }
-  // From anchor spans (marquee hits, or the two selection-boundary words) build the
-  // full passage: first→last word with every intermediate LINE complete. The first
-  // line runs from the start word to its end; the last line up to the end word.
-  function expandToPassage(anchors){
-    if(!anchors || !anchors.length) return [];
-    const set = new Set(anchors);
-    const lines = docLines();
-    let firstLine = -1, lastLine = -1, firstLeft = Infinity, lastRight = -Infinity;
-    lines.forEach((ln, li) => {
-      ln.items.forEach(it => {
-        if(!set.has(it.sp)) return;
-        if(firstLine === -1 || li < firstLine){ firstLine = li; firstLeft = it.left; }
-        else if(li === firstLine){ firstLeft = Math.min(firstLeft, it.left); }
-        if(li > lastLine){ lastLine = li; lastRight = it.right; }
-        else if(li === lastLine){ lastRight = Math.max(lastRight, it.right); }
-      });
-    });
-    if(firstLine === -1) return anchors.slice();
-    const out = [];
-    for(let li = firstLine; li <= lastLine; li++){
-      lines[li].items.forEach(it => {
-        const okL = (li > firstLine) || (it.left >= firstLeft - 2);
-        const okR = (li < lastLine) || (it.right <= lastRight + 2);
-        if(okL && okR) out.push(it.sp);
-      });
-    }
-    return out;
   }
   // Build one full-width rect per line straight from the document's line geometry
   // (NOT the selection): middle lines span the whole line, first/last run from/to the
@@ -1053,7 +1025,7 @@ async function runReflection(rf, text) {
       .replace(/\s+/g, ' ').trim();
   }
   // Native text selection (Select mode). Take only the start & end words the user
-  // touched, then expandToPassage fills complete lines between them — so coverage
+  // touched, then passageLineRects fills complete lines between them — so coverage
   // never follows the browser's rectangular selection geometry.
   function handleSelectionCapture(){
     if(pdfCaptureMode !== 'select') return;
@@ -1078,8 +1050,9 @@ async function runReflection(rf, text) {
     pop = document.createElement('div'); pop.className='selection-popup'; pop.id='capturePopup'; pop.style.display='none';
     pop.innerHTML = `<img id="captureThumb" alt="captured region" style="display:none;max-width:100%;max-height:130px;border-radius:4px;margin-bottom:.5rem;border:1px solid rgba(0,0,0,.15)">
       <div class="popup-passage" id="capturePassage"></div>
-      <input type="text" id="captureInput" placeholder="Add a note (optional)…" autocomplete="off">
-      <div class="popup-quick"><button class="popup-chip" id="captureFigBtn" style="display:none">↓ Save figure</button></div>
+      <input type="text" id="captureInput" placeholder="Ask Romano a question — or just add a note…" autocomplete="off">
+      <div class="popup-hint">Enter asks Romano · leave blank to highlight only</div>
+      <div class="popup-quick"><button class="popup-chip" id="captureNbBtn">📓 Keep in notebook</button><button class="popup-chip" id="captureFigBtn" style="display:none">↓ Save figure</button></div>
       <div class="popup-actions">
         <button class="popup-btn secondary" id="captureCancelBtn">Cancel</button>
         <button class="popup-btn secondary" id="captureSaveBtn">✎ Highlight</button>
@@ -1089,6 +1062,7 @@ async function runReflection(rf, text) {
     pop.querySelector('#captureCancelBtn').onclick = closeCapture;
     pop.querySelector('#captureSaveBtn').onclick = () => saveHighlight(false);
     pop.querySelector('#captureAskBtn').onclick  = () => saveHighlight(true);
+    pop.querySelector('#captureNbBtn').onclick   = () => saveHighlight(false, true);
     pop.querySelector('#captureFigBtn').onclick = downloadCapture;
     pop.querySelector('#captureInput').addEventListener('keydown', e => {
       if(e.key==='Enter'){ e.preventDefault(); saveHighlight(true); }
@@ -1107,19 +1081,27 @@ async function runReflection(rf, text) {
       ? (captureText.length>150 ? captureText.slice(0,150)+'…' : captureText)
       : '(figure — no text in this box)';
     const input = pop.querySelector('#captureInput'); input.value='';
+    // Measure rather than assume — the popup's size is set in CSS and used to
+    // drift out of sync with hardcoded numbers here.
+    pop.style.visibility = 'hidden'; pop.style.display = 'block';
+    const pw = pop.offsetWidth, ph = pop.offsetHeight;
     let left = boxRect.left, top = boxRect.bottom + 8;
-    if(left+320 > window.innerWidth) left = window.innerWidth-330;
-    if(left<8) left=8;
-    if(top+240 > window.innerHeight) top = Math.max(8, boxRect.top-240);
-    pop.style.left = left+'px'; pop.style.top = top+'px'; pop.style.display='block';
+    if(left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+    if(left < 8) left = 8;
+    if(top + ph > window.innerHeight - 8) top = Math.max(8, boxRect.top - ph - 8);
+    pop.style.left = left+'px'; pop.style.top = top+'px'; pop.style.visibility = '';
     setTimeout(()=>input.focus(), 50);
   }
   function closeCapture(){
     const pop = document.getElementById('capturePopup');
     if(pop) pop.style.display='none';
     document.querySelectorAll('.marquee-box').forEach(b=>b.remove());
+    // Forget the capture. It used to linger, so every later question typed in the
+    // ask bar ("about the reading", not about any passage) was filed under
+    // whatever was captured last. saveHighlight copies what it needs first.
+    captureText = ''; captureImage = ''; captureRects = null;
   }
-  function saveHighlight(ask){
+  function saveHighlight(ask, toNotebook){
     const pop = document.getElementById('capturePopup');
     const note = pop ? pop.querySelector('#captureInput').value.trim() : '';
     if(!captureText && !captureImage){ closeCapture(); return; }
@@ -1134,13 +1116,64 @@ async function runReflection(rf, text) {
     repaintHighlights();
     renderHighlightList();
     closeCapture();
-    if(ask && passage) askRomanoInto(passage, note);
+    if(toNotebook) elevateHighlight(rec);
+    if(ask && passage) askRomanoInto(passage, note, rec.page);
+  }
+  // Reading work counts toward the 50-pt Writer's Notebook, so a highlight can be
+  // kept as a dated pass like any other piece. Carries its own citation, since the
+  // notebook entry has to stand on its own away from the PDF.
+  function elevateHighlight(rec){
+    if(!rec) return;
+    const r = readings[activeReading];
+    const where = r ? readingLabel(r) + (rec.page ? ', p. ' + rec.page : '') : '';
+    const body = [
+      rec.text ? '“' + rec.text + '”' : '(figure)',
+      where ? '— ' + where : '',
+      rec.note ? '\n' + rec.note : ''
+    ].filter(Boolean).join('\n');
+    elevate('reading', 'reading', 'Reading notes', body);
   }
   function downloadCapture(){
     if(!captureImage) return;
     const a = document.createElement('a');
     a.href = captureImage; a.download = 'figure.png';
     document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  // ── Page-scoped grounding. A bare quoted passage leaves Romano guessing at what
+  //    the chapter is actually arguing; the page it sits on plus its neighbours is
+  //    enough to keep him on the book, at a few hundred words per ask.
+  //    Cached in memory ONLY — this is copyrighted chapter text, and everything in
+  //    DB gets written into the file ⤓ Save my work hands the student.
+  const _pageTextCache = new Map();          // `${readingId}:${page}` → string
+  const CTX_PAGE_CHARS = 2500;               // one scanned page runs ~1,800
+  async function pageText(rid, doc, n){
+    if(n < 1 || n > doc.numPages) return '';
+    const key = rid + ':' + n;
+    if(_pageTextCache.has(key)) return _pageTextCache.get(key);
+    let txt = '';
+    try {
+      const tc = await (await doc.getPage(n)).getTextContent();
+      txt = tc.items.map(i => i.str).join(' ').replace(/\s+/g, ' ').trim().slice(0, CTX_PAGE_CHARS);
+    } catch(e){ console.warn('pageText', e); }
+    _pageTextCache.set(key, txt);
+    return txt;
+  }
+  async function readingContext(page){
+    const r = readings[activeReading];
+    if(!r || r.type !== 'pdf') return '';
+    if(_curPdf.id !== r.id || !_curPdf.doc) return '';
+    const doc = _curPdf.doc;
+    const n = Math.min(Math.max(page || readPageNum || 1, 1), doc.numPages);
+    const [prev, cur, next] = await Promise.all([
+      pageText(r.id, doc, n-1), pageText(r.id, doc, n), pageText(r.id, doc, n+1)
+    ]);
+    const seg = [
+      prev && `[page ${n-1}] ${prev}`,
+      cur  && `[page ${n}] ${cur}`,
+      next && `[page ${n+1}] ${next}`
+    ].filter(Boolean).join('\n\n');
+    return seg ? `From "${readingLabel(r)}" — the pages the reader is on right now:\n\n${seg}` : '';
   }
 
   // Romano — the reading partner (Tom Romano, author of the book). Warm, first
@@ -1150,26 +1183,99 @@ async function runReflection(rf, text) {
 Voice: warm, first person, plainspoken, a little wry — a writer talking to a writer, not a critic. Draw the reader out; one real question put back to them beats a clever answer.
 
 Hard rule on length: no more than TWO short sentences. Often make the second a single question back to them. No lists, no preamble, no flattery. Stop early rather than late.`;
-  async function romanoReply(passage, question){
+  async function romanoReply(passage, question, history, context){
     const q = question || 'Help me think about this passage.';
-    const prompt = passage
-      ? `${READING_PARTNER}\n\nThe reader highlighted this passage from the book:\n"${passage}"\n\nThey ask: ${q}\n\nReply as Romano in ONE or TWO short sentences — illuminate it, then perhaps turn one question back to them.`
-      : `${READING_PARTNER}\n\nThe reader asks: ${q}\n\nReply as Romano in ONE or TWO short sentences.`;
-    return callModel(prompt);
+    const parts = [READING_PARTNER];
+    if(context) parts.push(`${context}\n\nUse this to stay on what the book actually says — quote it only if it helps, and never summarize it back at them.`);
+    // Without the thread every ask arrives cold, so a follow-up like "Really?"
+    // or "I need background noise" reads as a non-sequitur and the reply drifts.
+    const thread = (history || []).map(r =>
+      `Reader: ${r.question || 'Help me think about this passage.'}\nYou: ${r.reply}`).join('\n\n');
+    if(thread) parts.push(`Here is what the two of you have already said, oldest first:\n\n${thread}\n\nStay in that thread. A short follow-up refers to what YOU just said — take it as a reply to you, and do not contradict what the reader has told you about themselves.`);
+    if(passage) parts.push(`The passage under discussion, from your book:\n"${passage}"`);
+    parts.push(`They now say: ${q}\n\nReply as Romano in ONE or TWO short sentences — illuminate it, then perhaps turn one question back to them.`);
+    return callModel(parts.join('\n\n'));
   }
-  async function askRomanoInto(passage, question){
-    const box = document.getElementById('newnote');
-    if(!box) return;
-    const head = passage
-      ? `<div class="q">You highlighted → asked Romano</div>${escHtml(passage.length>150?passage.slice(0,150)+'…':passage)}<br>`
-      : `<div class="q">You asked Romano</div>${escHtml(question||'')}<br>`;
-    const card = document.createElement('div'); card.className='notecard';
-    card.innerHTML = head + `<span class="rmreply"><em style="color:var(--muted)">Romano is thinking…</em></span>`;
-    box.appendChild(card);
-    const replyEl = card.querySelector('.rmreply');
-    if(getProvider()==='none'){ replyEl.innerHTML = '<em>Connect an AI (top right) and Romano will answer — optional; your reading and notes work without it.</em>'; return; }
-    try { replyEl.textContent = await romanoReply(passage, question); }
-    catch(e){ replyEl.innerHTML = '<em>Romano is unavailable right now.</em>'; }
+  // ── Romano Q&A, stored per reading in DB.qa[readingId] (same shape as the
+  //    highlights above) so the conversation survives renderRead — switching
+  //    reading, toggling Single↔Continuous, or leaving and returning to the tab.
+  //    It used to append straight into #newnote, which any re-render wiped.
+  //    A reply still in flight when the page goes away cannot be resumed, so
+  //    _qaPending tracks the live ones; an empty reply that ISN'T pending reads
+  //    as interrupted rather than "thinking…" forever.
+  const _qaPending = new Set();
+  function allQA(){ if(!DB.qa) DB.qa = {}; return DB.qa; }
+  function getQA(rid){ return (rid && allQA()[rid]) || []; }
+  function persistQA(rid, list){ allQA()[rid] = list; saveDB(); }
+  function addQA(rid, rec){ if(!rid) return null; persistQA(rid, getQA(rid).concat([rec])); return rec; }
+  function updateQA(rid, id, patch){
+    if(!rid) return;
+    persistQA(rid, getQA(rid).map(r => r.id === id ? Object.assign({}, r, patch) : r));
+  }
+  function removeQA(id){
+    const rid = currentReadingId(); if(!rid) return;
+    persistQA(rid, getQA(rid).filter(r => r.id !== id));
+    renderQAList();
+  }
+  function renderQAList(){
+    const box = document.getElementById('newnote'); if(!box) return;
+    // Read it as a conversation: the passage is quiet CONTEXT at the top, then
+    // your turn, then his. Speakers are labelled and tinted so his reply can't be
+    // mistaken for more of the quoted passage.
+    let prevPassage = null;
+    box.innerHTML = getQA(currentReadingId()).map(r => {
+      // The passage is context, not the point — keep it to a thin line, and when
+      // consecutive questions share one passage don't reprint the whole thing.
+      let ctx = '';
+      if(r.passage && r.passage === prevPassage){
+        ctx = `<div class="qa-ctx same">↑ same passage</div>`;
+      } else if(r.passage){
+        ctx = `<div class="qa-ctx"><span class="qa-ctx-lbl">from your highlight</span><span class="qa-quote" title="Click to show the whole passage">${escHtml(r.passage)}</span></div>`;
+      }
+      prevPassage = r.passage || null;
+      // With no typed question we send "Help me think about this passage" — show
+      // that, muted, rather than a blank turn that hides what was actually asked.
+      const asked = r.question || (r.passage ? 'Help me think about this passage.' : '');
+      const you = asked
+        ? `<div class="qa-turn you"><span class="qa-who">You</span><div class="qa-say${r.question?'':' implied'}">${escHtml(asked)}</div></div>`
+        : '';
+      let say;
+      if(r.reply) say = escHtml(r.reply);
+      else if(_qaPending.has(r.id)) say = '<em class="qa-wait">thinking…</em>';
+      else say = `<em class="qa-wait">${escHtml(r.error || 'Romano didn’t finish this one — ask again.')}</em>`;
+      const him = `<div class="qa-turn romano"><span class="qa-who">Romano</span><div class="qa-say rmreply">${say}</div></div>`;
+      return `<div class="notecard qa" data-qa="${r.id}">${ctx}${you}${him}<div class="hl-row"><button class="hl-del" data-qa="${r.id}">Remove</button></div></div>`;
+    }).join('');
+    box.querySelectorAll('.qa-quote').forEach(q => q.onclick = () => q.closest('.notecard').classList.toggle('open'));
+    box.querySelectorAll('.hl-del[data-qa]').forEach(b => b.onclick = () => removeQA(b.dataset.qa));
+  }
+  async function askRomanoInto(passage, question, page){
+    const rid = currentReadingId(); if(!rid) return;
+    if(getProvider()==='none'){
+      // No-AI is a supported path — don't bank a question nothing will answer.
+      const box = document.getElementById('newnote');
+      if(box) box.insertAdjacentHTML('beforeend', '<div class="notecard"><em>Connect an AI (top right) and Romano will answer — optional; your reading and notes work without it.</em></div>');
+      return;
+    }
+    const rec = addQA(rid, {
+      id: 'q' + Date.now() + '-' + Math.round(Math.random()*1e6),
+      passage: passage || '', question: question || '', reply: '', error: '', ts: Date.now()
+    });
+    if(!rec) return;
+    _qaPending.add(rec.id);
+    renderQAList();
+    // Answered turns only, oldest first, capped so the prompt can't grow forever.
+    const history = getQA(rid).filter(r => r.reply && r.id !== rec.id).slice(-6);
+    // A bare follow-up from the ask bar carries no passage; keep the one the
+    // conversation is already about as CONTEXT, without filing it on the record.
+    const ctx = passage || (history.length ? history[history.length-1].passage : '') || '';
+    const reading = await readingContext(page);
+    try { updateQA(rid, rec.id, { reply: await romanoReply(ctx, question, history, reading) }); }
+    catch(e){ updateQA(rid, rec.id, { error: 'Romano is unavailable right now.' }); }
+    _qaPending.delete(rec.id);
+    // The reader may have switched readings while this was in flight; the answer
+    // is saved either way, but only repaint if it belongs to what's on screen.
+    if(currentReadingId() === rid) renderQAList();
   }
 
   // ── Persistent highlights. Stored per reading in DB.highlights[readingId] as
@@ -1242,13 +1348,19 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     const list = getHighlights(currentReadingId());
     if(!list.length){ el.innerHTML = '<p class="hl-empty">No highlights yet. Select a passage (or ▭ box one) and choose ✎ Highlight.</p>'; return; }
     el.innerHTML = list.map(h => {
-      const snip = escHtml(h.text ? (h.text.length>140 ? h.text.slice(0,140)+'…' : h.text) : '(figure)');
-      const thumb = h.image ? `<img src="${h.image}" alt="figure" class="hl-thumb">` : '';
+      // Keep the WHOLE passage in the DOM — selectable, copyable, and ready for the
+      // hand-off into the Notebook. .hl-quote clamps it visually; clicking opens it.
+      const quote = escHtml(h.text || '(figure)');
+      // A thumbnail of text just duplicates the quote above it, and rides along in
+      // ⤓ Save my work as base64. Keep it only for real figures (boxed, no text).
+      const thumb = (!h.text && h.image) ? `<img src="${h.image}" alt="figure" class="hl-thumb">` : '';
       const note = h.note ? `<div class="hl-note">${escHtml(h.note)}</div>` : '';
-      return `<div class="hl-card" data-hl="${h.id}"><div class="hl-quote">${snip}</div>${thumb}${note}<div class="hl-row"><button class="hl-goto" data-hl="${h.id}">Go to</button><button class="hl-del" data-hl="${h.id}">Remove</button></div></div>`;
+      return `<div class="hl-card" data-hl="${h.id}"><div class="hl-quote" title="Click to show the whole passage">${quote}</div>${thumb}${note}<div class="hl-row"><button class="hl-goto" data-hl="${h.id}">Go to</button><button class="hl-nb" data-hl="${h.id}" title="Keep this in your Writer's Notebook">📓 Notebook</button><button class="hl-del" data-hl="${h.id}">Remove</button></div></div>`;
     }).join('');
-    el.querySelectorAll('.hl-quote').forEach(q => q.onclick = () => scrollToHighlight(q.closest('.hl-card').dataset.hl));
+    // Click the quote to expand/collapse — "Go to" already covers navigation.
+    el.querySelectorAll('.hl-quote').forEach(q => q.onclick = () => q.closest('.hl-card').classList.toggle('open'));
     el.querySelectorAll('.hl-goto').forEach(b => b.onclick = () => scrollToHighlight(b.dataset.hl));
+    el.querySelectorAll('.hl-nb').forEach(b => b.onclick = () => elevateHighlight(list.find(h => h.id === b.dataset.hl)));
     el.querySelectorAll('.hl-del').forEach(b => b.onclick = () => removeHighlight(b.dataset.hl));
   }
 
@@ -1362,8 +1474,8 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <aside class="notes">
           <h4>Your highlights</h4>
           <div id="hlList"></div>
-          <div class="askbar"><input placeholder="Ask Romano about the reading…" id="askin"><button class="btn sm" id="askbtn">Ask</button></div>
           <div id="newnote"></div>
+          <div class="askbar"><input placeholder="Ask Romano about the reading…" id="askin"><button class="btn sm" id="askbtn">Ask</button></div>
           <p class="locknote" style="margin-top:10px">Highlights save automatically · export to your Notebook →</p>
         </aside>
       </div>`;
@@ -1381,6 +1493,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     const cmBtn = document.getElementById('captureModeBtn');
     if(cmBtn){ cmBtn.onclick = toggleCaptureMode; setCaptureMode(pdfCaptureMode); }
     renderHighlightList();
+    renderQAList();
     const dp = document.getElementById('docPane');
     if(dp) dp.addEventListener('mouseup', handleSelectionCapture);
     const input = document.getElementById('readInput');
@@ -1389,7 +1502,9 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     document.getElementById('openFolder').onclick = () => folderInput.click();
     input.onchange = async () => { await addReadingFiles(input.files); input.value = ''; };
     folderInput.onchange = async () => { await addReadingFiles(folderInput.files); folderInput.value = ''; };
-    document.getElementById('askbtn').addEventListener('click',()=>{const el=document.getElementById('askin');const v=el.value.trim();if(!v)return;el.value='';askRomanoInto(captureText||'', v);});
+    // The ask bar is for the reading at large — no passage. It used to pass the
+    // lingering captureText, which is what filed stray questions under old quotes.
+    document.getElementById('askbtn').addEventListener('click',()=>{const el=document.getElementById('askin');const v=el.value.trim();if(!v)return;el.value='';askRomanoInto('', v, readPageNum);});
   }
 
   // ---------- Notebook — kept pages, seen two ways (by day · by piece) ----------

@@ -322,15 +322,16 @@ body:not(.marquee-on) .marquee-overlay { cursor: default; }
 .marquee-box { position: absolute; border: 1.5px solid #3a5a40; background: rgba(90,150,110,.16); pointer-events: none; z-index: 4; border-radius: 2px; }
 
 /* Passage-capture popup (highlight / Ask Romano). */
-.selection-popup { position: fixed; z-index: 1500; width: 320px; max-width: calc(100vw - 16px); background: #2b2a26; color: #f4efe6; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: .7rem .8rem; box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: .9rem; }
-.selection-popup .popup-passage { max-height: 90px; overflow: auto; line-height: 1.4; margin-bottom: .55rem; color: #e7e0d4; }
-.selection-popup input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #f4efe6; border-radius: 6px; padding: .4rem .5rem; font: inherit; margin-bottom: .55rem; }
+.selection-popup { position: fixed; z-index: 1500; width: 292px; max-width: calc(100vw - 16px); background: #2b2a26; color: #f4efe6; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: .55rem .6rem; box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: .82rem; }
+.selection-popup .popup-passage { max-height: 66px; overflow: auto; line-height: 1.4; margin-bottom: .4rem; font-size: .78rem; color: #cfc7b8; }
+.selection-popup input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #f4efe6; border-radius: 6px; padding: .32rem .45rem; font: inherit; margin-bottom: .3rem; }
+.selection-popup .popup-hint { font-size: .68rem; color: rgba(244,239,230,.4); margin-bottom: .45rem; }
 .selection-popup input::placeholder { color: rgba(244,239,230,.4); }
 .selection-popup input:focus { outline: none; border-color: #c69a5c; }
-.popup-quick { margin-bottom: .5rem; }
+.popup-quick { display: flex; gap: .35rem; margin-bottom: .45rem; }
 .popup-chip { background: rgba(255,255,255,.08); color: #e7e0d4; border: 1px solid rgba(255,255,255,.14); border-radius: 6px; padding: .28rem .5rem; font: inherit; cursor: pointer; }
-.popup-actions { display: flex; gap: .5rem; }
-.popup-btn { border: 0; border-radius: 6px; padding: .42rem .7rem; font: inherit; cursor: pointer; }
+.popup-actions { display: flex; gap: .35rem; }
+.popup-btn { border: 0; border-radius: 6px; padding: .32rem .55rem; font: inherit; cursor: pointer; }
 .popup-btn.primary { background: #c69a5c; color: #2b2a26; flex: 1; font-weight: 600; }
 .popup-btn.primary:hover { background: #d8ac6a; }
 .popup-btn.secondary { background: rgba(255,255,255,.08); color: #cfc7b8; }
@@ -344,11 +345,34 @@ body:not(.marquee-on) .marquee-overlay { cursor: default; }
 /* Margin "Your highlights" list. */
 .hl-empty { color: var(--muted); font-size: .85rem; line-height: 1.45; }
 .hl-card { border: 1px solid var(--comment-border, rgba(0,0,0,.12)); border-radius: 8px; padding: .5rem .6rem; margin-bottom: .5rem; background: rgba(0,0,0,.02); }
-.hl-quote { cursor: pointer; line-height: 1.4; font-size: .88rem; }
+/* Clamp long passages to a comment-sized card; the card opens on click and the
+   full text is always present in the DOM (never truncated away). */
+.hl-quote { cursor: pointer; line-height: 1.4; font-size: .88rem;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
+.hl-card.open .hl-quote { -webkit-line-clamp: unset; line-clamp: unset; overflow: visible; }
 .hl-quote:hover { color: var(--ink, #2b2a26); }
+/* Romano Q&A reads as a conversation: quoted passage = quiet context up top,
+   then labelled turns. Without the labels his reply looks like more of the quote. */
+.qa-ctx { display: flex; gap: .3rem; align-items: baseline;
+  border-left: 2px solid var(--comment-border); padding: 0 0 0 .5rem; margin-bottom: .5rem;
+  font-size: .76rem; line-height: 1.4; color: var(--muted); }
+.qa-ctx-lbl { flex: 0 0 auto; opacity: .7; }
+.qa-ctx.same { font-style: italic; opacity: .65; }
+/* One line by default — the exchange matters more than the quote. Click opens it. */
+.qa-quote { cursor: pointer; flex: 1 1 auto; min-width: 0;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden; }
+.notecard.open .qa-quote { -webkit-line-clamp: unset; line-clamp: unset; overflow: visible; }
+.qa-turn { display: flex; gap: .5rem; align-items: baseline; margin-bottom: .45rem; }
+.qa-who { flex: 0 0 auto; min-width: 3.4rem; font-size: .68rem; letter-spacing: .06em;
+  text-transform: uppercase; font-weight: 600; color: var(--muted); }
+.qa-turn.romano .qa-who { color: var(--accent); }
+.qa-say { flex: 1 1 auto; line-height: 1.5; }
+.qa-say.implied { color: var(--muted); font-style: italic; }
+.qa-turn.romano .qa-say { background: rgba(0,0,0,.03); border-radius: 6px; padding: .4rem .55rem; }
+.qa-wait { color: var(--muted); }
 .hl-thumb { display: block; max-width: 100%; border-radius: 4px; margin: .35rem 0; border: 1px solid rgba(0,0,0,.12); }
 .hl-note { margin-top: .3rem; color: var(--muted); font-size: .82rem; font-style: italic; }
 .hl-row { display: flex; gap: .4rem; margin-top: .45rem; }
-.hl-goto, .hl-del { font: inherit; font-size: .78rem; border: 1px solid var(--comment-border, rgba(0,0,0,.14)); background: transparent; border-radius: 6px; padding: .2rem .5rem; cursor: pointer; color: var(--muted); }
-.hl-goto:hover { color: var(--ink, #2b2a26); }
+.hl-goto, .hl-nb, .hl-del { font: inherit; font-size: .78rem; border: 1px solid var(--comment-border, rgba(0,0,0,.14)); background: transparent; border-radius: 6px; padding: .2rem .5rem; cursor: pointer; color: var(--muted); }
+.hl-goto:hover, .hl-nb:hover { color: var(--ink, #2b2a26); }
 .hl-del:hover { color: #a33; border-color: #a33; }
