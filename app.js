@@ -691,6 +691,7 @@ async function runReflection(rf, text, hooks) {
   }
 
   // Big reading files (PDF/.docx bytes) are too large for localStorage → IndexedDB.
+  migrateReadingIds();
   const READ_DB_NAME = 'cr284_readings';
   // v2 adds 'handles' for the readings-folder handle. The upgrade is idempotent so
   // an existing v1 database keeps its files.
@@ -1049,7 +1050,7 @@ async function runReflection(rf, text, hooks) {
   let readings = (DB.readings && DB.readings.length) ? DB.readings.slice() : [ Object.assign({}, MANUAL_READING) ];
   let activeReading = DB.activeReading || 0;
   if(activeReading >= readings.length) activeReading = 0;
-  function persistReadings(){ DB.readings = readings.map(r=>({ id:r.id, name:r.name, type:r.type, html: r.type==='txt' ? r.html : undefined, builtin: r.builtin||undefined, url: r.url||undefined, fromDir: r.fromDir||undefined })); DB.activeReading = activeReading; saveDB(); }
+  function persistReadings(){ DB.readings = readings.map(r=>({ id:r.id, name:r.name, type:r.type, html: r.type==='txt' ? r.html : undefined, builtin: r.builtin||undefined, url: r.url||undefined, fromDir: r.fromDir||undefined, legacyId: r.legacyId||undefined })); DB.activeReading = activeReading; saveDB(); }
 
   // Order the shelf sensibly: built-in manual first, then an intro, then chapters
   // in NUMERIC order (ch1 < ch2 < ch10), then everything else alphabetically.
@@ -1203,7 +1204,12 @@ async function runReflection(rf, text, hooks) {
       try { return await (await (await readingsDir.getFileHandle(r.name)).getFile()).arrayBuffer(); }
       catch(e){ readingsDirState = 'missing'; return null; }
     }
-    return await loadReadingBytes(r.id);
+    // A migrated reading still has its bytes filed under the OLD random id, so try the
+    // new key first and fall back — otherwise re-keying would orphan a chapter from its
+    // own file, which is the bug this change exists to end.
+    const b = await loadReadingBytes(r.id);
+    if(b) return b;
+    return r.legacyId ? await loadReadingBytes(r.legacyId) : null;
   }
 
   // Why a reading has no bytes: a folder reading only needs the folder reconnected
@@ -1924,12 +1930,48 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     }
   }
   // Add one or many files (multi-select or a whole folder). txt inline, PDF/.docx bytes to IndexedDB.
+  // Stable, filename-derived id. Mirrors the `d:` scheme the persistent-folder path
+  // already used, so a chapter keeps its highlights whichever way it was loaded.
+  function readingIdForName(name){
+    return 'f:' + String(name || '').trim().toLowerCase();
+  }
+
+  // One-time re-key of readings shelved under the old random ids, carrying their
+  // highlights and Romano threads across. Runs before anything reads them, and only
+  // where the destination is free, so it can never merge two chapters into one.
+  function migrateReadingIds(){
+    if(DB._readingIdsV2 || !Array.isArray(DB.readings)) { DB._readingIdsV2 = true; return; }
+    DB.highlights = DB.highlights || {}; DB.qa = DB.qa || {};
+    let moved = 0;
+    for(const r of DB.readings){
+      if(!r || !r.name || r.builtin || r.fromDir) continue;
+      if(typeof r.id === 'string' && (r.id.startsWith('f:') || r.id.startsWith('d:'))) continue;
+      const nid = readingIdForName(r.name);
+      if(DB.readings.some(o => o !== r && o.id === nid)) continue;   // don't collide
+      const old = r.id;
+      if(DB.highlights[old] && !DB.highlights[nid]){ DB.highlights[nid] = DB.highlights[old]; delete DB.highlights[old]; }
+      if(DB.qa[old] && !DB.qa[nid]){ DB.qa[nid] = DB.qa[old]; delete DB.qa[old]; }
+      // The bytes are stored in IndexedDB under the old id; move the pointer, and let
+      // readingBytesFor fall back so a chapter is never orphaned from its own file.
+      r.legacyId = old;
+      r.id = nid;
+      moved++;
+    }
+    DB._readingIdsV2 = true;
+    if(moved) saveDB();
+  }
+
   async function addReadingFiles(fileList){
     const files = [...fileList].filter(f => /\.(pdf|docx|txt)$/i.test(f.name));
     if(!files.length) return;
     for(const f of files){
       const ext = (f.name.split('.').pop()||'').toLowerCase();
-      const id = 'r' + Date.now() + '-' + Math.round(Math.random()*1e6);
+      // Id derives from the FILENAME, not from the clock. Random ids meant a reading
+      // reloaded after a restore, or on another machine, was a different reading as far
+      // as DB.highlights and DB.qa were concerned — the work survived in the export and
+      // had nothing to render against. Same filename now means the same reading, which
+      // is what a student means by "my chapter 5".
+      const id = readingIdForName(f.name);
       if(ext === 'txt'){
         const txt = await f.text();
         readings.push({ id, name: f.name, type: ext, html: `<p>${escHtml(txt).replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')}</p>` });

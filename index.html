@@ -12,7 +12,7 @@
      every deploy: GitHub Pages will otherwise serve the cached files after a push.
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-07-30-39">
+<link rel="stylesheet" href="app.css?v=2026-07-30-40">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -74,8 +74,8 @@
 
     <h3>Drive or Dropbox?</h3>
     <p>Yes. Keep that file anywhere and reopen it with <b>⤒ Open my file</b>, on any computer.
-      Your writing, notebook and highlights all come back. Your readings do not — reload those
-      with <b>＋ Load a folder</b> and the highlights reattach.</p>
+      Your writing, notebook and highlights all come back. Your readings do not — reload the
+      same files with <b>＋ Load readings</b> and your highlights reattach to them.</p>
 
     <h3>AI</h3>
     <p>Optional, off by default. A local model keeps everything here. A hosted model receives
@@ -170,6 +170,6 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="app.js?v=2026-07-30-39"></script>
+<script src="app.js?v=2026-07-30-40"></script>
 </body>
 </html>
