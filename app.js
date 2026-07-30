@@ -1449,6 +1449,18 @@ async function runReflection(rf, text, hooks) {
   let captureText = '', captureImage = '', captureRects = null;
 
   // Reorder OCR text items into reading order when the page has clear columns.
+  // ⚠ ROOT CAUSE, STILL OPEN. This re-sorts the text items, which is what makes the
+  //   text layer's DOM order stop matching reading order — the single fact behind
+  //   every selection and copy bug we chased on 2026-07-30.
+  //
+  //   On a SINGLE-column scan the word left-edges still cluster (left margin,
+  //   paragraph indents, justified spacing), so the gap test below can find columns
+  //   that are not there and shuffle a perfectly ordinary page.
+  //
+  //   Reading selection no longer depends on DOM order, so it survives this. Other
+  //   code may not. If you tighten it — only reorder on a wide, sustained vertical
+  //   gutter with text down both sides — find out which page motivated it first;
+  //   it was added to help selection and marquee capture.
   function orderByReadingColumns(items, pageWidth){
     const good = items.filter(it => (it.str || '').trim().length);
     if(good.length < 10 || !pageWidth) return items;
@@ -1569,6 +1581,57 @@ async function runReflection(rf, text, hooks) {
   }
   // Group every visible text-layer span into reading-order LINES, tolerant of the
   // per-word baseline jitter OCR produces — so a line never scrambles left↔right.
+  // ═══════════════════════════════════════════════════════════════════════════
+  // READING SELECTION — READ THIS BEFORE CHANGING ANY OF IT
+  // ═══════════════════════════════════════════════════════════════════════════
+  //
+  // THE ONE FACT THAT EXPLAINS EVERYTHING HERE:
+  //   The text layer's DOM order does NOT match reading order.
+  //   orderByReadingColumns() re-sorts the text items before the layer is built,
+  //   and the spans are absolutely positioned, so the order they sit in the DOM
+  //   is unrelated to the order they appear on the page.
+  //
+  // Therefore EVERY DOM-based API lies to us about extent:
+  //   · range.getClientRects()  — returns rects for the DOM run, which both MISSES
+  //                               spans the drag visually covered (the tails of
+  //                               lines) and INCLUDES spans above where the drag
+  //                               started (so dragging down grabbed earlier lines)
+  //   · range.intersectsNode()  — same tree walk; gave 9 spans for an 8-line
+  //                               selection that visually covered ~60
+  //   · range.cloneContents()   — returns text in DOM order, so a copied paragraph
+  //                               came out shuffled with the chapter header spliced
+  //                               into the middle of it
+  //
+  // SO: geometry is the source of truth, not the range.
+  //   bandsFromPoints(mousedown, mouseup) decides WHICH LINES and how much of the
+  //   first and last, from screen coordinates. Two points cannot be reordered by
+  //   anything. The DOM range is used ONLY to notice that a selection exists.
+  //
+  // ⚠ THINGS THAT LOOK LIKE CLEANUPS AND ARE NOT — each one is a bug we shipped:
+  //   1. "Just use the selection rects, that's what they're for."
+  //        → line tails go unhighlighted; downward drags reach upward.
+  //   2. "Draw the band straight from getClientRects()."
+  //        → the rects are PER WORD, so the band is striped with a gap at every
+  //          space. unionRectsByLine() exists solely to prevent that.
+  //   3. "Cluster lines on the span's bottom edge, baselines are steadier."
+  //        → they are not: a span's bottom is the FONT BOX, and tesseract estimates
+  //          a font size per word, so bottoms jitter more than midpoints. This
+  //          shattered lines into fragments. Cluster on the MIDPOINT.
+  //   4. "cloneContents() is the obvious way to get the selected text."
+  //        → DOM order again; the copy comes out scrambled. Take text from the
+  //          bands, which are already in reading order.
+  //   5. "A 6px tolerance is fine."
+  //        → fine at 12px type, over half the line spacing at 9px, so lines merge
+  //          in a narrow window or on a phone. Tolerances must be PROPORTIONAL.
+  //
+  // ⚠ Also: a highlight stores the rects it was SAVED with. Fixing this code never
+  //   repairs an existing highlight — the wrong numbers are the data. That is why
+  //   there is a Clear-all control, and why testing a change means making a FRESH
+  //   highlight, not looking at an old one.
+  //
+  // The root cause is still upstream in orderByReadingColumns(); see the warning
+  // there. Everything in this section routes around it.
+  // ═══════════════════════════════════════════════════════════════════════════
   function docLines(){
     const items = [...document.querySelectorAll('#docPane .textLayer span')]
       .filter(sp => sp.textContent && sp.textContent.trim() && !sp.classList.contains('markedContent'))
@@ -1607,6 +1670,9 @@ async function runReflection(rf, text, hooks) {
   // on these OCR scans a word box can be narrower than the glyphs it covers, so the
   // band could still stop inside a word. Widening each band to contain whatever the
   // reader actually dragged over means coverage can fall short of the selection.
+  // Anchor-driven bands. Now used only by BOX capture, which hit-tests spans
+  //   geometrically and so supplies a genuine, complete anchor list. Selection does
+  //   NOT use this — it has no reliable way to produce that list from a DOM range.
   function passageLineRects(anchors, selRects){
     if(!anchors || !anchors.length) return { rects:[], spans:[] };
     const set = new Set(anchors);
@@ -1655,6 +1721,9 @@ async function runReflection(rf, text, hooks) {
   // Passage spans → clean text (line-break de-hyphenation + collapsed whitespace).
   // Collapse a set of client rects into ONE rect per text line. The browser hands
   // back a rect per word span, so anything drawn straight from them is striped.
+  // ⚠ Keep this. Client rects come back PER WORD; anything drawn straight from them
+  //   is a stripe with a gap at every space, which is the artifact users read as
+  //   "it didn't highlight everything".
   function unionRectsByLine(rects){
     const rows = [];
     [...rects].sort((a,b) => (a.top+a.bottom)/2 - (b.top+b.bottom)/2).forEach(r => {
@@ -1681,6 +1750,9 @@ async function runReflection(rf, text, hooks) {
   // which made a downward drag reach up and grab earlier lines. Two screen points
   // have no such ambiguity.
   let _dragFrom = null, _dragTo = null;
+  // ⚠ The listeners are on the pane and wired once. _dragFrom/_dragTo are what
+  //   bandsFromPoints reads; without them selection silently falls back to the
+  //   DOM-range path and the old bugs return.
   function trackDrag(pane){
     if(!pane || pane._dragWired) return;
     pane._dragWired = true;
@@ -1690,6 +1762,9 @@ async function runReflection(rf, text, hooks) {
   }
   // Bands between two screen points: the line each point lands on, everything
   // between filled from that line's own text extent.
+  // ⚠ DO NOT rewrite this to use window.getSelection()/getClientRects(). That is
+  //   precisely the bug it replaced — see the block above. The pointer positions are
+  //   the only description of the drag that survives the text layer's re-ordering.
   function bandsFromPoints(p0, p1){
     const lines = docLines();
     if(!lines.length || !p0 || !p1) return { rects:[], spans:[] };
@@ -1771,6 +1846,10 @@ async function runReflection(rf, text, hooks) {
   // `copy` fixes ⌘C/Ctrl+C, right-click → Copy and the Edit menu in one place.
   // Only selections inside the reader are touched; copying anywhere else in the app
   // behaves normally.
+  // ⚠ Do not "simplify" this back to letting the browser copy. Two separate reasons
+  //   it cannot: the text layer is one span per word-chunk, so a native copy inserts
+  //   a line break between every one; and DOM order is not reading order, so the
+  //   words come out shuffled. Both are invisible until someone pastes.
   document.addEventListener('copy', e => {
     const sel = window.getSelection();
     if(!sel || sel.isCollapsed || !sel.rangeCount) return;
@@ -1976,6 +2055,10 @@ async function runReflection(rf, text, hooks) {
   //    "the app didn't highlight everything". So ::selection is muted inside the
   //    reader (app.css) and we draw one continuous band per line instead.
   let _liveRaf = 0;
+  // ⚠ This is not decoration. ::selection is transparent inside the reader (app.css)
+  //   BECAUSE the browser paints it per span, leaving the gaps between words bare —
+  //   a continuous selection that looks torn. If you delete this, re-enable
+  //   ::selection at the same time or the reader will look like nothing is selected.
   function paintLiveSelection(){
     clearBands('live');
     const sel = window.getSelection();

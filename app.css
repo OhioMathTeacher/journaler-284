@@ -450,6 +450,9 @@
    one span per word-chunk, so the gaps between words stay unpainted and a drag
    looks like torn stripes. app.js draws a continuous band per line instead. */
 .textLayer ::selection { background: transparent; }
+/* ⚠ Transparent ON PURPOSE — app.js paints a continuous band per line instead.
+   Restore a colour here and the reader shows BOTH: the app's solid band and the
+   browser's striped one underneath it. See the READING SELECTION block in app.js. */
 /* Selectable block behind the text; when a drag starts it covers the whole layer
    so multi-line selection flows as text instead of a rectangular column. */
 .textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: -1; cursor: default; user-select: none; }
