@@ -725,14 +725,19 @@ async function runReflection(rf, text, hooks) {
       const zip = new JSZip();
       zip.file('journaler-284.json', JSON.stringify({ app:'journaler-284', v:1, exported:new Date().toISOString(), state:DB }, null, 2));
       const folder = zip.folder('readings');
-      let n = 0;
+      let n = 0, packed = 0;
+      const missing = [];
       for(const r of readings){
         // The manual ships with the app, and .txt readings already ride inside the JSON.
         if(r.builtin || r.type === 'txt') continue;
         let bytes = null;
         try { bytes = await readingBytesFor(r); } catch(e){}
-        if(!bytes) continue;
+        // NEVER skip quietly. This used to `continue`, so a reading whose bytes could not
+        // be read was simply absent from a zip that still reported success — you would
+        // discover it on the other machine, which is the worst possible moment.
+        if(!bytes){ missing.push(r.name); continue; }
         folder.file(r.name, bytes);      // by FILENAME — that is what re-attaches highlights
+        packed += (bytes.byteLength || 0);
         n++;
       }
       // STORE, not DEFLATE: PDFs are already compressed, so deflating them costs seconds
@@ -747,7 +752,16 @@ async function runReflection(rf, text, hooks) {
       const stamp = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
       a.download = 'journaler-284-' + stamp + '.zip';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
-      toast(n ? `Saved your work and ${n} reading${n>1?'s':''}.` : 'Saved your work.');
+      const mb = (packed/1048576).toFixed(1);
+      if(missing.length){
+        alert('Saved — but ' + missing.length + ' reading' + (missing.length>1?'s':'') +
+          ' could NOT be included:\n\n' + missing.join('\n') +
+          '\n\nIf these came from a readings folder, reconnect it in the Readings tab and save again. ' +
+          'Otherwise load them with ＋ Load readings first.\n\n' +
+          'The ' + n + ' reading' + (n===1?'':'s') + ' that did pack came to ' + mb + ' MB.');
+      } else {
+        toast(n ? `Saved your work and ${n} reading${n>1?'s':''} (${mb} MB).` : 'Saved your work — no readings loaded.');
+      }
     } catch(e){ console.warn('exportEverything', e); toast('Could not build the zip: ' + (e.message||e)); }
     finally { if(btn){ btn.disabled = false; btn.textContent = label; } }
   }
