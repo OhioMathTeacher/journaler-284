@@ -1475,19 +1475,40 @@ async function runReflection(rf, text, hooks) {
       .filter(sp => sp.textContent && sp.textContent.trim() && !sp.classList.contains('markedContent'))
       .map(sp => { const r = sp.getBoundingClientRect(); return { sp, top:r.top, bottom:r.bottom, left:r.left, right:r.right, mid:(r.top+r.bottom)/2, h:r.height }; })
       .sort((a,b) => a.top - b.top || a.left - b.left);
+    // Match each span against ANY existing line, with an anchor that never moves.
+    // The old version compared only with the MOST RECENT line and let that line's
+    // centre drift as spans joined it, so one jittery OCR box could open a new line
+    // and strand the tail of a word in it — the band then ended at a sub-word
+    // boundary, which is how a highlight stopped in the middle of "bakes".
+    // Cluster on the MIDPOINT. A span's bottom edge is the font box, and tesseract
+    // estimates a font size per word, so bottoms jitter more than midpoints, not
+    // less — clustering on them shattered lines into fragments.
     const lines = [];
     items.forEach(it => {
-      const ln = lines[lines.length-1];
-      if(ln && Math.abs(it.mid - ln.mid) <= Math.max(6, ln.h * 0.6)){ ln.items.push(it); ln.mid = (ln.mid*ln.n + it.mid)/(ln.n+1); ln.n++; ln.h = Math.max(ln.h, it.h); }
-      else lines.push({ mid:it.mid, h:it.h, n:1, items:[it] });
+      let best = null, bd = Infinity;
+      for(const L of lines){ const d = Math.abs(it.mid - L.anchor); if(d < bd){ bd = d; best = L; } }
+      // Tolerance is PROPORTIONAL to the rendered text, never an absolute pixel
+      // count: the reader zooms, the window resizes, and a fixed floor that is
+      // harmless at 12px type is over half the line spacing at 9px — which would
+      // merge neighbouring lines into one band on a narrow window or a phone.
+      if(best && bd <= Math.max(1, Math.min(it.h, best.h) * 0.6)){ best.items.push(it); best.h = Math.max(best.h, it.h); }
+      else lines.push({ anchor: it.mid, mid: it.mid, h: it.h, items: [it] });
     });
-    lines.forEach(l => l.items.sort((a,b) => a.left - b.left));
-    return lines;
+    lines.forEach(l => {
+      l.items.sort((a,b) => a.left - b.left);
+      l.mid = (Math.min(...l.items.map(i=>i.top)) + Math.max(...l.items.map(i=>i.bottom))) / 2;
+    });
+    return lines.sort((a,b) => a.anchor - b.anchor);
   }
   // Build one full-width rect per line straight from the document's line geometry
   // (NOT the selection): middle lines span the whole line, first/last run from/to the
   // boundary word. Cannot clip a middle line even with jittery OCR spans.
-  function passageLineRects(anchors){
+  // selRects (optional) = the browser's own selection rectangles. The line geometry
+  // decides the BAND, which is what stops a skewed scan clipping a middle line; but
+  // on these OCR scans a word box can be narrower than the glyphs it covers, so the
+  // band could still stop inside a word. Widening each band to contain whatever the
+  // reader actually dragged over means coverage can fall short of the selection.
+  function passageLineRects(anchors, selRects){
     if(!anchors || !anchors.length) return { rects:[], spans:[] };
     const set = new Set(anchors);
     const lines = docLines();
@@ -1507,21 +1528,177 @@ async function runReflection(rf, text, hooks) {
       const items = lines[li].items;
       const lineLeft = Math.min(...items.map(i => i.left));
       const lineRight = Math.max(...items.map(i => i.right));
-      const left = (li === firstLine) ? firstLeft : lineLeft;
-      const right = (li === lastLine) ? lastRight : lineRight;
       const top = Math.min(...items.map(i => i.top));
       const bottom = Math.max(...items.map(i => i.bottom));
+      let left = (li === firstLine) ? firstLeft : lineLeft;
+      let right = (li === lastLine) ? lastRight : lineRight;
+      // Only selection rects sitting on THIS line may widen it — a rect from the
+      // line below must not drag this band across the column.
+      if(selRects && selRects.length){
+        for(const s of selRects){
+          const mid = (s.top + s.bottom) / 2;
+          if(mid <= top || mid >= bottom) continue;
+          if(s.left < left) left = s.left;
+          if(s.right > right) right = s.right;
+        }
+        // Still never wider than the line's own text.
+        left = Math.max(left, lineLeft); right = Math.min(right, lineRight);
+      }
       rects.push({ left, top, right, bottom, width: right - left, height: bottom - top });
-      items.forEach(it => { if(it.right > left - 2 && it.left < right + 2) spans.push(it.sp); });
+      // Same reasoning as the clustering tolerance: a slack of a fraction of the
+      // text height rather than a fixed 2px, so which words fall inside a band does
+      // not change with zoom or window width.
+      const slack = Math.max(1, (bottom - top) * 0.15);
+      items.forEach(it => { if(it.right > left - slack && it.left < right + slack) spans.push(it.sp); });
     }
     return { rects, spans };
   }
   // Passage spans → clean text (line-break de-hyphenation + collapsed whitespace).
+  // Collapse a set of client rects into ONE rect per text line. The browser hands
+  // back a rect per word span, so anything drawn straight from them is striped.
+  function unionRectsByLine(rects){
+    const rows = [];
+    [...rects].sort((a,b) => (a.top+a.bottom)/2 - (b.top+b.bottom)/2).forEach(r => {
+      const mid = (r.top + r.bottom) / 2;
+      const row = rows.find(x => mid > x.top && mid < x.bottom);
+      if(row){ row.left = Math.min(row.left, r.left); row.right = Math.max(row.right, r.right);
+               row.top = Math.min(row.top, r.top);   row.bottom = Math.max(row.bottom, r.bottom); }
+      else rows.push({ left:r.left, top:r.top, right:r.right, bottom:r.bottom });
+    });
+    return rows.map(r => ({ ...r, width: r.right - r.left, height: r.bottom - r.top }));
+  }
+  // Bands straight from WHERE THE DRAG WENT, never from the DOM range.
+  //
+  // Both range.getClientRects() and range.intersectsNode() walk the DOM tree, but
+  // the text layer is absolutely positioned and orderByReadingColumns re-sorts the
+  // items — so DOM order stops matching reading order, and a drag that visually
+  // covers a whole line yields a range missing that line's tail. That is why the
+  // ends of lines went unhighlighted: those spans were never in the range.
+  //
+  // Geometry cannot lie the same way: take the topmost and bottommost points the
+  // drag touched, find the lines they fall on, and fill every line between.
+  // Where the pointer actually went. The DOM range cannot be trusted for extent —
+  // with the items re-sorted, a range can contain spans ABOVE where the drag began,
+  // which made a downward drag reach up and grab earlier lines. Two screen points
+  // have no such ambiguity.
+  let _dragFrom = null, _dragTo = null;
+  function trackDrag(pane){
+    if(!pane || pane._dragWired) return;
+    pane._dragWired = true;
+    pane.addEventListener('mousedown', e => { if(e.button === 0){ _dragFrom = { x:e.clientX, y:e.clientY }; _dragTo = null; } });
+    pane.addEventListener('mousemove', e => { if(_dragFrom && (e.buttons & 1)) _dragTo = { x:e.clientX, y:e.clientY }; });
+    pane.addEventListener('mouseup',   e => { if(e.button === 0) _dragTo = { x:e.clientX, y:e.clientY }; });
+  }
+  // Bands between two screen points: the line each point lands on, everything
+  // between filled from that line's own text extent.
+  function bandsFromPoints(p0, p1){
+    const lines = docLines();
+    if(!lines.length || !p0 || !p1) return { rects:[], spans:[] };
+    const box = lines.map(L => ({
+      top: Math.min(...L.items.map(i => i.top)), bottom: Math.max(...L.items.map(i => i.bottom)),
+      left: Math.min(...L.items.map(i => i.left)), right: Math.max(...L.items.map(i => i.right)) }));
+    const lineAt = y => { let bi = 0, bd = Infinity;
+      box.forEach((b,i) => { const d = (y >= b.top && y <= b.bottom) ? 0 : Math.min(Math.abs(y-b.top), Math.abs(y-b.bottom));
+        if(d < bd){ bd = d; bi = i; } }); return bi; };
+    let a = p0, b2 = p1;
+    if(b2.y < a.y || (Math.abs(b2.y - a.y) < 2 && b2.x < a.x)){ const t = a; a = b2; b2 = t; }
+    const i0 = lineAt(a.y), i1 = lineAt(b2.y);
+    const rects = [], spans = [];
+    for(let i = Math.min(i0,i1); i <= Math.max(i0,i1); i++){
+      const bx = box[i];
+      const left  = (i === i0) ? Math.min(Math.max(a.x,  bx.left), bx.right) : bx.left;
+      const right = (i === i1) ? Math.max(Math.min(b2.x, bx.right), bx.left) : bx.right;
+      if(right <= left) continue;
+      rects.push({ left, top:bx.top, right, bottom:bx.bottom, width:right-left, height:bx.bottom-bx.top });
+      const slack = Math.max(1, (bx.bottom - bx.top) * 0.15);
+      lines[i].items.forEach(it => { if(it.right > left - slack && it.left < right + slack) spans.push(it.sp); });
+    }
+    return { rects, spans };
+  }
+  function bandsFromSelection(selRects){
+    if(!selRects || !selRects.length) return { rects:[], spans:[] };
+    const lines = docLines();
+    if(!lines.length) return { rects:[], spans:[] };
+    const ext = L => ({
+      top: Math.min(...L.items.map(i => i.top)), bottom: Math.max(...L.items.map(i => i.bottom)),
+      left: Math.min(...L.items.map(i => i.left)), right: Math.max(...L.items.map(i => i.right)) });
+    const box = lines.map(ext);
+    const lineAt = y => { let bi = 0, bd = Infinity;
+      box.forEach((b,i) => { const d = (y >= b.top && y <= b.bottom) ? 0 : Math.min(Math.abs(y-b.top), Math.abs(y-b.bottom));
+        if(d < bd){ bd = d; bi = i; } }); return bi; };
+    const sorted = [...selRects].sort((a,b) => ((a.top+a.bottom)/2) - ((b.top+b.bottom)/2) || a.left - b.left);
+    const first = sorted[0], last = sorted[sorted.length - 1];
+    let i0 = lineAt((first.top+first.bottom)/2), i1 = lineAt((last.top+last.bottom)/2);
+    if(i0 > i1){ const t = i0; i0 = i1; i1 = t; }
+    const rects = [], spans = [];
+    for(let i = i0; i <= i1; i++){
+      const b = box[i];
+      const left  = (i === i0) ? Math.min(Math.max(first.left, b.left), b.right) : b.left;
+      const right = (i === i1) ? Math.max(Math.min(last.right, b.right), b.left) : b.right;
+      if(right <= left) continue;
+      rects.push({ left, top:b.top, right, bottom:b.bottom, width:right-left, height:b.bottom-b.top });
+      const slack = Math.max(1, (b.bottom - b.top) * 0.15);
+      lines[i].items.forEach(it => { if(it.right > left - slack && it.left < right + slack) spans.push(it.sp); });
+    }
+    return { rects, spans };
+  }
+  // Passage spans → clean text. The OCR layer carries predictable scanner damage
+  // that would otherwise land in the clipboard, the notebook and the AI prompt:
+  //   · a capital I read as a pipe — "Behold | do not give lectures"
+  //   · stray _ or | specks between words
+  //   · a line-break hyphen with one of those specks after it, which defeated the
+  //     de-hyphenation and left "a little char- _ity"
+  // Deliberately conservative: only a pipe standing alone as a word becomes "I",
+  // never one touching a letter or digit, so real text is left alone.
   function spansToText(spans){
-    return spans.map(s => s.textContent || '').join(' ')
+    return cleanOcrText(spans.map(s => s.textContent || '').join(' '));
+  }
+  function cleanOcrText(raw){
+    return String(raw || '')
+      // Join a hyphenated line break. Two rules, because a single loosened one also
+      // matched real hyphens and turned "co-op" into "coop": the break must show
+      // either whitespace after the hyphen, or a speck.
+      .replace(/([A-Za-z])[-­]\s*[_|]+\s*([a-z])/g, '$1$2')
       .replace(/([A-Za-z])[-­]\s+([a-z])/g, '$1$2')
+      // A lone pipe in prose is a misread capital I.
+      .replace(/(^|[^A-Za-z0-9])\|(?=$|[^A-Za-z0-9])/g, '$1I')
+      // Drop specks that stand alone between words.
+      .replace(/(^|\s)[_|]+(?=\s|$)/g, '$1')
       .replace(/\s+/g, ' ').trim();
   }
+  // A native copy out of the reader used to come back as a column of single words:
+  // pdf.js builds the text layer as one span per word, so the browser puts a line
+  // break between every one, and none of the OCR cleanup above ran. Intercepting
+  // `copy` fixes ⌘C/Ctrl+C, right-click → Copy and the Edit menu in one place.
+  // Only selections inside the reader are touched; copying anywhere else in the app
+  // behaves normally.
+  document.addEventListener('copy', e => {
+    const sel = window.getSelection();
+    if(!sel || sel.isCollapsed || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const node = range.commonAncestorContainer;
+    const el = node.nodeType === 1 ? node : node.parentElement;
+    if(!el || !el.closest || !el.closest('#docPane .textLayer')) return;
+    // Read in READING order, not DOM order. cloneContents() returns the range's DOM
+    // content, and with the text items re-sorted that came out shuffled — sentences
+    // interleaved, and the chapter header spliced into the middle of a paragraph.
+    // The band already knows which spans are covered, top-to-bottom and left-to-
+    // right, so take the text from there.
+    let pr = bandsFromPoints(_dragFrom, _dragTo);
+    if(!pr.spans.length){
+      const selRects = [...range.getClientRects()].filter(r => r.width > 0 && r.height > 1);
+      pr = bandsFromSelection(selRects);
+    }
+    let text = pr.spans.length ? spansToText(pr.spans) : '';
+    if(!text){
+      const frag = range.cloneContents();
+      const spans = [...frag.querySelectorAll('span')];
+      text = cleanOcrText(spans.length ? spans.map(s => s.textContent || '').join(' ') : (frag.textContent || ''));
+    }
+    if(!text) return;
+    e.clipboardData.setData('text/plain', text);
+    e.preventDefault();
+  });
   // Native text selection (Select mode). Take only the start & end words the user
   // touched, then passageLineRects fills complete lines between them — so coverage
   // never follows the browser's rectangular selection geometry.
@@ -1530,15 +1707,55 @@ async function runReflection(rf, text, hooks) {
     const sel = window.getSelection();
     if(!sel || sel.isCollapsed || !sel.rangeCount) return;
     const range = sel.getRangeAt(0);
-    const startSpan = spanOf(range.startContainer), endSpan = spanOf(range.endContainer);
-    if(!startSpan || !endSpan) return;
-    const pr = passageLineRects([startSpan, endSpan]);
-    if(!pr.spans.length) return;
-    const text = spansToText(pr.spans);
-    if(text.length < 3) return;
+    const node = range.commonAncestorContainer;
+    const host = node.nodeType === 1 ? node : node.parentElement;
+    if(!host || !host.closest || !host.closest('#docPane')) return;   // not in the reader
+    // Take EVERY span the selection touches, the way box capture already does,
+    // instead of only the two boundary spans. spanOf() returned null whenever a
+    // boundary landed between spans — on a gap, a line end, the endOfContent div —
+    // and the capture was then abandoned with no popup and no explanation. That is
+    // why box "worked" and select was hit or miss.
+    // The real selection rectangles, so a band can never cover less than the glyphs
+    // the reader dragged over.
+    const selRects = [...range.getClientRects()].filter(r => r.width > 0 && r.height > 1);
+    const cands = [...document.querySelectorAll('#docPane .textLayer span')]
+      .filter(sp => sp.textContent && sp.textContent.trim() && !sp.classList.contains('markedContent'));
+    // Hit-test GEOMETRICALLY, the way box capture does. range.intersectsNode walks
+    // the DOM, but text-layer spans are absolutely positioned and their DOM order
+    // does not track reading order — orderByReadingColumns re-sorts them — so the
+    // range missed most of the spans it visibly covered: 9 anchors for an 8-line
+    // selection. Overlap against the selection's own rectangles cannot lie.
+    const anchors = cands.filter(sp => {
+      if(range.intersectsNode(sp)) return true;
+      const r = sp.getBoundingClientRect();
+      const area = r.width * r.height;
+      if(area <= 0) return false;
+      return selRects.some(s => {
+        const ix = Math.min(r.right, s.right) - Math.max(r.left, s.left);
+        const iy = Math.min(r.bottom, s.bottom) - Math.max(r.top, s.top);
+        return ix > 0 && iy > 0 && (ix * iy) >= area * 0.3;
+      });
+    });
+    // Geometry first — see bandsFromSelection. passageLineRects (anchor-driven) is
+    // kept only as a fallback for box capture, which supplies real hit-tested spans.
+    // Pointer path first; the selection-rect path is the fallback for a selection
+    // made without a drag (double-click, shift-click, keyboard).
+    let pr = bandsFromPoints(_dragFrom, _dragTo);
+    if(!pr.rects.length) pr = bandsFromSelection(selRects);
+    if(!pr.rects.length && anchors.length) pr = passageLineRects(anchors, selRects);
+    // Last resort: a selection the reader can SEE must always produce a popup.
+    // But the browser's rects are PER WORD, so using them raw drew a striped band
+    // with a gap at every space — the very artifact this all started with. Union
+    // them into one rect per line first.
+    let via = 'geometry';
+    if(!pr.rects.length && selRects.length){ pr = { rects: unionRectsByLine(selRects), spans: anchors }; via = 'fallback'; }
+    const text = pr.spans.length ? spansToText(pr.spans) : cleanOcrText(String(sel));
+    if(text.length < 2) return;
     const rects = normalizeRectsToPages(pr.rects);
     if(!rects.length) return;
-    console.log('[hl] select capture →', pr.rects.length, 'line(s), build', BUILD);
+    console.log('[hl] select capture →', pr.rects.length, 'band(s) via', via,
+                '· anchors', anchors.length, '/ cands', cands.length,
+                '· selRects', selRects.length, '· docLines', docLines().length, '· build', BUILD);
     openCapturePopup(text, '', range.getBoundingClientRect(), rects);
   }
 
@@ -1550,7 +1767,7 @@ async function runReflection(rf, text, hooks) {
       <div class="popup-passage" id="capturePassage"></div>
       <input type="text" id="captureInput" placeholder="Ask Romano a question — or just add a note…" autocomplete="off">
       <div class="popup-hint">Enter asks Romano · leave blank to highlight only</div>
-      <div class="popup-quick"><button class="popup-chip" id="captureNbBtn">📓 Keep in notebook</button><button class="popup-chip" id="captureFigBtn" style="display:none">↓ Save figure</button></div>
+      <div class="popup-quick"><button class="popup-chip" id="captureCopyBtn" title="Copy this passage (⌘C / Ctrl+C)">⧉ Copy</button><button class="popup-chip" id="captureNbBtn">📓 Keep in notebook</button><button class="popup-chip" id="captureFigBtn" style="display:none">↓ Save figure</button></div>
       <div class="popup-actions">
         <button class="popup-btn secondary" id="captureCancelBtn">Cancel</button>
         <button class="popup-btn secondary" id="captureSaveBtn">✎ Highlight</button>
@@ -1562,9 +1779,27 @@ async function runReflection(rf, text, hooks) {
     pop.querySelector('#captureAskBtn').onclick  = () => saveHighlight(true);
     pop.querySelector('#captureNbBtn').onclick   = () => saveHighlight(false, true);
     pop.querySelector('#captureFigBtn').onclick = downloadCapture;
+    pop.querySelector('#captureCopyBtn').onclick = copyCaptureText;
     pop.querySelector('#captureInput').addEventListener('keydown', e => {
       if(e.key==='Enter'){ e.preventDefault(); saveHighlight(true); }
       if(e.key==='Escape') closeCapture();
+      e.stopPropagation();          // typing "c" in the note is not a copy
+    });
+    // ⌘C / Ctrl+C anywhere while the popup is open copies the passage. Only steps in
+    // when the reader has not selected something else in the meantime, so a normal
+    // copy of their own selection still wins.
+    document.addEventListener('keydown', e => {
+      const open = pop.style.display !== 'none';
+      if(!open) return;
+      if(e.key === 'Escape'){ closeCapture(); return; }
+      if((e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'C')){
+        // A live selection is handled by the `copy` listener above, which cleans it.
+        // This only covers the case where the selection is already gone.
+        const sel = window.getSelection();
+        if(sel && !sel.isCollapsed && String(sel).trim()) return;
+        e.preventDefault();
+        copyCaptureText();
+      }
     });
     return pop;
   }
@@ -1588,11 +1823,92 @@ async function runReflection(rf, text, hooks) {
     if(left < 8) left = 8;
     if(top + ph > window.innerHeight - 8) top = Math.max(8, boxRect.top - ph - 8);
     pop.style.left = left+'px'; pop.style.top = top+'px'; pop.style.visibility = '';
-    setTimeout(()=>input.focus(), 50);
+    // Show the real band and mute the ragged native selection underneath it. The
+    // selection itself stays live — it is only unpainted — so ⌘C still copies it.
+    document.body.classList.add('capturing');
+    previewCapture(rects);
+    // Deliberately NOT focusing the input. Focusing it dropped the page selection,
+    // so ⌘C/Ctrl+C had nothing to copy and the highlight you could see was not
+    // actually selected any more. Click the field to type; the passage stays live.
   }
+  // ⌘C / Ctrl+C while the popup is open copies the captured passage. Native copy of
+  // the still-live selection also works now; this makes it work from anywhere and
+  // gives the clean, de-hyphenated text rather than the raw OCR spans.
+  async function copyCaptureText(){
+    if(!captureText) return;
+    try { await navigator.clipboard.writeText(captureText); toast('Passage copied'); }
+    catch(e){
+      // Clipboard API needs a secure context and permission; fall back to a
+      // throwaway textarea, which works from a user gesture anywhere.
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = captureText; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); ta.remove(); toast('Passage copied');
+      } catch(e2){ toast('Could not copy — select the text and use ⌘C'); }
+    }
+  }
+  // Paint the band that WILL be saved, as soon as the popup opens. The native
+  // selection colours only the text-layer word spans, so on an OCR'd scan it looks
+  // ragged — gaps between word boxes — which is not what gets stored. Showing the
+  // real band means the reader judges the thing they are about to keep.
+  function paintBands(rects, cls){
+    clearBands(cls);
+    (rects || []).forEach(rc => {
+      const pg = document.querySelector(`#docPane .pdf-page[data-page="${rc.page||1}"]`);
+      if(!pg) return;
+      let layer = pg.querySelector('.hl-layer');
+      if(!layer){ layer = document.createElement('div'); layer.className = 'hl-layer'; pg.appendChild(layer); }
+      const m = document.createElement('div'); m.className = 'hl-mark ' + cls;
+      m.style.left = (rc.x*100)+'%'; m.style.top = (rc.y*100)+'%';
+      m.style.width = (rc.w*100)+'%'; m.style.height = (rc.h*100)+'%';
+      layer.appendChild(m);
+    });
+  }
+  function clearBands(cls){ document.querySelectorAll('.hl-mark.' + cls).forEach(e => e.remove()); }
+  function previewCapture(rects){ clearBands('live'); paintBands(rects, 'preview'); }
+  function clearCapturePreview(){ clearBands('preview'); }
+
+  // ── Live selection band. The browser paints ::selection only over the text-layer
+  //    spans, and tesseract emits one span per WORD-CHUNK, so the gaps between them
+  //    stay unpainted: a dragged selection looks like torn stripes even though the
+  //    selection itself is perfectly continuous. That appearance is what reads as
+  //    "the app didn't highlight everything". So ::selection is muted inside the
+  //    reader (app.css) and we draw one continuous band per line instead.
+  let _liveRaf = 0;
+  function paintLiveSelection(){
+    clearBands('live');
+    const sel = window.getSelection();
+    if(!sel || sel.isCollapsed || !sel.rangeCount) return;
+    if(document.getElementById('capturePopup') &&
+       document.getElementById('capturePopup').style.display !== 'none') return;  // preview owns the page
+    const range = sel.getRangeAt(0);
+    const node = range.commonAncestorContainer;
+    const el = node.nodeType === 1 ? node : node.parentElement;
+    if(!el || !el.closest || !el.closest('#docPane .textLayer')) return;
+    const raw = [...range.getClientRects()].filter(r => r.width > 0 && r.height > 1);
+    if(!raw.length) return;
+    // A selection rect is a LINE BOX, which runs past the last glyph to the edge of
+    // the containing block — so a band drawn straight from it spills into the
+    // margin, and two justified lines end up different lengths. Clamp each band to
+    // the ink on its own line.
+    let pr = bandsFromPoints(_dragFrom, _dragTo);
+    if(!pr.rects.length) pr = bandsFromSelection(raw);
+    paintBands(normalizeRectsToPages(pr.rects.length ? pr.rects : unionRectsByLine(raw)), 'live');
+  }
+  // selectionchange fires continuously through a drag; coalesce to one paint a frame.
+  document.addEventListener('selectionchange', () => {
+    if(_liveRaf) return;
+    _liveRaf = requestAnimationFrame(() => { _liveRaf = 0; try { paintLiveSelection(); } catch(e){ console.warn('live band', e); } });
+  });
   function closeCapture(){
     const pop = document.getElementById('capturePopup');
     if(pop) pop.style.display='none';
+    clearCapturePreview();
+    document.body.classList.remove('capturing');
+    // The selection usually survives Cancel, so put the live band back rather than
+    // leaving the reader with nothing painted over text that is still selected.
+    setTimeout(paintLiveSelection, 0);
     document.querySelectorAll('.marquee-box').forEach(b=>b.remove());
     // Forget the capture. It used to linger, so every later question typed in the
     // ask bar ("about the reading", not about any passage) was filed under
@@ -1807,7 +2123,14 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       for(const pg of pages){
         const p = pg.getBoundingClientRect();
         if(cx>=p.left && cx<=p.right && cy>=p.top && cy<=p.bottom){
-          out.push({ page:+(pg.dataset.page||1), x:(r.left-p.left)/p.width, y:(r.top-p.top)/p.height, w:r.width/p.width, h:r.height/p.height });
+          // Clamp to the sheet HERE, not only when painting. A band must never run
+          // past the page it belongs to, and storing an out-of-range fraction meant
+          // every future render had to re-fix it — and any export carried it out.
+          const x0 = Math.max(0, Math.min(1, (r.left - p.left) / p.width));
+          const y0 = Math.max(0, Math.min(1, (r.top  - p.top ) / p.height));
+          const x1 = Math.max(0, Math.min(1, (r.right  - p.left) / p.width));
+          const y1 = Math.max(0, Math.min(1, (r.bottom - p.top ) / p.height));
+          if(x1 > x0 && y1 > y0) out.push({ page:+(pg.dataset.page||1), x:x0, y:y0, w:x1-x0, h:y1-y0 });
           break;
         }
       }
@@ -1876,6 +2199,19 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     // Click the quote to expand/collapse — "Go to" already covers navigation.
     el.querySelectorAll('.hl-quote').forEach(q => q.onclick = () => q.closest('.hl-card').classList.toggle('open'));
     el.querySelectorAll('.hl-goto').forEach(b => b.onclick = () => scrollToHighlight(b.dataset.hl));
+    // Clear-all. A highlight stores the rects it was SAVED with, so any band made by
+    // an older build keeps its geometry for ever and no fix can repaint it — the
+    // only remedy is to drop it and highlight again. Removing them one card at a
+    // time is unreasonable when a reading has a dozen.
+    el.insertAdjacentHTML('beforeend',
+      `<button class="hl-clear" id="hlClearAll">Clear all ${list.length} on this reading</button>`);
+    const clr = document.getElementById('hlClearAll');
+    if(clr) clr.onclick = () => {
+      if(!confirm(`Remove all ${list.length} highlights on this reading? This cannot be undone.`)) return;
+      persistHighlights(currentReadingId(), []);
+      document.querySelectorAll('.hl-mark').forEach(m => m.remove());
+      renderHighlightList();
+    };
     el.querySelectorAll('.hl-nb').forEach(b => b.onclick = () => elevateHighlight(list.find(h => h.id === b.dataset.hl)));
     el.querySelectorAll('.hl-del').forEach(b => b.onclick = () => removeHighlight(b.dataset.hl));
   }
@@ -2142,7 +2478,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     renderHighlightList();
     renderQAList();
     const dp = document.getElementById('docPane');
-    if(dp) dp.addEventListener('mouseup', handleSelectionCapture);
+    if(dp){ dp.addEventListener('mouseup', handleSelectionCapture); trackDrag(dp); }
     watchPaneWidth(dp);
     const input = document.getElementById('readInput');
     const folderInput = document.getElementById('readFolderInput');
