@@ -6,8 +6,9 @@ _App/code task list. Update it as things get done; history is in `git log`._
 > readings pipeline, distribution, machines, local paths — lives in the private planning repo,
 > **not here**. Keep it that way when adding notes.
 
-Last updated: 2026-07-29. **Build/version lives in `index.html`** as `?v=` on the `app.css` and
-`app.js` tags (currently `2026-07-29-18`); `app.js` reads it back off its own `src` for the badge
+Last updated: **2026-07-30**, build **`2026-07-30-41`**. **Build/version lives in `index.html`** as
+`?v=` on the `app.css` and `app.js` tags. **Set BOTH with one regex** — they drifted apart once
+(css moved, js stuck three builds behind) and the stale JS was served for hours; `app.js` reads it back off its own `src` for the badge
 bottom-right. **Bump `?v=` on every deploy** — on Pages it is the only thing stopping a cached
 `app.js` being served after a push. Forget, and the old value shows on screen rather than failing
 silently, which is the point: it tells on itself.
@@ -91,11 +92,10 @@ it ignores `v`, and `Object.assign` preserves keys it does not know.
 - **Notebook calendar shows every day**; the locked design is MON/WED only. Minor.
 - **AI-use log** — done for the One-Pagers. Still wanted per piece elsewhere. Currere studio tools
   (themes / craft consultant) + Conference-Packet PDF.
-- **Relink orphaned readings.** Readings loaded through the `＋ Load` pickers get random ids, so
-  highlights and Q&A saved against them cannot reattach after a restore or a move to a folder-backed
-  shelf. The data survives in the export, it just has nothing to render against, and there is no
-  "relink this reading to a file" action. A one-time migration re-keying by filename onto
-  `d:<filename>` would fix it.
+- ~~Relink orphaned readings~~ **DONE 2026-07-30 (build 40).** Ids now derive from the filename
+  (`f:<name>`), and `migrateReadingIds()` re-keys existing shelves once, carrying highlights and Q&A
+  across. Bytes stay filed under the old id, so records keep a `legacyId` and `readingBytesFor` falls
+  back to it. **Untested with real student data — the McGuffey run is the first proof.**
 - Optional: route Open-page free-writes into the Notebook, dated.
 
 ## Needs testing in a browser (nothing blocks on code)
