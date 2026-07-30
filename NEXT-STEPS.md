@@ -108,6 +108,43 @@ routes around it geometrically. The honest fix is upstream: only reorder on a wi
 vertical gutter with text down both sides. It was added to help selection and marquee capture, so
 check which page motivated it before changing it.
 
+## Upstream code worth borrowing (investigated 2026-07-30, nothing adopted yet)
+
+We hand-rolled the selection geometry. Better-tested versions of the same thing exist, and one of
+them is **already in the file we load** — `vendor/pdf.min.mjs` is **pdf.js 6.0.227**, which exports
+`AnnotationEditorLayer`, `AnnotationEditorUIManager`, `AnnotationEditorType`, `DrawLayer` and
+`TextLayer`, with `HighlightEditor` and **`Outliner`** inside. `Outliner` merges a selection's
+per-word boxes into one clean outline — the job `unionRectsByLine()` does here — written by the
+people who own the text layer, and it handles free-form highlighting on image-only pages too.
+
+Three sources, most useful first:
+
+1. **pdf.js's own `HighlightEditor` / `Outliner`** — already vendored, no new dependency.
+2. **`react-pdf-highlighter`** — its `optimizeClientRects()` is a compact, well-tested answer to the
+   merge-rects-per-line problem. Worth reading even if we adopt none of it.
+3. **Hypothesis's client (`pdf-anchoring`)** — anchors highlights by **text quote + position**, not
+   coordinates, and re-finds them when the page renders.
+
+**(3) is the one to think hard about.** Every painful moment on 2026-07-30 came from storing
+*rects*: a highlight keeps the geometry it was saved with, so bands from an older build could never
+be repaired — the wrong numbers were the data. Text-anchored highlights would survive zoom, a
+re-crop, a **re-OCR**, even a fresh scan of the same chapter, because they would re-find the quote.
+Given chapters do get re-OCR'd and students carry work between machines, that is a real gain.
+
+⚠ **Two things to know before adopting any of it:**
+
+- **pdf.js's editor stores highlights in `AnnotationStorage`**, designed for writing back into the
+  PDF. Ours live in `DB.highlights`, keyed per reading, carried in the save zip, and threaded into
+  the Notebook and the reading partner. Adopting the editor means bridging those or losing them.
+- **`orderByReadingColumns` would break pdf.js's editor too.** It assumes it built the text layer
+  itself, in item order; we re-sort before building, so ANY upstream selection code inherits the
+  same scrambling. **That function is the prerequisite for all three options.**
+
+**Recommended order.** Do not rip out working code before Aug 24 — selection works and is heavily
+commented. First fix `orderByReadingColumns` to reorder only on a genuine gutter (small, and it
+unblocks everything). Then, once the term is running, evaluate text-anchored highlights as the
+actual fix for stale geometry.
+
 ## Storage: what survives a revision
 
 **Revising the app does not clear saved work.** `localStorage` and IndexedDB are keyed to the
