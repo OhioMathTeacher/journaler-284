@@ -6,7 +6,7 @@ _App/code task list. Update it as things get done; history is in `git log`._
 > readings pipeline, distribution, machines, local paths — lives in the private planning repo,
 > **not here**. Keep it that way when adding notes.
 
-Last updated: **2026-07-30**, build **`2026-07-30-41`**. **Build/version lives in `index.html`** as
+Last updated: **2026-07-30**, build **`2026-07-30-67`**. **Build/version lives in `index.html`** as
 `?v=` on the `app.css` and `app.js` tags. **Set BOTH with one regex** — they drifted apart once
 (css moved, js stuck three builds behind) and the stale JS was served for hours; `app.js` reads it back off its own `src` for the badge
 bottom-right. **Bump `?v=` on every deploy** — on Pages it is the only thing stopping a cached
@@ -45,6 +45,68 @@ whole app). The 318P source is kept at `reference/journaler-318-source.html` as 
   **There is deliberately no "quick save".** Typing is already persisted to the browser on every
   keystroke, so this button was never the frequent action — a second, lighter button only offered a
   way to reach another machine missing your chapters.
+
+## Settings, and how to find out what a browser is doing
+
+A **gear** in the top bar opens Settings — three tabs, after Allegory's pattern. Things touched
+once a term live here rather than on the writing surface.
+
+- **Readings** — the persistent readings-folder control, and the theme toggle.
+- **AI** — Local / $0 / Pay sub-tabs. **Local auto-discovers**: it probes ports 8765, 11434 and
+  1234, asks each responder `/v1/models`, and lists what is installed as one-click tiles, so a
+  student never types an endpoint. It probes **both `127.0.0.1` and the host that served the page** —
+  a browser cannot see its own LAN address but always knows the one it loaded from, so a laptop
+  reaches a model on the machine serving it with nothing typed. Embedding models are filtered out.
+  Writes the existing `cr_provider` / `cr_local_endpoint` / `cr_local_model` keys, so `callModel`,
+  `aiLabel()` and the AI-use log are untouched.
+- **Diagnostics** — a rolling 300-event log plus a snapshot, with **Copy** and **Download** so a
+  student can send the lot in one paste. Snapshot covers the build that loaded and its asset URL,
+  localStorage bytes against quota, journal/highlight/exchange counts, provider, secure context,
+  folder-picker and clipboard availability, and for the open reading the **text-layer span count and
+  lines detected**.
+
+⚠ **The log is in its own storage key, NOT in `DB`.** `DB` is what `⤓ Save my work` exports; a
+student's turn-in must not carry a debug log, and an unbounded log would eat the quota it exists to
+report on. Keep it that way.
+
+**Why this exists:** the app runs on ~25 machines and browsers nobody here chose. Chasing one
+selection bug took an afternoon of reading the console over someone's shoulder — that does not
+scale to a class.
+
+## Reading selection — how it works now, and what to leave alone
+
+Selecting text in a reading is driven by **where the pointer went**, never by the DOM range.
+
+`orderByReadingColumns` re-sorts the text items, so the text layer's DOM order stops matching
+reading order. Every DOM-based approach inherits that: `range.getClientRects()` and
+`range.intersectsNode()` both walk the tree, so a drag across a whole line yields a range missing
+that line's tail (9 anchors for an 8-line selection), a downward drag can reach *up* and grab
+earlier lines, and `cloneContents()` returns the text shuffled with the chapter header spliced in.
+
+So: `bandsFromPoints()` takes mousedown → current → mouseup, finds the line each point lands on and
+fills every line between from that line's own text extent. **Do not "simplify" this back to the
+selection range.** The range is used only to detect that a selection exists and to copy from.
+
+- The browser's own `::selection` is **hidden inside the reader**. pdf.js paints it per span and
+  tesseract emits one span per word-chunk, so the gaps between words stay unpainted and a perfectly
+  continuous selection LOOKS torn — which is what reads as "the app didn't highlight what I
+  selected". A continuous band is drawn per line instead, live as the drag happens.
+- Saved bands are hidden while previewing, so overlapping translucent layers cannot masquerade as a
+  patchy new one. (They did, for several builds.)
+- Copy takes its text from the bands, so it comes out in reading order, with OCR cleanup: a capital
+  I read as `|`, stray specks, and a line-break hyphen with a speck after it. Conservative on
+  purpose — de-hyphenation is two rules, because one loosened rule turned "co-op" into "coop".
+- Geometry tolerances are **proportional to the rendered text**, never fixed pixels; a 6px floor
+  that is harmless at 12px type is over half the line spacing at 9px and merges lines on a phone.
+- A highlight keeps the rects it was **saved** with, so bands from an older build can only be
+  dropped and remade — hence **Clear all** at the foot of the highlights pane.
+
+⚠ **STILL OPEN: `orderByReadingColumns` is the root cause.** It looks for column gaps in word
+left-edges, and on a **single-column** scan the left margin, paragraph indents and justified spacing
+still cluster — so it detects columns that are not there and shuffles the items. Everything above
+routes around it geometrically. The honest fix is upstream: only reorder on a wide, sustained
+vertical gutter with text down both sides. It was added to help selection and marquee capture, so
+check which page motivated it before changing it.
 
 ## Storage: what survives a revision
 
@@ -110,7 +172,12 @@ it ignores `v`, and `Object.assign` preserves keys it does not know.
 - **Readings folder**, especially the **thumb-drive round trip** — whether a stored handle survives
   unplug/replug, or a remount at a different path, is untested. Folder-on-disk works.
 - **The reading partner on a larger local model.** A 3B gives thin replies; that is the model, not
-  the prompt. Re-judge before touching the prompt again.
+  the prompt. Re-judge before touching the prompt again. **Settings → AI → Local now lists whatever
+  is installed**, so switching is a click — no endpoint to type.
+- **Text selection in a reading**, since it was rebuilt: drag across several lines and check the
+  band is continuous and stops where you released, that ⌘C matches the popup's ⧉ Copy, and that a
+  downward drag never reaches up. Try it in a narrow window too — tolerances are proportional now,
+  but that path is untested at small sizes.
 - **Ollama from a hosted origin.** `OLLAMA_ORIGINS` is a machine setting on whatever runs Ollama,
   **not** app code: Ollama allows only local origins by default and refuses a call from an `https://`
   page at its end. Fedora: `sudo systemctl edit ollama` → `Environment="OLLAMA_ORIGINS=<origin>"` →
