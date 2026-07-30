@@ -271,6 +271,11 @@
   body.focus.reading .frame { max-width: 1900px; padding-top: 0; }
   body.focus.reading .shelf { display: none !important; }
   body.focus.reading .reader { min-height: calc(100vh - 24px); border-radius: 0; border-left: none; border-right: none; }
+  /* ✕ Exit focus is position:fixed top-right, and with the shelf gone the toolbar rises
+     to meet it. Reserve its width at the end of the bar, and drop the notes toggle,
+     which focus has already overridden and which therefore does nothing here. */
+  body.focus.reading .viewbar { padding-right: 168px; }
+  body.focus.reading #notesToggle { display: none; }
   body.focus .layout { grid-template-columns: 1fr; }
   body.focus .stage { background: none; border: none; box-shadow: none; padding: 0; }
   body.focus .gushbar { justify-content: center; }
