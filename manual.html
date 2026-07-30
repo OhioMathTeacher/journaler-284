@@ -6,24 +6,31 @@
   @page { size: letter; margin: 0.55in; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-  body { font-family: "DejaVu Sans", "Helvetica Neue", Arial, sans-serif; color: #2C2416; font-size: 10.5px; line-height: 1.5; }
-  .title { font-family: Georgia, "Times New Roman", serif; font-size: 25px; font-weight: 700; color: #7A3B10; margin: 0; }
-  .sub { color: #8A7C6C; font-size: 11px; margin: 3px 0 0; }
-  .rule { height: 3px; background: #7A3B10; border-radius: 2px; margin: 10px 0 14px; }
-  .lead { font-family: Georgia, serif; font-size: 12px; color: #2C2416; margin: 0 0 14px; }
+  /* ONE COLUMN. It was two, which read as a cramped newsletter once the app rendered
+     it at screen size. Two columns of a fixed body of text occupy about the same area
+     as one column of it, so going single-column freed the height to raise the type from
+     10.5px to 12px — the reason to do it, not a side effect. Still one letter page.
+     Re-render after editing: node <fall-2026>/alkimi-tea/tools/html-to-pdf.mjs
+     manual.html manual.pdf 1.0 0.55 — then CHECK IT IS STILL ONE PAGE. If it spills,
+     nudge the font sizes down ~0.5px; never lower the scale, which narrows the column
+     and reintroduces exactly the side margins this was meant to remove. */
+  body { font-family: "DejaVu Sans", "Helvetica Neue", Arial, sans-serif; color: #2C2416; font-size: 12px; line-height: 1.5; }
+  .title { font-family: Georgia, "Times New Roman", serif; font-size: 27px; font-weight: 700; color: #7A3B10; margin: 0; }
+  .sub { color: #8A7C6C; font-size: 13px; margin: 4px 0 0; }
+  .rule { height: 3px; background: #7A3B10; border-radius: 2px; margin: 11px 0 15px; }
+  .lead { font-family: Georgia, serif; font-size: 13.5px; color: #2C2416; margin: 0 0 17px; }
   .lead strong { color: #7A3B10; }
-  .cols { display: flex; gap: 20px; }
-  .col { flex: 1; }
-  h2 { font-family: Georgia, serif; font-size: 13px; color: #7A3B10; margin: 0 0 5px; border-bottom: 1px solid #D8CBAF; padding-bottom: 3px; }
-  .tab { margin: 0 0 11px; }
-  .tab .name { font-weight: 700; font-size: 11px; color: #2C2416; }
-  .tab .name .pill { display: inline-block; font-size: 8.5px; font-weight: 700; color: #fff; background: #2A5A3A; border-radius: 3px; padding: 1px 5px; margin-left: 5px; vertical-align: 1px; letter-spacing: .03em; }
+  h2 { font-family: Georgia, serif; font-size: 15px; color: #7A3B10; margin: 14px 0 6px; border-bottom: 1px solid #D8CBAF; padding-bottom: 3px; }
+  h2:first-of-type { margin-top: 0; }
+  .tab { margin: 0 0 10px; }
+  .tab .name { font-weight: 700; font-size: 12.5px; color: #2C2416; }
+  .tab .name .pill { display: inline-block; font-size: 10px; font-weight: 700; color: #fff; background: #2A5A3A; border-radius: 3px; padding: 1px 6px; margin-left: 6px; vertical-align: 1px; letter-spacing: .03em; }
   .tab p { margin: 2px 0 0; color: #4a4030; }
-  ol, ul { margin: 3px 0 0; padding-left: 16px; }
-  li { margin: 0 0 3px; }
-  .callout { background: #F3EEE2; border-left: 3px solid #C69A5C; border-radius: 0 6px 6px 0; padding: 9px 12px; margin: 4px 0 0; }
+  ol, ul { margin: 4px 0 0; padding-left: 19px; }
+  li { margin: 0 0 4px; }
+  .callout { background: #F3EEE2; border-left: 3px solid #C69A5C; border-radius: 0 6px 6px 0; padding: 10px 14px; margin: 7px 0 0; }
   .callout .k { font-weight: 700; color: #7A3B10; }
-  .foot { margin-top: 14px; border-top: 1px solid #D8CBAF; padding-top: 8px; color: #8A7C6C; font-size: 9.5px; display: flex; justify-content: space-between; }
+  .foot { margin-top: 18px; border-top: 1px solid #D8CBAF; padding-top: 9px; color: #8A7C6C; font-size: 11px; display: flex; justify-content: space-between; }
   b.acc { color: #7A3B10; }
 </style>
 </head>
@@ -34,52 +41,46 @@
 
   <p class="lead">Journaler is where you do your writing this term. It runs in your browser, and nothing you write is uploaded — it lives on <strong>your</strong> computer. There are four tabs across the top: <strong>Freewrite</strong>, <strong>Currere</strong>, <strong>Readings</strong>, and <strong>Notebook</strong>.</p>
 
-  <div class="cols">
-    <div class="col">
-      <h2>The four tabs</h2>
+  <h2>The four tabs</h2>
 
-      <div class="tab">
-        <div class="name">Freewrite <span class="pill">start here</span></div>
-        <p>The five One-Pagers live here. Each one runs in two steps:</p>
-        <ol>
-          <li><b class="acc">Gush</b> — set the timer and write. While it runs, Backspace and Delete are off. You cannot fix anything, so keep going. Stalled? Write that you stalled.</li>
-          <li><b class="acc">Shape</b> — when the buzzer sounds, a composer opens beside your gush. Build your one page from the raw material.</li>
-        </ol>
-      </div>
-
-      <div class="tab">
-        <div class="name">Currere</div>
-        <p>The four moments — Regressive, Progressive, Analytical, Synthetical. Same gush-then-shape rhythm, with the structure loosening as you go.</p>
-      </div>
-
-      <div class="tab">
-        <div class="name">Readings</div>
-        <p>Load a chapter with <b class="acc">＋ Load readings</b> (pick several at once) or <b class="acc">＋ Load a folder</b>. Switch chapters from the dropdown. Read one page at a time, or flip to Continuous.</p>
-      </div>
-
-      <div class="tab">
-        <div class="name">Notebook</div>
-        <p>Your kept pages, seen two ways: <b class="acc">By day</b> (a calendar) or <b class="acc">By piece</b> (one piece across the whole term, so you can watch it change).</p>
-      </div>
-    </div>
-
-    <div class="col">
-      <h2>Keeping a page</h2>
-      <p>Your drafts save themselves as you type. When a page is worth keeping, press <b class="acc">＋ Add to notebook</b>. That dates it and files it in your Notebook.</p>
-      <div class="callout"><span class="k">Come back to it.</span> Open the same piece weeks later, write more, and add to notebook again. Both passes stay, dated, so your thinking shows over time.</div>
-
-      <h2 style="margin-top:14px">Saving &amp; moving your work</h2>
-      <ul>
-        <li><b class="acc">⤓ Save my work</b> (top bar) downloads one file with everything you have written.</li>
-        <li>Put that file wherever you keep things — Google Drive, Dropbox, or a thumb drive.</li>
-        <li>On any computer, open Journaler and use <b class="acc">⤒ Open my file</b> to pick up where you left off.</li>
-      </ul>
-      <div class="callout"><span class="k">Do this often.</span> Your work is saved in this browser, but a lab computer can be wiped. The saved file is your real backup.</div>
-
-      <h2 style="margin-top:14px">The AI partner (optional)</h2>
-      <p>Connect a model with the <b class="acc">AI</b> button, top right. After a gush, a reflection partner asks how the writing <i>felt</i> — it never touches your words. Journaler works fully without AI, too.</p>
-    </div>
+  <div class="tab">
+    <div class="name">Freewrite <span class="pill">start here</span></div>
+    <p>The five One-Pagers live here. Each one runs in two steps:</p>
+    <ol>
+      <li><b class="acc">Gush</b> — set the timer and write. While it runs, Backspace and Delete are off. You cannot fix anything, so keep going. Stalled? Write that you stalled.</li>
+      <li><b class="acc">Shape</b> — when the buzzer sounds, a composer opens beside your gush. Build your one page from the raw material. Export it as a PDF to hand in.</li>
+    </ol>
   </div>
+
+  <div class="tab">
+    <div class="name">Currere</div>
+    <p>The four moments — Regressive, Progressive, Analytical, Synthetical. Same gush-then-shape rhythm, with the structure loosening as you go.</p>
+  </div>
+
+  <div class="tab">
+    <div class="name">Readings</div>
+    <p>Load a chapter with <b class="acc">＋ Load readings</b> (pick several at once) or <b class="acc">＋ Load a folder</b>. Switch chapters from the dropdown. Read one page at a time, or flip to Continuous.</p>
+  </div>
+
+  <div class="tab">
+    <div class="name">Notebook</div>
+    <p>Your kept pages, seen two ways: <b class="acc">By day</b> (a calendar) or <b class="acc">By piece</b> (one piece across the whole term, so you can watch it change).</p>
+  </div>
+
+  <h2>Keeping a page</h2>
+  <p>Your drafts save themselves as you type. When a page is worth keeping, press <b class="acc">＋ Add to notebook</b>. That dates it and files it in your Notebook.</p>
+  <div class="callout"><span class="k">Come back to it.</span> Open the same piece weeks later, write more, and add to notebook again. Both passes stay, dated, so your thinking shows over time.</div>
+
+  <h2>Saving &amp; moving your work</h2>
+  <ul>
+    <li><b class="acc">⤓ Save my work</b> (top bar) downloads one file with everything you have written.</li>
+    <li>Put that file wherever you keep things — Google Drive, Dropbox, or a thumb drive.</li>
+    <li>On any computer, open Journaler and use <b class="acc">⤒ Open my file</b> to pick up where you left off.</li>
+  </ul>
+  <div class="callout"><span class="k">Do this often.</span> Your work is saved in this browser, but a lab computer can be wiped. The saved file is your real backup.</div>
+
+  <h2>The AI partner (optional)</h2>
+  <p>Connect a model with the <b class="acc">AI</b> button, top right. After a gush, a reflection partner asks how the writing <i>felt</i> — it never touches your words. Journaler works fully without AI, too.</p>
 
   <div class="foot"><span>Everything is private and local. Your words are yours.</span><span>Journaler · TCE 284</span></div>
 </body>

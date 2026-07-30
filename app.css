@@ -334,6 +334,13 @@
 .vbtn:hover { background: var(--comment-bg); }
 .vbtn.on { color: var(--accent); background: var(--comment-bg); }
 .pdfnav { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 14px; background: rgba(248,244,236,.94); backdrop-filter: blur(3px); padding: 8px; margin: -8px -8px 14px; border-bottom: 1px solid var(--comment-border); }
+/* Zoom sits with the page controls. Pinned right so Prev / Page N of M / Next keep the
+   centre — those are what the eye returns to while reading. */
+.zoomwrap { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+/* Narrow: stop overlapping Next, let it sit in the flow and wrap. */
+@media (max-width: 900px) { .pdfnav { flex-wrap: wrap; } .zoomwrap { position: static; transform: none; } }
+.zoomsel { font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: var(--accent); background: transparent; border: 1px solid var(--comment-border); border-radius: 6px; padding: 5px 7px; cursor: pointer; }
+.zoomsel:focus { outline: none; border-color: var(--accent); }
 .pdfnav-btn { font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--accent); background: #fff; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 13px; cursor: pointer; }
 .pdfnav-btn:hover:not(:disabled) { background: var(--comment-bg); }
 .pdfnav-btn:disabled { opacity: .4; cursor: default; }

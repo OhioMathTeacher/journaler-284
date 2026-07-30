@@ -1171,7 +1171,13 @@ async function runReflection(rf, text, hooks) {
   // Bytes for a reading: a built-in (shipped) reading fetches from its URL; a
   // folder-backed one is read from disk on demand; a picker-loaded one from IndexedDB.
   async function readingBytesFor(r){
-    if(r.builtin && r.url){ try { const res = await fetch(r.url); return res.ok ? await res.arrayBuffer() : null; } catch(e){ return null; } }
+    // Cache-bust at FETCH time, not in the stored record: r.url is persisted into DB, so
+    // a buster baked into it would freeze whichever build first shelved the manual and
+    // the student would keep getting that copy forever.
+    if(r.builtin && r.url){
+      const u = r.url + (r.url.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(BUILD);
+      try { const res = await fetch(u); return res.ok ? await res.arrayBuffer() : null; } catch(e){ return null; }
+    }
     if(r.fromDir){
       if(!readingsDir) return null;
       try { return await (await (await readingsDir.getFileHandle(r.name)).getFile()).arrayBuffer(); }
@@ -1755,14 +1761,43 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     el.querySelectorAll('.hl-del').forEach(b => b.onclick = () => removeHighlight(b.dataset.hl));
   }
 
+  // ── Zoom. Percentages are of ACTUAL SIZE, the convention every PDF reader uses:
+  //    100% means one PDF point per CSS pixel, so a letter page is 612px wide. On a big
+  //    monitor that is SMALLER than fit-width, which surprises people until they realise
+  //    it is the same 100% Acrobat and Chrome mean. Fit width stays the default because
+  //    it is right for a scanned chapter; fit page earns its place on a full-page figure.
+  const ZOOMS = [
+    { v:'fit',  t:'Fit width' },
+    { v:'page', t:'Fit page' },
+    { v:'0.5',  t:'50%' },
+    { v:'0.75', t:'75%' },
+    { v:'1',    t:'100%' },
+    { v:'1.25', t:'125%' },
+    { v:'1.5',  t:'150%' },
+    { v:'2',    t:'200%' },
+  ];
+  let readZoom = DB.readZoom || 'fit';
+  function zoomScale(unit, availW, availH){
+    let s;
+    if(readZoom === 'fit')       s = availW / unit.width;
+    else if(readZoom === 'page') s = Math.min(availW / unit.width, availH / unit.height);
+    else                         s = Number(readZoom) || 1;
+    // Floor keeps a page legible; ceiling keeps one canvas from eating hundreds of MB
+    // (canvas bytes go up with the SQUARE of scale, times devicePixelRatio again).
+    return Math.max(0.25, Math.min(4, s));
+  }
+
   // Paint pdf pages — one at a time (single, with ‹ ›) or all stacked (continuous).
   async function renderPdfPages(pane, doc, r, token){
     const single = readPageMode === 'single';
     if(readPageNum > doc.numPages) readPageNum = doc.numPages;
     if(readPageNum < 1) readPageNum = 1;
+    const zoomSel = `<label class="zoomwrap">Zoom
+      <select id="zoomSel" class="zoomsel">${ZOOMS.map(z =>
+        `<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select></label>`;
     const nav = single
-      ? `<div class="pdfnav"><button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button><span class="pdfnav-lbl">Page ${readPageNum} of ${doc.numPages}</span><button class="pdfnav-btn" id="pgNext" ${readPageNum>=doc.numPages?'disabled':''}>Next ›</button></div>`
-      : `<div class="pdfnav"><span class="pdfnav-lbl">${doc.numPages} pages · scroll to read</span></div>`;
+      ? `<div class="pdfnav"><button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button><span class="pdfnav-lbl">Page ${readPageNum} of ${doc.numPages}</span><button class="pdfnav-btn" id="pgNext" ${readPageNum>=doc.numPages?'disabled':''}>Next ›</button>${zoomSel}</div>`
+      : `<div class="pdfnav"><span class="pdfnav-lbl">${doc.numPages} pages · scroll to read</span>${zoomSel}</div>`;
     pane.innerHTML = nav;
     const wrap = document.createElement('div'); wrap.className = 'pdf-doc'; pane.appendChild(wrap);
     if(single){
@@ -1770,14 +1805,19 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       if(pv) pv.onclick = ()=>{ if(readPageNum>1){ readPageNum--; renderActiveDoc(r); } };
       if(nx) nx.onclick = ()=>{ if(readPageNum<doc.numPages){ readPageNum++; renderActiveDoc(r); } };
     }
+    const zs = document.getElementById('zoomSel');
+    if(zs) zs.onchange = () => { readZoom = zs.value; DB.readZoom = readZoom; saveDB(); renderActiveDoc(r); };
+
     const avail = Math.max(320, pane.clientWidth - 64);
+    // Fit-page needs the height the pane can actually show, less the nav strip.
+    const availH = Math.max(280, pane.clientHeight - 96);
     const ratio = window.devicePixelRatio || 1;
     const pages = single ? [readPageNum] : Array.from({length:doc.numPages}, (_,i)=>i+1);
     for(const n of pages){
       if(token !== _readToken) return;
       const page = await doc.getPage(n);
       const unit = page.getViewport({ scale: 1 });
-      const scale = Math.max(0.4, Math.min(3, (avail / unit.width)));
+      const scale = zoomScale(unit, avail, availH);
       const viewport = page.getViewport({ scale });
       const pageDiv = document.createElement('div'); pageDiv.className = 'pdf-page'; pageDiv.dataset.page = n;
       pageDiv.style.width = viewport.width + 'px'; pageDiv.style.height = viewport.height + 'px';
