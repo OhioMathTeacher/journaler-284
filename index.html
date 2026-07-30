@@ -12,7 +12,13 @@
      every deploy: GitHub Pages will otherwise serve the cached files after a push.
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-07-30-29">
+<link rel="stylesheet" href="app.css?v=2026-07-30-30">
+<script>
+  // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
+  // app.js would flash the other theme for a frame on every load.
+  try { var s = JSON.parse(localStorage.getItem('cr284_state') || '{}');
+        if (s.theme === 'modern') document.documentElement.classList.add('theme-modern'); } catch (e) {}
+</script>
 </head>
 <body>
 <button class="focusbtn exitfocus" id="exitFocus">✕ Exit focus (Esc)</button>
@@ -53,6 +59,7 @@
   <button class="focusbtn" id="openWorkBtn" title="Open a saved Journaler file to pick up where you left off (on any computer)">⤒ Open my file</button>
   <input type="file" id="workFileInput" accept=".json,application/json" hidden>
   <button class="ai-btn" id="aiBtn" onclick="openAIModal()"><span class="ai-dot"></span><span id="aiBtnLabel">AI · off</span></button>
+  <button class="focusbtn" id="themeBtn" title="Switch between the parchment and modern themes">◐ Theme</button>
   <button class="focusbtn" id="focusToggle">◱ Focus mode</button>
 </div>
 
@@ -61,36 +68,24 @@
 <div class="ai-modal-overlay" id="aboutOverlay" onclick="if(event.target===this)closeAbout()">
   <div class="ai-modal about-modal">
     <h2>About Journaler-284</h2>
-    <p class="about-lead">A place to write, read, and keep a journal across the term.
-      Built for <b>TCE 284</b> at Miami University.</p>
+    <p class="about-lead">Where you write for <b>TCE 284</b>. Everything stays on your computer.</p>
 
-    <h3>Where your work lives</h3>
-    <p>On this computer, in this browser. Nothing you write is uploaded, and there is no account
-      and no server. Your writing saves itself as you type, so it is still here when you come
-      back. But it lives in <i>this</i> browser: clearing your browser data erases it, and a lab
-      computer can be wiped without warning.</p>
+    <h3>Your work</h3>
+    <p>Saved in this browser as you type. Clearing browser data erases it, and lab machines
+      get wiped — so use <b>⤓ Save my work</b>, which downloads one file holding everything.</p>
 
-    <h3>Can I keep it on Google Drive or Dropbox?</h3>
-    <p>Yes, and you should. <b>⤓ Save my work</b> downloads a single file holding everything you
-      have written. Put it on Drive, Dropbox, or a thumb drive, and open it later with
-      <b>⤒ Open my file</b> — on this computer or any other. Your freewrites, One-Pagers, currere,
-      notebook, highlights, and reading conversations all come back.</p>
-    <p>The one thing that file does <i>not</i> carry is the readings themselves, since those are
-      yours rather than the app's. After you restore, point the <b>Readings</b> tab at your chapter
-      folder again with <b>＋ Load a folder</b> — loaded that way, your highlights and notes
-      reattach to the right chapter.</p>
-    <p><b>Save often.</b> That file is your real backup, and it is the only copy that is not
-      sitting in one browser on one machine.</p>
+    <h3>Drive or Dropbox?</h3>
+    <p>Yes. Keep that file anywhere and reopen it with <b>⤒ Open my file</b>, on any computer.
+      Your writing, notebook and highlights all come back. Your readings do not — reload those
+      with <b>＋ Load a folder</b> and the highlights reattach.</p>
 
-    <h3>When you connect an AI</h3>
-    <p>The AI is optional and off by default. With a <b>local model</b>, nothing leaves this
-      computer. With a <b>hosted model</b>, what you ask about — the passage, your question, and
-      the page you are reading — is sent to that provider to answer it.</p>
+    <h3>AI</h3>
+    <p>Optional, off by default. A local model keeps everything here. A hosted model receives
+      what you ask about, including the page you are reading.</p>
 
-    <h3>About our icon</h3>
-    <p>A lotus above an open book. The lotus roots in mud and blooms anyway, which is the shape of
-      this course: you go back to what you did not choose, and you write forward from it. The book
-      is where that happens.</p>
+    <h3>Our icon</h3>
+    <p>A lotus roots in mud and blooms anyway. You go back to what you did not choose, and write
+      forward from it. The book is where that happens.</p>
 
     <div class="about-links">
       <a href="https://github.com/OhioMathTeacher/journaler-284" target="_blank" rel="noopener">Source code &amp; README ↗</a>

@@ -2301,6 +2301,22 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
 
   wireNameField();
 
+  // Theme. The class lives on <html>, set pre-paint by the inline script in index.html;
+  // this only has to keep the button and DB in step with it.
+  const _themeBtn = document.getElementById('themeBtn');
+  function paintTheme(){
+    const modern = document.documentElement.classList.contains('theme-modern');
+    if(_themeBtn) _themeBtn.textContent = modern ? '◐ Parchment' : '◑ Modern';
+  }
+  if(DB.theme === 'modern') document.documentElement.classList.add('theme-modern');
+  paintTheme();
+  if(_themeBtn) _themeBtn.addEventListener('click', () => {
+    const modern = document.documentElement.classList.toggle('theme-modern');
+    DB.theme = modern ? 'modern' : 'parchment';
+    saveDB();
+    paintTheme();
+  });
+
   // Restore the readings folder on load. queryPermission needs no user gesture, so
   // a folder that is still granted refills the shelf silently; anything else waits
   // behind the Reconnect button, since requestPermission DOES need a gesture.
