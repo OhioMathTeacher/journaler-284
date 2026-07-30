@@ -1737,9 +1737,14 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     layer.innerHTML = '';
     getHighlights(rid).forEach(h => {
       (h.rects||[]).filter(rc => (rc.page||1) === pageNum).forEach(rc => {
+        // Clamp to the sheet. Rects are stored as fractions of the page box, and a
+        // selection that runs to the edge can round to x+w slightly over 1 — which
+        // painted a band out across the surround, past the paper it belongs to.
+        const x = Math.max(0, Math.min(1, rc.x)), y = Math.max(0, Math.min(1, rc.y));
+        const w = Math.max(0, Math.min(1 - x, rc.w)), hh = Math.max(0, Math.min(1 - y, rc.h));
         const m = document.createElement('div'); m.className = 'hl-mark'; m.dataset.hl = h.id;
-        m.style.left = (rc.x*100)+'%'; m.style.top = (rc.y*100)+'%';
-        m.style.width = (rc.w*100)+'%'; m.style.height = (rc.h*100)+'%';
+        m.style.left = (x*100)+'%'; m.style.top = (y*100)+'%';
+        m.style.width = (w*100)+'%'; m.style.height = (hh*100)+'%';
         layer.appendChild(m);
       });
     });

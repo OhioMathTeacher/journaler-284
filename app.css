@@ -12,7 +12,7 @@
        the app sans without touching print: a printed One-Pager stays serif either way,
        which is why the two #print rules still say var(--serif). */
     --write: "Iowan Old Style", Palatino, Georgia, serif;
-    --readsurround: #CBC6BA;
+    --readsurround: #E4E0D8;
     --writecol: 680px;
     --cave-dark: #1A2A40; --cave-glow: #D4A843;
   }
@@ -26,7 +26,7 @@
     --comment-bg: #FFFFFF; --comment-border: #CBD5DF; --muted: #5F6E7D;
     --danger: #A8423A; --go: #2E7357;
     --write: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --readsurround: #AEBCC4;
+    --readsurround: #DCE3E8;
   }
   .theme-modern .stage, .theme-modern .moment { box-shadow: 0 1px 2px rgba(16,32,48,.05); }
   .theme-modern textarea.gush, .theme-modern .page { line-height: 1.65; }
@@ -407,7 +407,7 @@
 /* ===== Rendered readings — PDF canvas pages + .docx HTML ===== */
 .pdf-loading { color: var(--muted); font-family: var(--sans); font-style: italic; padding: 24px 8px; }
 .pdf-doc { display: flex; flex-direction: column; align-items: center; gap: 18px; }
-.pdf-page { position: relative; background: #fff; box-shadow: 0 1px 10px rgba(44,36,22,.16); border-radius: 2px; }
+.pdf-page { position: relative; background: #fff; box-shadow: 0 1px 10px rgba(44,36,22,.16); border-radius: 2px; overflow: hidden; }
 .pdf-page canvas { display: block; border-radius: 2px; }
 .docx-body { font-family: var(--write); font-size: 16.5px; line-height: 1.75; max-width: 68ch; }
 .docx-body img { max-width: 100%; height: auto; }
