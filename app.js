@@ -1787,6 +1787,32 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     return Math.max(0.25, Math.min(4, s));
   }
 
+  // Scale is baked into the canvas at render time, so anything that changes the column
+  // width leaves the page at the old size — entering focus mode, resizing the window,
+  // toggling the shelf. Re-render when the width actually moves.
+  //   · fit / fit-page only: at a fixed percentage the page is the same size whatever
+  //     the column does, so re-rendering would burn CPU to produce an identical canvas.
+  //   · 24px threshold + debounce: sub-pixel and scrollbar-appearance jitter must not
+  //     feed back into a re-render that changes the width again.
+  let _paneRO = null, _paneW = 0, _paneT = null;
+  function watchPaneWidth(pane){
+    if(_paneRO){ _paneRO.disconnect(); _paneRO = null; }
+    if(!pane || typeof ResizeObserver === 'undefined') return;
+    _paneW = pane.clientWidth;
+    _paneRO = new ResizeObserver(() => {
+      if(readZoom !== 'fit' && readZoom !== 'page') return;
+      const w = pane.clientWidth;
+      if(Math.abs(w - _paneW) < 24) return;
+      _paneW = w;
+      clearTimeout(_paneT);
+      _paneT = setTimeout(() => {
+        const r = readings[activeReading];
+        if(r && (r.type === 'pdf' || r.type === 'docx')) renderActiveDoc(r);
+      }, 120);
+    });
+    _paneRO.observe(pane);
+  }
+
   // Paint pdf pages — one at a time (single, with ‹ ›) or all stacked (continuous).
   async function renderPdfPages(pane, doc, r, token){
     const single = readPageMode === 'single';
@@ -1796,8 +1822,8 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       <select id="zoomSel" class="zoomsel">${ZOOMS.map(z =>
         `<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select></label>`;
     const nav = single
-      ? `<div class="pdfnav"><button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button><span class="pdfnav-lbl">Page ${readPageNum} of ${doc.numPages}</span><button class="pdfnav-btn" id="pgNext" ${readPageNum>=doc.numPages?'disabled':''}>Next ›</button>${zoomSel}</div>`
-      : `<div class="pdfnav"><span class="pdfnav-lbl">${doc.numPages} pages · scroll to read</span>${zoomSel}</div>`;
+      ? `<div class="pdfnav"><span class="pdfnav-mid"><button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button><span class="pdfnav-lbl">Page ${readPageNum} of ${doc.numPages}</span><button class="pdfnav-btn" id="pgNext" ${readPageNum>=doc.numPages?'disabled':''}>Next ›</button></span>${zoomSel}</div>`
+      : `<div class="pdfnav"><span class="pdfnav-mid"><span class="pdfnav-lbl">${doc.numPages} pages · scroll to read</span></span>${zoomSel}</div>`;
     pane.innerHTML = nav;
     const wrap = document.createElement('div'); wrap.className = 'pdf-doc'; pane.appendChild(wrap);
     if(single){
@@ -1944,6 +1970,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     renderQAList();
     const dp = document.getElementById('docPane');
     if(dp) dp.addEventListener('mouseup', handleSelectionCapture);
+    watchPaneWidth(dp);
     const input = document.getElementById('readInput');
     const folderInput = document.getElementById('readFolderInput');
     document.getElementById('openReading').onclick = () => input.click();
@@ -2233,7 +2260,9 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
 
   // ---------- tabs + focus ----------
   const R = { free:renderFree, cur:renderCur, read:renderRead, note:renderNote };
-  function show(t){ tab=t; document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); R[t](); }
+  // body.reading lets CSS tell the reader apart from the writing views. Focus mode
+  // clamps .frame to 720px, which is right for a gush and wrong for a PDF.
+  function show(t){ tab=t; document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); body.classList.toggle('reading', t==='read'); R[t](); }
   document.querySelectorAll('#tabbar button').forEach(b=>b.addEventListener('click',()=>{ if(G.running)return; show(b.dataset.t); }));
   function setFocus(on){ body.classList.toggle('focus',on); }
   document.getElementById('focusToggle').addEventListener('click',()=>setFocus(!body.classList.contains('focus')));
