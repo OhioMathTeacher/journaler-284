@@ -12,7 +12,7 @@
      every deploy: GitHub Pages will otherwise serve the cached files after a push.
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-07-30-40">
+<link rel="stylesheet" href="app.css?v=2026-07-30-41">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -55,8 +55,9 @@
     <input type="text" id="nameField" class="namefield" placeholder="your name" autocomplete="name" spellcheck="false">
   </label>
   <button class="focusbtn" id="saveWorkBtn" title="Save everything you have written as one file — put it on Google Drive, Dropbox, or a thumb drive">⤓ Save my work</button>
-  <button class="focusbtn" id="openWorkBtn" title="Open a saved Journaler file to pick up where you left off (on any computer)">⤒ Open my file</button>
-  <input type="file" id="workFileInput" accept=".json,application/json" hidden>
+  <button class="focusbtn" id="exportAllBtn" title="One zip holding your work AND your reading files — carry this to another computer and open it there">⤓ Save + readings</button>
+  <button class="focusbtn" id="openWorkBtn" title="Open a saved Journaler file or zip to pick up where you left off (on any computer)">⤒ Open my file</button>
+  <input type="file" id="workFileInput" accept=".json,.zip,application/json,application/zip" hidden>
   <button class="ai-btn" id="aiBtn" onclick="openAIModal()"><span class="ai-dot"></span><span id="aiBtnLabel">AI · off</span></button>
   <button class="focusbtn" id="focusToggle">◱ Focus mode</button>
 </div>
@@ -170,6 +171,6 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="app.js?v=2026-07-30-40"></script>
+<script src="app.js?v=2026-07-30-41"></script>
 </body>
 </html>

@@ -33,8 +33,11 @@ whole app). The 318P source is kept at `reference/journaler-318-source.html` as 
   built-in PDF manual as the first-run reading.
 - **Reading partner** with persistent geometry-based highlights, a threaded conversation, and
   page ±1 grounding. That page cache is in memory and **never** in `DB`.
-- **Save / restore** — `⤓ Save my work` writes the whole DB as one file; `⤒ Open my file` restores
-  it on any machine or origin.
+- **Save / restore** — `⤓ Save my work` writes the whole DB as one JSON. **`⤓ Save + readings`**
+  writes a zip of that JSON *plus* the reading files, so a second machine needs one artifact rather
+  than a save file and a pile of chapters; `⤒ Open my file` takes either. Restoring a zip writes the
+  reading bytes back under filename-derived ids first, so highlights find their pages. Deliberately
+  vendor-neutral — a zip on a thumb drive, on any cloud, or on none. `jszip` was already vendored.
 
 ## Storage: what survives a revision
 
@@ -116,6 +119,37 @@ The reading partner sends the quoted passage, the last few turns, and page ±1 o
 whichever model is configured. On a local model that stays on the machine. On a hosted provider it
 does not. The reflection partner likewise sends the gush text. Worth being explicit with students
 about, and worth weighing when recommending a provider.
+
+## ⚑ TWO-MACHINE TEST — the McGuffey run (2026-07-30)
+
+First real cross-machine test. Nothing here has been tried outside one desktop. Build must
+read **`2026-07-30-41`** on BOTH machines — check the badge bottom-right and hard-refresh if not.
+
+**Before leaving (iMac, readings already loaded):**
+1. Note whether the **📁 Use a readings folder** chip appears in the Readings shelf. Present =
+   Chromium; absent = Firefox/Safari. Write down which, for both machines. This decides whether any
+   folder-handle feature is worth building for students.
+2. Make a highlight on a chapter and ask the reading partner one question, so there is something
+   with a known right answer to check later.
+3. Click **⤓ Save + readings**. One zip: your work plus the reading files. Put it on a thumb drive
+   or anywhere you like — it needs no account and no cloud.
+4. Also click **⤓ Save my work** for the small JSON, as a control.
+
+**At McGuffey:**
+5. Open the app. It should be empty — new machine, new origin-and-profile, nothing carried.
+6. **⤒ Open my file** → pick the **zip**. It reloads.
+7. Check, in order:
+   - the reading shelf lists your chapters **and they open** (bytes came out of the zip);
+   - your **highlights are on the right passages** — this is the whole point of the filename-id
+     change, and it is untested in the wild;
+   - the reading-partner thread is there;
+   - your notebook, One-Pagers and name came across;
+   - the images inside any One-Pager survived.
+8. Then try the small JSON on a fresh profile: it should restore the writing but list readings as
+   not-stored. That difference is the reason the zip exists.
+
+**Bring back:** which browser each machine runs, whether the folder chip appeared, and anything
+that landed in the wrong place. A highlight on the wrong passage is the single most useful bug.
 
 ## Verify after any merge between machines
 

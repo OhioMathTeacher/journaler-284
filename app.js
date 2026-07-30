@@ -714,7 +714,65 @@ async function runReflection(rf, text, hooks) {
     a.href = url; a.download = 'journaler-284-' + new Date().toISOString().slice(0,10) + '.json';
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }
+  // ── Export everything: the JSON plus the reading FILES, as one zip. Save my work is
+  //    the small, frequent backup; this is the occasional artifact you carry to another
+  //    machine, so a second computer needs ONE file instead of a save file plus a pile
+  //    of chapters. Deliberately vendor-neutral: a zip on a thumb drive, on any cloud,
+  //    or on none. jszip is already vendored for .docx, so this adds no dependency.
+  async function exportEverything(btn){
+    if(typeof JSZip === 'undefined'){ toast('Zip library not loaded — use ⤓ Save my work.'); return; }
+    const label = btn && btn.textContent;
+    if(btn){ btn.disabled = true; btn.textContent = 'Packing…'; }
+    try {
+      const zip = new JSZip();
+      zip.file('journaler-284.json', JSON.stringify({ app:'journaler-284', v:1, exported:new Date().toISOString(), state:DB }, null, 2));
+      const folder = zip.folder('readings');
+      let n = 0;
+      for(const r of readings){
+        // The manual ships with the app, and .txt readings already ride inside the JSON.
+        if(r.builtin || r.type === 'txt') continue;
+        let bytes = null;
+        try { bytes = await readingBytesFor(r); } catch(e){}
+        if(!bytes) continue;
+        folder.file(r.name, bytes);      // by FILENAME — that is what re-attaches highlights
+        n++;
+      }
+      const blob = await zip.generateAsync({ type:'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'journaler-284-' + new Date().toISOString().slice(0,10) + '.zip';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+      toast(n ? `Packed your work and ${n} reading${n>1?'s':''}.` : 'Packed your work (no readings loaded).');
+    } catch(e){ console.warn('exportEverything', e); toast('Could not build the zip: ' + (e.message||e)); }
+    finally { if(btn){ btn.disabled = false; btn.textContent = label; } }
+  }
+
+  // Restore from a zip: write the reading bytes back under filename-derived ids so the
+  // highlights in the JSON find their pages, THEN hand the JSON to the normal restore.
+  async function openZip(file){
+    if(typeof JSZip === 'undefined'){ alert('Zip library not loaded.'); return; }
+    const zip = await JSZip.loadAsync(file);
+    const jsonEntry = zip.file('journaler-284.json') || zip.file(/\.json$/)[0];
+    if(!jsonEntry) throw new Error('no journaler-284.json inside this zip');
+    for(const path of Object.keys(zip.files)){
+      const entry = zip.files[path];
+      if(entry.dir || !/^readings\//.test(path)) continue;
+      const name = path.replace(/^readings\//, '');
+      if(!name || !/\.(pdf|docx|txt)$/i.test(name)) continue;
+      try { await saveReadingBytes(readingIdForName(name), await entry.async('arraybuffer')); } catch(e){ console.warn('restore', name, e); }
+    }
+    const d = JSON.parse(await jsonEntry.async('string'));
+    const st = d && d.state ? d.state : d;
+    if(!st || typeof st !== 'object') throw new Error('not a Journaler file');
+    localStorage.setItem(LS_KEY, JSON.stringify(st));
+    location.reload();
+  }
+
   function openWork(file){
+    if(/\.zip$/i.test(file.name)){
+      openZip(file).catch(err => alert('Could not open that zip: ' + err.message));
+      return;
+    }
     const r = new FileReader();
     r.onload = e => { try {
       const d = JSON.parse(e.target.result);
@@ -2368,6 +2426,8 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   // Save / open the whole notebook of typed work as one file.
   const _saveBtn = document.getElementById('saveWorkBtn');
   if(_saveBtn) _saveBtn.addEventListener('click', saveWork);
+  const _expBtn = document.getElementById('exportAllBtn');
+  if(_expBtn) _expBtn.addEventListener('click', () => exportEverything(_expBtn));
   const _wfi = document.getElementById('workFileInput');
   const _openBtn = document.getElementById('openWorkBtn');
   if(_openBtn && _wfi){ _openBtn.addEventListener('click', ()=>_wfi.click()); _wfi.addEventListener('change', ()=>{ if(_wfi.files[0]) openWork(_wfi.files[0]); _wfi.value=''; }); }
