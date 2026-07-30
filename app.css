@@ -60,9 +60,9 @@
 
   .topbar { display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; gap: 10px; border-bottom: 2px solid var(--comment-border); padding: 0 clamp(12px,3vw,24px); position: sticky; top: 0; background: var(--parchment); z-index: 5; }
   .tabbar { display: flex; gap: 2px; flex: 1 1 auto; flex-wrap: nowrap; min-width: 0; }
-  .tabbar button { font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--muted); background: none; border: none; padding: 12px 15px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+  .tabbar button { font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--muted); background: none; border: none; padding: 12px 12px; white-space: nowrap; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
   .tabbar button.on { color: var(--accent); border-bottom-color: var(--accent); }
-  .focusbtn { font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: var(--accent); background: none; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 11px; cursor: pointer; white-space: nowrap; }
+  .focusbtn { font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: var(--accent); background: none; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 9px; cursor: pointer; white-space: nowrap; }
   .focusbtn:hover { background: var(--comment-bg); }
   /* Typed once, stored in DB, printed on every export. Empty leaves the blank rule
      on the sheet so a printed page can still be signed by hand. */

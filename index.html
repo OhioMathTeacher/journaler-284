@@ -12,7 +12,7 @@
      every deploy: GitHub Pages will otherwise serve the cached files after a push.
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-07-30-31">
+<link rel="stylesheet" href="app.css?v=2026-07-30-32">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -58,7 +58,6 @@
   <button class="focusbtn" id="openWorkBtn" title="Open a saved Journaler file to pick up where you left off (on any computer)">⤒ Open my file</button>
   <input type="file" id="workFileInput" accept=".json,application/json" hidden>
   <button class="ai-btn" id="aiBtn" onclick="openAIModal()"><span class="ai-dot"></span><span id="aiBtnLabel">AI · off</span></button>
-  <button class="focusbtn" id="themeBtn" title="Switch between the parchment and modern themes">◐ Theme</button>
   <button class="focusbtn" id="focusToggle">◱ Focus mode</button>
 </div>
 
@@ -94,7 +93,7 @@
 
     <p class="about-build">Build <span id="aboutBuild">—</span></p>
 
-    <div class="ai-modal-actions"><button class="am-cancel" onclick="closeAbout()">Close</button></div>
+    <div class="ai-modal-actions"><button class="am-cancel" id="themeBtn">◑ Modern</button><button class="am-cancel" onclick="closeAbout()">Close</button></div>
   </div>
 </div>
 
