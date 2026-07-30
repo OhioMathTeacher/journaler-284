@@ -1223,6 +1223,9 @@ async function runReflection(rf, text, hooks) {
     const pane = document.getElementById('docPane');
     if(!pane || !r) return;
     const token = ++_readToken;
+    // Slate goes behind PDF SHEETS only. A .docx or .txt renders as flowed text straight
+    // into this pane, and that text needs a page-white background to read against.
+    pane.classList.toggle('pdfmode', r.type === 'pdf');
     if(r.type === 'txt'){ pane.innerHTML = r.html; return; }
     pane.innerHTML = `<div class="pdf-loading">Loading ${escHtml(r.name)}…</div>`;
     if(r.type === 'pdf'){

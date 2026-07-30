@@ -139,6 +139,13 @@
   /* overflow-x too: at 150-200% zoom the page is deliberately wider than its column,
      and without this it was clipped with no way to scroll to the rest of the line. */
   .reader .doc { background: #fff; padding: 32px clamp(20px,4vw,64px); overflow: auto; }
+  /* A white sheet on a white surround has no edge — the page just dissolves into the
+     pane. Every serious PDF reader puts a neutral behind the page for exactly this
+     reason. Slate is warm-leaning so it sits with the parchment rather than fighting it.
+     PDFs only: .docx and .txt flow their text straight into this pane and need white. */
+  .reader .doc.pdfmode { background: #9A968C; }
+  .reader .doc.pdfmode .pdf-page { box-shadow: 0 2px 14px rgba(0,0,0,.30); }
+  .reader .doc.pdfmode .pdfnav { background: rgba(154,150,140,.94); border-bottom-color: rgba(0,0,0,.18); }
   .reader .doc .pdfhint { border: 2px dashed var(--comment-border); border-radius: 8px; padding: 20px; text-align: center; color: var(--muted); margin-bottom: 22px; font-size: 13.5px; }
   .reader .doc p { font-family: var(--serif); font-size: 16.5px; line-height: 1.75; max-width: 66ch; }
   .reader .doc .sel { background: var(--highlight-soft); border-radius: 3px; cursor: pointer; }
