@@ -49,9 +49,13 @@
   /* .ai-modal is the DARK panel harvested from 318P (#1A2738). These colours are for
      that background — do not reach for --ink or --muted here, both are parchment-theme
      darks and vanish against it. */
-  .about-modal h3 { font-family: var(--sans); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #9FB0C4; margin: 17px 0 5px; }
-  .about-modal p { font-family: var(--sans); font-size: 13.5px; line-height: 1.6; color: #C9D3DE; margin: 0; }
-  .about-modal p b { color: #F0E6D2; font-weight: 700; }
+  /* Shared by the About and Settings panes — one set of rules for the dark panel,
+     so the two cannot drift. Settings first shipped with its own h3 and inherited
+     the parchment accent instead, which is near-invisible on this background. */
+  .about-modal h3, .settings-modal h3 { font-family: var(--sans); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #9FB0C4; margin: 20px 0 6px; }
+  .about-modal h3:first-of-type, .settings-modal h3:first-of-type { margin-top: 4px; }
+  .about-modal p, .settings-modal p { font-family: var(--sans); font-size: 13.5px; line-height: 1.6; color: #C9D3DE; margin: 0; }
+  .about-modal p b, .settings-modal p b { color: #F0E6D2; font-weight: 700; }
   .about-modal .about-lead { font-family: var(--write); font-size: 15px; color: #DDD3C0; margin: -6px 0 4px; }
   .about-links { display: flex; flex-direction: column; gap: 8px; margin: 20px 0 0; padding-top: 15px; border-top: 1px solid rgba(255,255,255,.10); }
   .about-links a { font-family: var(--sans); font-size: 13.5px; font-weight: 600; color: var(--cave-glow, #D4A843); text-decoration: none; }
@@ -356,7 +360,10 @@
 .ai-key-hint a { color: var(--cave-glow); text-decoration: none; }
 .ai-key-hint a:hover { text-decoration: underline; }
 .ai-modal-actions { display: flex; gap: 0.5rem; }
-.ai-modal-actions button {
+/* Buttons inside a settings pane are the same object as the modal footer's, so
+   they share the base rule. Scoped to .ai-modal-actions alone, a standalone
+   .am-cancel inherited only the colours and rendered cramped. */
+.ai-modal-actions button, .set-pane button {
   font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 500;
   padding: 0.5rem 1.1rem; border-radius: 5px; border: none; cursor: pointer;
   transition: background 0.15s;
@@ -618,3 +625,76 @@ body.capturing .hl-mark:not(.preview) { display: none; }
   #printBundle h2, #printBundle h3 { break-after: avoid-page; page-break-after: avoid; }
   #printBundle article { break-inside: avoid-page; page-break-inside: avoid; margin: 0 0 1.1em; }
 }
+
+/* ── Settings modal. Rarely-touched things — the AI, the readings folder, the
+   theme — plus diagnostics, kept off the writing surface. Reuses the dark
+   .ai-modal panel, so colours here are for THAT background: --ink and --muted are
+   parchment-theme darks and vanish against it. */
+.iconbtn { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  width: 30px; height: 30px; border: 1px solid var(--comment-border); border-radius: 6px;
+  background: none; color: var(--accent); cursor: pointer; }
+.iconbtn:hover { background: var(--comment-bg); }
+body.focus .iconbtn { display: none !important; }
+
+.settings-modal { max-width: 620px; width: min(620px, calc(100vw - 32px)); }
+.set-tabs { display: flex; gap: 2px; margin: -4px 0 16px; border-bottom: 1px solid rgba(255,255,255,.12); }
+.set-tab { font-family: var(--sans); font-size: 13px; font-weight: 600; color: #9FB0C4;
+  background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  padding: 8px 12px; cursor: pointer; }
+.set-tab:hover { color: #C9D3DE; }
+.set-tab.on { color: var(--cave-glow, #D4A843); border-bottom-color: var(--cave-glow, #D4A843); }
+.set-pane { display: none; }
+.set-pane.on { display: block; }
+.set-pane > p { margin-bottom: 12px; }
+.set-pane > button.am-cancel { margin-top: 6px; }
+/* Separator before the modal footer, matching .about-links. */
+.settings-modal .ai-modal-actions { margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,.10); }
+
+.diag-kv { display: flex; justify-content: space-between; gap: 14px; font-family: var(--sans);
+  font-size: 12px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+.diag-kv span { color: #9FB0C4; flex: 0 0 auto; }
+.diag-kv b { color: #F0E6D2; font-weight: 600; text-align: right; word-break: break-word; }
+.diag-snap { max-height: 190px; overflow: auto; margin-bottom: 12px; }
+.diag-actions { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.diag-count { font-family: var(--sans); font-size: 11px; color: #7C8B9C; margin: 0 0 6px; }
+/* Monospace, because this gets pasted into an email and has to stay legible. */
+.diag-body { max-height: 260px; overflow: auto; background: rgba(0,0,0,.28); border-radius: 6px;
+  padding: 8px 10px; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.diag-row { display: flex; gap: 8px; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+.diag-time { color: #7C8B9C; flex: 0 0 auto; }
+.diag-kind { flex: 0 0 auto; min-width: 58px; color: #9FB0C4; }
+.diag-kind.k-error { color: #E88; } .diag-kind.k-save { color: #8CC8A0; }
+.diag-kind.k-read { color: #D4A843; } .diag-kind.k-ai { color: #9FC5E8; }
+.diag-msg { color: #C9D3DE; word-break: break-word; }
+.diag-data { color: #7C8B9C; }
+.diag-empty { font-family: var(--sans); font-size: 12.5px; color: #7C8B9C; margin: 0; }
+
+/* ── AI tab, after Allegory's: sub-tabs, one-click model tiles, a custom URL row.
+   Colours are for the dark .ai-modal panel. */
+.ai-sub { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0 10px; }
+.ai-subtabs { display: flex; gap: 2px; }
+.ai-subtab { font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: #9FB0C4;
+  background: none; border: 0; border-bottom: 2px solid transparent; padding: 5px 10px; cursor: pointer; }
+.ai-subtab:hover { color: #C9D3DE; }
+.ai-subtab.on { color: #F0E6D2; border-bottom-color: #F0E6D2; }
+.ai-selected { font-family: var(--sans); font-size: 11.5px; color: #7C8B9C; }
+.ai-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; padding-right: 6px; }
+.ai-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+  text-align: left; background: rgba(255,255,255,.05); border: 1px solid transparent; border-radius: 8px;
+  padding: 10px 12px; cursor: pointer; }
+.ai-card:hover { background: rgba(255,255,255,.09); }
+.ai-card.on { border-color: #F0E6D2; background: rgba(255,255,255,.10); }
+.ai-card-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ai-card-main b { font-family: var(--sans); font-size: 13.5px; color: #F0E6D2; font-weight: 600; }
+.ai-card-main small { font-family: var(--sans); font-size: 11.5px; color: #7C8B9C; word-break: break-all; }
+.ai-badge { flex: 0 0 auto; font-family: var(--sans); font-size: 10.5px; color: #9FC5E8;
+  background: rgba(159,197,232,.14); border-radius: 4px; padding: 2px 7px; }
+.ai-add { border: 1px dashed rgba(255,255,255,.18); border-radius: 8px; padding: 10px 12px; }
+.ai-add b { display: block; font-family: var(--sans); font-size: 13px; color: #C9D3DE; }
+.ai-add small { display: block; font-family: var(--sans); font-size: 11.5px; color: #7C8B9C; margin-bottom: 6px; }
+.ai-add input { width: 100%; box-sizing: border-box; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.14);
+  color: #F0E6D2; border-radius: 6px; padding: 6px 8px; font: 12px var(--sans); }
+.ai-scan { font-family: var(--sans); font-size: 12.5px; color: #7C8B9C; margin: 0; }
+.ai-foot { font-family: var(--sans); font-size: 11px; color: #6B7A8A; margin: 12px 0 6px; }
+.ai-disable { font-family: var(--sans); font-size: 12px; color: #9A9083; background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; }
+.ai-disable:hover { color: #E88; }

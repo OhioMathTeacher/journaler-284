@@ -659,9 +659,107 @@ async function runReflection(rf, text, hooks) {
   }
   function saveDB(){ clearTimeout(_saveT); _saveT = setTimeout(()=>{
     try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); saveAlarm(false); }
-    catch(e){ console.warn('saveDB', e); saveAlarm(true); }
+    catch(e){ console.warn('saveDB', e); saveAlarm(true); logEvent('error', 'SAVE FAILED — storage full?', String(e && e.message || e)); }
   }, 250); }
   function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ═══ Diagnostics ═══════════════════════════════════════════════════════════
+  // A rolling event log kept in its OWN storage key, deliberately not in DB: the
+  // DB is what ⤓ Save my work exports, and a student's turn-in should not carry a
+  // debug log. Capped, because an unbounded log would eventually eat the same
+  // quota it exists to report on.
+  //
+  // Why this exists: the app runs on ~25 machines and browsers nobody here chose.
+  // "It isn't working" is unanswerable without knowing which build loaded, whether
+  // storage is full, and what the reader saw. Chasing one selection bug by reading
+  // the console over someone's shoulder took a whole afternoon; that does not scale
+  // to a class.
+  const LOG_KEY = 'cr284_log', LOG_MAX = 300;
+  let _log = (() => { try { return JSON.parse(localStorage.getItem(LOG_KEY)) || []; } catch(e){ return []; } })();
+  let _logT;
+  function logEvent(kind, msg, data){
+    _log.push({ t: new Date().toISOString(), kind, msg: String(msg == null ? '' : msg),
+                data: data === undefined ? undefined : data });
+    if(_log.length > LOG_MAX) _log = _log.slice(-LOG_MAX);
+    clearTimeout(_logT);
+    _logT = setTimeout(() => { try { localStorage.setItem(LOG_KEY, JSON.stringify(_log)); } catch(e){} }, 400);
+    if(document.getElementById('diagBody')) renderDiagnostics();
+  }
+  function clearLog(){ _log = []; try { localStorage.removeItem(LOG_KEY); } catch(e){} renderDiagnostics(); }
+
+  function bytesOf(s){ try { return new Blob([s]).size; } catch(e){ return (s||'').length; } }
+  function fmtBytes(n){ return n > 1048576 ? (n/1048576).toFixed(1)+' MB' : n > 1024 ? (n/1024).toFixed(0)+' KB' : n+' B'; }
+
+  // Everything that has cost real time to work out by hand.
+  async function diagnosticsSnapshot(){
+    const out = {};
+    const js = document.querySelector('script[src*="app.js"]');
+    out['Build (loaded)'] = BUILD;
+    out['Asset URL'] = js ? js.getAttribute('src') : '(unknown)';
+    out['Page URL'] = location.href;
+
+    let dbBytes = 0, total = 0;
+    try { for(const k in localStorage){ if(Object.prototype.hasOwnProperty.call(localStorage,k)) total += bytesOf(localStorage.getItem(k)||''); } } catch(e){}
+    try { dbBytes = bytesOf(localStorage.getItem(LS_KEY) || ''); } catch(e){}
+    out['Your work (localStorage)'] = fmtBytes(dbBytes);
+    out['All site storage'] = fmtBytes(total);
+    if(navigator.storage && navigator.storage.estimate){
+      try { const est = await navigator.storage.estimate();
+        out['Quota used'] = `${fmtBytes(est.usage||0)} of ${fmtBytes(est.quota||0)}`; } catch(e){}
+    }
+    out['Journal entries'] = (DB.journal||[]).length;
+    out['Readings on shelf'] = (readings||[]).length;
+    const hl = DB.highlights || {}, qa = DB.qa || {};
+    out['Highlights'] = Object.keys(hl).reduce((n,k)=>n+(hl[k]||[]).length, 0);
+    out['Romano exchanges'] = Object.keys(qa).reduce((n,k)=>n+(qa[k]||[]).length, 0);
+
+    out['AI provider'] = (typeof getProvider === 'function' ? getProvider() : '(n/a)');
+    out['Secure context'] = String(window.isSecureContext);
+    out['Folder picker'] = (typeof window.showDirectoryPicker === 'function') ? 'available' : 'not in this browser';
+    out['Clipboard API'] = (navigator.clipboard && navigator.clipboard.writeText) ? 'available' : 'not available';
+    out['Browser'] = navigator.userAgent;
+    out['Window'] = `${window.innerWidth}×${window.innerHeight} · dpr ${window.devicePixelRatio||1}`;
+
+    // Reader state. The column reading is here because a single-column scan being
+    // mis-read as two columns re-sorts the text layer, and every DOM-order problem
+    // in the reader traces back to it.
+    const r = readings[activeReading];
+    if(r){
+      out['Current reading'] = r.name + (r.fromDir ? ' (from folder)' : '');
+      const spans = document.querySelectorAll('#docPane .textLayer span').length;
+      if(spans){
+        out['Text-layer spans'] = spans;
+        try { out['Lines detected'] = docLines().length; } catch(e){ out['Lines detected'] = 'error: '+e.message; }
+      } else out['Text-layer spans'] = '0 — no text layer (image-only PDF?)';
+    }
+    return out;
+  }
+
+  function renderDiagnostics(){
+    const body = document.getElementById('diagBody');
+    if(!body) return;
+    const rows = _log.slice().reverse().map(e => {
+      const time = e.t.slice(11,19);
+      const d = e.data === undefined ? '' : `<div class="diag-data">${escHtml(typeof e.data === 'string' ? e.data : JSON.stringify(e.data))}</div>`;
+      return `<div class="diag-row"><span class="diag-time">${time}</span><span class="diag-kind k-${escHtml(e.kind)}">${escHtml(e.kind)}</span><span class="diag-msg">${escHtml(e.msg)}${d}</span></div>`;
+    }).join('');
+    body.innerHTML = rows || '<p class="diag-empty">No events yet. Use the app and they will appear here.</p>';
+    const n = document.getElementById('diagCount');
+    if(n) n.textContent = `${_log.length} event${_log.length===1?'':'s'} · newest first`;
+  }
+  async function renderDiagSnapshot(){
+    const el = document.getElementById('diagSnap');
+    if(!el) return;
+    const snap = await diagnosticsSnapshot();
+    el.innerHTML = Object.keys(snap).map(k =>
+      `<div class="diag-kv"><span>${escHtml(k)}</span><b>${escHtml(String(snap[k]))}</b></div>`).join('');
+  }
+  async function diagnosticsText(){
+    const snap = await diagnosticsSnapshot();
+    const head = Object.keys(snap).map(k => `${k}: ${snap[k]}`).join('\n');
+    const log = _log.map(e => `${e.t.slice(11,19)}  ${e.kind.padEnd(8)} ${e.msg}${e.data===undefined?'':'  '+(typeof e.data==='string'?e.data:JSON.stringify(e.data))}`).join('\n');
+    return `Journaler-284 diagnostics\n${'='.repeat(48)}\n${head}\n\nEVENTS (oldest first)\n${'-'.repeat(48)}\n${log}\n`;
+  }
 
   // The name printed on every export. Typed once into the topbar field and stored, so
   // a student never hand-writes it on a PDF. Left empty it prints the blank rule, which
@@ -1260,6 +1358,7 @@ async function runReflection(rf, text, hooks) {
       readings.push(rec);
     }
     if(activeReading >= readings.length) activeReading = Math.max(0, readings.length - 1);
+    logEvent('read', `folder synced · ${found.length} file(s)`, readingsDirName());
     persistReadings(); rerenderReadIfVisible();
   }
   // A folder sync can fire on load while the reader is on another tab; renderRead()
@@ -1753,6 +1852,7 @@ async function runReflection(rf, text, hooks) {
     if(text.length < 2) return;
     const rects = normalizeRectsToPages(pr.rects);
     if(!rects.length) return;
+    logEvent('read', `selection → ${pr.rects.length} band(s)`, { via, anchors: anchors.length, cands: cands.length });
     console.log('[hl] select capture →', pr.rects.length, 'band(s) via', via,
                 '· anchors', anchors.length, '/ cands', cands.length,
                 '· selRects', selRects.length, '· docLines', docLines().length, '· build', BUILD);
@@ -1927,6 +2027,7 @@ async function runReflection(rf, text, hooks) {
       rects, page: (rects[0] && rects[0].page) || readPageNum, ts: Date.now()
     };
     addHighlight(rec);
+    logEvent('save', 'highlight kept', { page: rec.page, chars: (rec.text||'').length });
     repaintHighlights();
     renderHighlightList();
     closeCapture();
@@ -2089,8 +2190,10 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     // conversation is already about as CONTEXT, without filing it on the record.
     const ctx = passage || (history.length ? history[history.length-1].passage : '') || '';
     const reading = await readingContext(page);
-    try { updateQA(rid, rec.id, { reply: await romanoReply(ctx, question, history, reading) }); }
-    catch(e){ updateQA(rid, rec.id, { error: 'Romano is unavailable right now.' }); }
+    try { updateQA(rid, rec.id, { reply: await romanoReply(ctx, question, history, reading) });
+           logEvent('ai', 'reply received', { provider: getProvider(), grounded: !!reading }); }
+    catch(e){ updateQA(rid, rec.id, { error: 'Romano is unavailable right now.' });
+              logEvent('error', 'AI call failed', String(e && e.message || e)); }
     _qaPending.delete(rec.id);
     // The reader may have switched readings while this was in flight; the answer
     // is saved either way, but only repaint if it belongs to what's on screen.
@@ -2394,7 +2497,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         // unconditionally, so a failed write produced a phantom reading that only
         // announced itself at render time.
         try { await saveReadingBytes(id, buf); }
-        catch(e){ console.warn('saveReadingBytes', e); toast('Couldn’t store ' + f.name + ' — browser storage may be full. Try 📁 Use a readings folder.'); continue; }
+        catch(e){ logEvent('error', 'could not store ' + f.name, String(e && e.message || e)); console.warn('saveReadingBytes', e); toast('Couldn’t store ' + f.name + ' — browser storage may be full. Try 📁 Use a readings folder.'); continue; }
         readings.push({ id, name: f.name, type: ext });
       }
     }
@@ -2790,18 +2893,209 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   // Theme. The class lives on <html>, set pre-paint by the inline script in index.html;
   // this only has to keep the button and DB in step with it.
   const _themeBtn = document.getElementById('themeBtn');
+  const _setThemeBtn = document.getElementById('setThemeBtn');
   function paintTheme(){
     const modern = document.documentElement.classList.contains('theme-modern');
-    if(_themeBtn) _themeBtn.textContent = modern ? '◐ Parchment' : '◑ Modern';
+    const label = modern ? '◐ Parchment' : '◑ Modern';
+    if(_themeBtn) _themeBtn.textContent = label;
+    if(_setThemeBtn) _setThemeBtn.textContent = label;
   }
   if(DB.theme === 'modern') document.documentElement.classList.add('theme-modern');
   paintTheme();
-  if(_themeBtn) _themeBtn.addEventListener('click', () => {
+  function toggleTheme(){
     const modern = document.documentElement.classList.toggle('theme-modern');
     DB.theme = modern ? 'modern' : 'parchment';
     saveDB();
     paintTheme();
+    logEvent('ui', 'theme → ' + (modern ? 'modern' : 'parchment'));
+  }
+  if(_themeBtn) _themeBtn.addEventListener('click', toggleTheme);
+  if(_setThemeBtn) _setThemeBtn.addEventListener('click', toggleTheme);
+
+  // ── Settings modal. Tabs, and the folder control rendered into the Readings tab
+  //    so the shelf itself stays uncluttered.
+  // ── AI tab, after Allegory's. The point is that a student should not have to
+  //    know what an endpoint is: probe the ports a local model actually listens on,
+  //    ask each one what models it has, and show them as one-click tiles.
+  //
+  //    Both 127.0.0.1 AND the host that served this page are probed. The second is
+  //    what lets a laptop reach a model running on the machine that served it —
+  //    the browser cannot see its own LAN address, but it always knows the one it
+  //    loaded from.
+  const LOCAL_PORTS = [{ port: 8765, hint: 'OpenAI-compatible shim' },
+                       { port: 11434, hint: 'Ollama' },
+                       { port: 1234, hint: 'LM Studio' }];
+  const EXTRA_ENDPOINTS_KEY = 'cr_local_endpoints';
+  let _aiSub = 'local', _probe = null;
+  function localHosts(){
+    const hosts = ['127.0.0.1'];
+    try { const h = location.hostname; if(h && !['127.0.0.1','localhost','::1',''].includes(h)) hosts.push(h); } catch(e){}
+    return hosts;
+  }
+  function extraEndpoints(){ try { return JSON.parse(localStorage.getItem(EXTRA_ENDPOINTS_KEY)) || []; } catch(e){ return []; } }
+  function addExtraEndpoint(u){ const a = extraEndpoints(); if(!a.includes(u)){ a.push(u); localStorage.setItem(EXTRA_ENDPOINTS_KEY, JSON.stringify(a)); } }
+  // Embedding models cannot chat; listing them only invites a confusing failure.
+  const isEmbedding = id => /embed|bge-|nomic|gte-|minilm/i.test(id);
+  async function listLocalModels(endpoint, ms){
+    const clean = String(endpoint).replace(/\/$/, '');
+    try {
+      const res = await fetch(clean + '/v1/models', { signal: AbortSignal.timeout(ms || 2000) });
+      if(!res.ok) return null;
+      const data = await res.json();
+      if(!data || !data.data) return null;
+      const out = data.data.filter(m => m && m.id && !isEmbedding(m.id)).map(m => ({ id: m.id, endpoint: clean }));
+      return out.length ? out : null;
+    } catch(e){ return null; }
+  }
+  async function probeLocal(){
+    const urls = [];
+    localHosts().forEach(h => LOCAL_PORTS.forEach(p => urls.push('http://' + h + ':' + p.port)));
+    extraEndpoints().forEach(u => { if(!urls.includes(u)) urls.push(u); });
+    const found = await Promise.all(urls.map(async u => { const m = await listLocalModels(u, 1500); return m ? { url:u, models:m } : null; }));
+    return found.filter(Boolean);
+  }
+  function aiCard(title, sub, badge, on, onclick){
+    const b = document.createElement('button');
+    b.className = 'ai-card' + (on ? ' on' : '');
+    b.innerHTML = `<span class="ai-card-main"><b>${escHtml(title)}</b><small>${escHtml(sub)}</small></span>` +
+                  (badge ? `<span class="ai-badge">${escHtml(badge)}</span>` : '');
+    b.onclick = onclick;
+    return b;
+  }
+  function renderAiTab(){
+    const list = document.getElementById('aiList'); if(!list) return;
+    const sel = document.getElementById('aiSelected');
+    if(sel) sel.textContent = getProvider() === 'none' ? 'No AI connected' : 'Selected: ' + aiLabel();
+    const foot = document.getElementById('aiFoot');
+    list.innerHTML = '';
+
+    if(_aiSub === 'local'){
+      if(foot) foot.textContent = 'Auto-checked ports ' + LOCAL_PORTS.map(p=>p.port).join(', ') + ' on this device and on the computer that served this page.';
+      list.innerHTML = '<p class="ai-scan">Looking for a model on this computer…</p>';
+      probeLocal().then(found => {
+        if(document.getElementById('aiList') !== list) return;
+        list.innerHTML = '';
+        const cur = getProvider() === 'local' ? (getLocalEndpoint() + '|' + getLocalModel()) : '';
+        found.forEach(f => f.models.forEach(m => {
+          list.appendChild(aiCard(m.id, f.url, 'Local', cur === (f.url + '|' + m.id), () => {
+            localStorage.setItem(PROVIDER_KEY, 'local');
+            localStorage.setItem(LOCAL_ENDPOINT_KEY, f.url);
+            localStorage.setItem(LOCAL_MODEL_KEY, m.id);
+            addExtraEndpoint(f.url);
+            logEvent('ai', 'provider → local', { endpoint: f.url, model: m.id });
+            updateAIBtn(); renderAiTab();
+          }));
+        }));
+        if(!found.length) list.innerHTML =
+          '<p class="ai-scan">No local model answered. Start Ollama (or LM Studio) and reopen this tab. ' +
+          'If the page is served over https, the model must allow this origin — see OLLAMA_ORIGINS.</p>';
+        const add = document.createElement('div');
+        add.className = 'ai-add';
+        add.innerHTML = '<b>+ Add local server</b><small>Custom URL — anything speaking OpenAI-compatible /v1/chat/completions</small>' +
+                        '<input type="text" id="aiAddUrl" placeholder="http://127.0.0.1:11434" autocomplete="off" spellcheck="false">';
+        list.appendChild(add);
+        const inp = add.querySelector('#aiAddUrl');
+        inp.addEventListener('keydown', async e => {
+          if(e.key !== 'Enter') return;
+          const u = inp.value.trim().replace(/\/$/, ''); if(!u) return;
+          inp.disabled = true;
+          const models = await listLocalModels(u, 3000);
+          inp.disabled = false;
+          if(!models){ toast('Nothing answered at ' + u); return; }
+          addExtraEndpoint(u); toast('Found ' + models.length + ' model(s)'); renderAiTab();
+        });
+      });
+      return;
+    }
+
+    if(_aiSub === 'free'){
+      if(foot) foot.textContent = 'Free tiers. The key is stored in this browser and sent only to that provider.';
+      [['gemini','Gemini 2.5 Flash','Free tier via Google — use a personal Gmail account.', GEMINI_KEY],
+       ['groq','Groq · Llama 3.3 70B','Free tier. Any email — no Google account needed.', GROQ_KEY]]
+        .forEach(([id,title,sub,keyName]) => {
+          list.appendChild(aiCard(title, sub, 'Free', getProvider() === id, () => {
+            const k = prompt('Paste your ' + title + ' API key:', localStorage.getItem(keyName) || '');
+            if(k === null) return;
+            localStorage.setItem(keyName, k.trim());
+            localStorage.setItem(PROVIDER_KEY, id);
+            logEvent('ai', 'provider → ' + id);
+            updateAIBtn(); renderAiTab();
+          }));
+        });
+      return;
+    }
+
+    if(foot) foot.textContent = 'Paid providers, billed to your own account. Keys stay in this browser.';
+    list.appendChild(aiCard('Anthropic Claude', 'Your own key. Claude Sonnet — powerful and precise.', 'Own key',
+      getProvider() === 'anthropic', () => {
+        const k = prompt('Paste your Anthropic API key:', localStorage.getItem(ANTHROPIC_KEY) || '');
+        if(k === null) return;
+        localStorage.setItem(ANTHROPIC_KEY, k.trim());
+        localStorage.setItem(PROVIDER_KEY, 'anthropic');
+        logEvent('ai', 'provider → anthropic'); updateAIBtn(); renderAiTab();
+      }));
+    list.appendChild(aiCard('OpenAI-compatible', localStorage.getItem(CUSTOM_ENDPOINT_KEY) || 'Any /v1/chat/completions endpoint', 'Own key',
+      getProvider() === 'custom', () => { window.closeSettings(); openAIModal(); }));
+  }
+
+  function openSettings(){
+    document.getElementById('settingsOverlay').classList.add('open');
+    renderAiTab();
+    const f = document.getElementById('setFolder');
+    if(f){
+      f.innerHTML = FS_OK ? (folderChip() || '') :
+        '<p>This browser cannot remember a folder between visits. Use <b>＋ Load a folder</b> on the Readings page instead — that works everywhere.</p>';
+      const pick = document.getElementById('pickDir'); if(pick) pick.onclick = pickReadingsFolder;
+      const re = document.getElementById('reconnectDir'); if(re) re.onclick = reconnectReadingsFolder;
+      const fg = document.getElementById('forgetDir'); if(fg) fg.onclick = forgetReadingsFolder;
+    }
+    renderDiagnostics(); renderDiagSnapshot();
+  }
+  window.openSettings = openSettings;
+  window.closeSettings = () => document.getElementById('settingsOverlay').classList.remove('open');
+  const _setBtn = document.getElementById('settingsBtn');
+  if(_setBtn) _setBtn.addEventListener('click', openSettings);
+  document.querySelectorAll('#setTabs .set-tab').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#setTabs .set-tab').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.set-pane').forEach(x => x.classList.toggle('on', x.id === 'set-' + b.dataset.set));
+    if(b.dataset.set === 'diag'){ renderDiagnostics(); renderDiagSnapshot(); }
+    if(b.dataset.set === 'ai') renderAiTab();
+  }));
+  document.querySelectorAll('#aiSubTabs .ai-subtab').forEach(b => b.addEventListener('click', () => {
+    _aiSub = b.dataset.ai;
+    document.querySelectorAll('#aiSubTabs .ai-subtab').forEach(x => x.classList.toggle('on', x === b));
+    renderAiTab();
+  }));
+  const _aiOff = document.getElementById('aiDisable');
+  if(_aiOff) _aiOff.addEventListener('click', () => {
+    localStorage.setItem(PROVIDER_KEY, 'none');
+    logEvent('ai', 'provider → none'); updateAIBtn(); renderAiTab(); toast('AI disabled');
   });
+  const _dCopy = document.getElementById('diagCopy');
+  if(_dCopy) _dCopy.addEventListener('click', async () => {
+    const t = await diagnosticsText();
+    try { await navigator.clipboard.writeText(t); toast('Diagnostics copied'); }
+    catch(e){ const ta = document.createElement('textarea'); ta.value = t;
+      ta.style.cssText='position:fixed;left:-9999px'; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); toast('Diagnostics copied'); } catch(e2){ toast('Could not copy'); }
+      ta.remove(); }
+  });
+  const _dDown = document.getElementById('diagDownload');
+  if(_dDown) _dDown.addEventListener('click', async () => {
+    const blob = new Blob([await diagnosticsText()], { type:'text/plain' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'journaler-diagnostics-' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.txt';
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+  });
+  const _dClear = document.getElementById('diagClear');
+  if(_dClear) _dClear.addEventListener('click', () => { if(confirm('Clear the event log?')) clearLog(); });
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape'){
+      const o = document.getElementById('settingsOverlay');
+      if(o && o.classList.contains('open')){ window.closeSettings(); e.stopPropagation(); }
+    }
+  });
+  logEvent('boot', 'app ready · build ' + BUILD);
 
   // Restore the readings folder on load. queryPermission needs no user gesture, so
   // a folder that is still granted refills the shelf silently; anything else waits
