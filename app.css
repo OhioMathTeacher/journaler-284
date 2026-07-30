@@ -168,8 +168,14 @@
   /* Collapsed: one column, and the aside is display:none rather than removed. Its
      children are the render targets for highlights and the Romano thread, so they must
      stay in the DOM to keep receiving work captured while the pane is shut. */
-  .reader.notes-hidden { grid-template-columns: minmax(0, 1fr); }
-  .reader.notes-hidden .notes { display: none; }
+  /* Focus mode hides the pane too — same mechanism, so there is one code path and the
+     DOM stays intact either way. It does NOT touch notesOpen, so leaving focus restores
+     whichever state you had chosen. The toggle lives in the shelf, which focus also
+     hides: in focus there is the reading and nothing else, by design. */
+  .reader.notes-hidden,
+  body.focus.reading .reader { grid-template-columns: minmax(0, 1fr); }
+  .reader.notes-hidden .notes,
+  body.focus.reading .notes { display: none; }
   .hl-count { font-variant-numeric: tabular-nums; }
   .reader .notes { background: var(--margin-bg); border-left: 1px solid var(--comment-border); padding: 20px 18px; overflow-y: auto; }
   .reader .notes h4 { margin: 0 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
