@@ -12,7 +12,7 @@
      every deploy: GitHub Pages will otherwise serve the cached files after a push.
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-07-30-27">
+<link rel="stylesheet" href="app.css?v=2026-07-30-28">
 </head>
 <body>
 <button class="focusbtn exitfocus" id="exitFocus">✕ Exit focus (Esc)</button>
@@ -23,8 +23,8 @@
        petals and hairline page gaps close up into a blob. Five petals, solid, with the
        outer pair narrowed so they still read as petals when it is shown large. Book is
        stroked so it stays open at small sizes. currentColor, so it takes the theme. -->
-  <button class="aboutbtn" id="aboutBtn" title="About Journaler" aria-label="About Journaler">
-    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+  <button class="brand" id="aboutBtn" title="About Journaler-284" aria-label="About Journaler-284">
+    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
       <g fill="currentColor">
         <path transform="rotate(-72 12 13)" d="M12 6.1c1.2 1.6 1.75 2.9 1.75 4.1 0 1.25-.55 2.15-1.75 2.6-1.2-.45-1.75-1.35-1.75-2.6 0-1.2.55-2.5 1.75-4.1z"/>
         <path transform="rotate(-36 12 13)" d="M12 5.1c1.4 1.9 2.05 3.4 2.05 4.8 0 1.45-.65 2.5-2.05 3-1.4-.5-2.05-1.55-2.05-3 0-1.4.65-2.9 2.05-4.8z"/>
@@ -37,6 +37,7 @@
         <path d="M12 16.9v4.9"/>
       </g>
     </svg>
+    <span class="brandname">Journaler<span class="num">-284</span></span>
   </button>
   <div class="tabbar" id="tabbar">
     <button data-t="free" class="on">Freewrite</button>
@@ -59,27 +60,37 @@
 
 <div class="ai-modal-overlay" id="aboutOverlay" onclick="if(event.target===this)closeAbout()">
   <div class="ai-modal about-modal">
-    <h2>About Journaler</h2>
-    <p class="about-lead">A local-first place to write, read, and keep a journal across the term.
+    <h2>About Journaler-284</h2>
+    <p class="about-lead">A place to write, read, and keep a journal across the term.
       Built for <b>TCE 284</b> at Miami University.</p>
-
-    <h3>The lotus and the book</h3>
-    <p>A lotus roots in mud and blooms anyway. In this mark the open book sits where the leaf
-      sits, flat at the waterline, and the flower rises off it. The two mean different things.
-      The leaf stays: it rests on the surface and does not absorb what surrounds it, which is
-      what a page does with whatever you put on it. The flower becomes.</p>
-    <p>You are the part that changes. That is currere, the running of your own life. You go back
-      to what you did not choose, and you write forward from it.</p>
 
     <h3>Where your work lives</h3>
     <p>On this computer, in this browser. Nothing you write is uploaded, and there is no account
-      and no server. That also means clearing your browser data erases it — use
-      <b>⤓ Save my work</b> to keep a copy you own.</p>
+      and no server. Your writing saves itself as you type, so it is still here when you come
+      back. But it lives in <i>this</i> browser: clearing your browser data erases it, and a lab
+      computer can be wiped without warning.</p>
+
+    <h3>Can I keep it on Google Drive or Dropbox?</h3>
+    <p>Yes, and you should. <b>⤓ Save my work</b> downloads a single file holding everything you
+      have written. Put it on Drive, Dropbox, or a thumb drive, and open it later with
+      <b>⤒ Open my file</b> — on this computer or any other. Your freewrites, One-Pagers, currere,
+      notebook, highlights, and reading conversations all come back.</p>
+    <p>The one thing that file does <i>not</i> carry is the readings themselves, since those are
+      yours rather than the app's. After you restore, point the <b>Readings</b> tab at your chapter
+      folder again with <b>＋ Load a folder</b> — loaded that way, your highlights and notes
+      reattach to the right chapter.</p>
+    <p><b>Save often.</b> That file is your real backup, and it is the only copy that is not
+      sitting in one browser on one machine.</p>
 
     <h3>When you connect an AI</h3>
     <p>The AI is optional and off by default. With a <b>local model</b>, nothing leaves this
       computer. With a <b>hosted model</b>, what you ask about — the passage, your question, and
       the page you are reading — is sent to that provider to answer it.</p>
+
+    <h3>About our icon</h3>
+    <p>A lotus above an open book. The lotus roots in mud and blooms anyway, which is the shape of
+      this course: you go back to what you did not choose, and you write forward from it. The book
+      is where that happens.</p>
 
     <div class="about-links">
       <a href="https://github.com/OhioMathTeacher/journaler-284" target="_blank" rel="noopener">Source code &amp; README ↗</a>
@@ -166,6 +177,6 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="app.js?v=2026-07-30-27"></script>
+<script src="app.js?v=2026-07-30-28"></script>
 </body>
 </html>
