@@ -706,14 +706,12 @@ async function runReflection(rf, text, hooks) {
   async function loadReadingBytes(id){ try{ return await idbGet('files', id); }catch(e){ console.warn('loadReadingBytes',e); return null; } }
 
   // Export EVERYTHING typed as one file; import restores it, then reloads to re-init.
-  function saveWork(){
-    const payload = { app:'journaler-284', v:1, exported:new Date().toISOString(), state:DB };
-    const blob = new Blob([JSON.stringify(payload,null,2)], { type:'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'journaler-284-' + new Date().toISOString().slice(0,10) + '.json';
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-  }
+  // ONE export, and it always carries the readings. There is no "quick save" worth
+  // separating out: typing is already saved to the browser on every keystroke, so this
+  // button was never the frequent action — it is the take-it-elsewhere action, which is
+  // occasional by nature. A second button only offered a way to arrive at another
+  // machine missing your chapters.
+  function saveWork(){ return exportEverything(document.getElementById('saveWorkBtn')); }
   // ── Export everything: the JSON plus the reading FILES, as one zip. Save my work is
   //    the small, frequent backup; this is the occasional artifact you carry to another
   //    machine, so a second computer needs ONE file instead of a save file plus a pile
@@ -737,12 +735,15 @@ async function runReflection(rf, text, hooks) {
         folder.file(r.name, bytes);      // by FILENAME — that is what re-attaches highlights
         n++;
       }
-      const blob = await zip.generateAsync({ type:'blob' });
+      // STORE, not DEFLATE: PDFs are already compressed, so deflating them costs seconds
+      // of CPU for roughly nothing. Packing becomes a copy, which is what makes carrying
+      // the readings cheap enough to do on every save.
+      const blob = await zip.generateAsync({ type:'blob', compression: 'STORE' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'journaler-284-' + new Date().toISOString().slice(0,10) + '.zip';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
-      toast(n ? `Packed your work and ${n} reading${n>1?'s':''}.` : 'Packed your work (no readings loaded).');
+      toast(n ? `Saved your work and ${n} reading${n>1?'s':''}.` : 'Saved your work.');
     } catch(e){ console.warn('exportEverything', e); toast('Could not build the zip: ' + (e.message||e)); }
     finally { if(btn){ btn.disabled = false; btn.textContent = label; } }
   }
@@ -2426,8 +2427,6 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   // Save / open the whole notebook of typed work as one file.
   const _saveBtn = document.getElementById('saveWorkBtn');
   if(_saveBtn) _saveBtn.addEventListener('click', saveWork);
-  const _expBtn = document.getElementById('exportAllBtn');
-  if(_expBtn) _expBtn.addEventListener('click', () => exportEverything(_expBtn));
   const _wfi = document.getElementById('workFileInput');
   const _openBtn = document.getElementById('openWorkBtn');
   if(_openBtn && _wfi){ _openBtn.addEventListener('click', ()=>_wfi.click()); _wfi.addEventListener('change', ()=>{ if(_wfi.files[0]) openWork(_wfi.files[0]); _wfi.value=''; }); }
