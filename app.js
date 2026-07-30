@@ -741,7 +741,11 @@ async function runReflection(rf, text, hooks) {
       const blob = await zip.generateAsync({ type:'blob', compression: 'STORE' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'journaler-284-' + new Date().toISOString().slice(0,10) + '.zip';
+      // LOCAL date and time, not toISOString: the stamp is for a human sorting their own
+      // saves, and UTC would show the wrong hour for most of the day.
+      const d = new Date(), pad = n => String(n).padStart(2, '0');
+      const stamp = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
+      a.download = 'journaler-284-' + stamp + '.zip';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
       toast(n ? `Saved your work and ${n} reading${n>1?'s':''}.` : 'Saved your work.');
     } catch(e){ console.warn('exportEverything', e); toast('Could not build the zip: ' + (e.message||e)); }
