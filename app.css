@@ -104,7 +104,13 @@
   .aiout { background: var(--margin-bg); border-left: 3px solid var(--accent-light); border-radius: 0 6px 6px 0; padding: 12px 14px; font-size: 14px; margin-top: 8px; } .aiout .stub { color: var(--muted); font-style: italic; }
 
   /* READINGS — full width two-pane */
-  .reader { display: grid; grid-template-columns: 1fr 340px; gap: 0; border: 1px solid var(--comment-border); border-radius: 8px; overflow: hidden; min-height: 70vh; }
+  /* max-width, because the doc column was growing without limit while the page render
+     is capped at 3× (a letter page any bigger is ~300dpi on screen — absurd type). On a
+     wide monitor the column outran what the cap could fill and the page floated in a
+     white void. Capping the READER means the column never exceeds what a sensible scale
+     fills, so the page fills its column and the leftover sits outside the box as ordinary
+     page margin. minmax(0,1fr) so a wide page scrolls instead of blowing out the grid. */
+  .reader { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 0; border: 1px solid var(--comment-border); border-radius: 8px; overflow: hidden; min-height: 70vh; max-width: 1900px; margin: 0 auto; }
   .reader .doc { background: #fff; padding: 32px clamp(20px,4vw,64px); overflow-y: auto; }
   .reader .doc .pdfhint { border: 2px dashed var(--comment-border); border-radius: 8px; padding: 20px; text-align: center; color: var(--muted); margin-bottom: 22px; font-size: 13.5px; }
   .reader .doc p { font-family: var(--serif); font-size: 16.5px; line-height: 1.75; max-width: 66ch; }
