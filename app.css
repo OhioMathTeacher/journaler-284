@@ -21,16 +21,20 @@
   .aboutbtn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: 0 0 auto; padding: 0; margin-right: 2px; border: 1px solid var(--comment-border); border-radius: 50%; background: none; color: var(--accent); cursor: pointer; overflow: hidden; }
   .aboutbtn:hover { background: var(--comment-bg); }
   .aboutbtn img, .aboutbtn svg { display: block; width: 100%; height: 100%; object-fit: cover; }
-  .aboutbtn svg { width: 20px; height: 20px; }
+  .aboutbtn svg { width: 22px; height: 22px; }
   body.focus .aboutbtn { display: none !important; }
 
-  .about-modal h3 { font-family: var(--sans); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 16px 0 5px; }
-  .about-modal p { font-family: var(--sans); font-size: 13.5px; line-height: 1.55; color: var(--ink, #2b2a26); margin: 0; }
-  .about-modal .about-lead { font-family: var(--serif, Georgia, serif); font-size: 15px; margin: -6px 0 4px; }
-  .about-links { display: flex; flex-direction: column; gap: 7px; margin: 18px 0 0; }
-  .about-links a { font-family: var(--sans); font-size: 13.5px; font-weight: 600; color: var(--accent); text-decoration: none; }
+  /* .ai-modal is the DARK panel harvested from 318P (#1A2738). These colours are for
+     that background — do not reach for --ink or --muted here, both are parchment-theme
+     darks and vanish against it. */
+  .about-modal h3 { font-family: var(--sans); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #9FB0C4; margin: 17px 0 5px; }
+  .about-modal p { font-family: var(--sans); font-size: 13.5px; line-height: 1.6; color: #C9D3DE; margin: 0; }
+  .about-modal p b { color: #F0E6D2; font-weight: 700; }
+  .about-modal .about-lead { font-family: var(--serif, Georgia, serif); font-size: 15px; color: #DDD3C0; margin: -6px 0 4px; }
+  .about-links { display: flex; flex-direction: column; gap: 8px; margin: 20px 0 0; padding-top: 15px; border-top: 1px solid rgba(255,255,255,.10); }
+  .about-links a { font-family: var(--sans); font-size: 13.5px; font-weight: 600; color: var(--cave-glow, #D4A843); text-decoration: none; }
   .about-links a:hover { text-decoration: underline; }
-  .about-build { margin-top: 16px !important; font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted); }
+  .about-build { margin-top: 16px !important; font-family: ui-monospace, monospace; font-size: 11px; color: #7C8B9C !important; }
 
   .topbar { display: flex; align-items: center; gap: 10px; border-bottom: 2px solid var(--comment-border); padding: 0 clamp(12px,3vw,24px); position: sticky; top: 0; background: var(--parchment); z-index: 5; }
   .tabbar { display: flex; gap: 2px; flex: 1; flex-wrap: wrap; }
