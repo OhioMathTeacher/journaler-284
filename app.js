@@ -1763,9 +1763,17 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       setTimeout(()=>{ const e2 = document.querySelector(`.hl-mark[data-hl="${id}"]`); if(e2){ e2.scrollIntoView({ behavior:'smooth', block:'center' }); flashMark(id); } }, 450);
     }
   }
+  function applyNotesPane(){
+    const r = document.querySelector('.reader');
+    if(r) r.classList.toggle('notes-hidden', !notesOpen);
+  }
   function renderHighlightList(){
     const el = document.getElementById('hlList'); if(!el) return;
     const list = getHighlights(currentReadingId());
+    // Badge on the toggle, so work captured while the pane is closed still announces
+    // itself instead of vanishing into a panel nobody can see.
+    const badge = document.getElementById('hlCount');
+    if(badge) badge.textContent = (!notesOpen && list.length) ? ' · ' + list.length : '';
     if(!list.length){ el.innerHTML = '<p class="hl-empty">No highlights yet. Select a passage (or ▭ box one) and choose ✎ Highlight.</p>'; return; }
     el.innerHTML = list.map(h => {
       // Keep the WHOLE passage in the DOM — selectable, copyable, and ready for the
@@ -1800,6 +1808,11 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     { v:'2',    t:'200%' },
   ];
   let readZoom = DB.readZoom || 'fit';
+  // Notes pane open/closed. The pane is HIDDEN, never removed: renderHighlightList and
+  // renderQAList paint into #hlList / #newnote, so pulling the aside out of the DOM
+  // would silently drop everything captured while it was away. Hidden keeps them
+  // painting to elements that are simply not on screen, so reopening shows the lot.
+  let notesOpen = DB.notesOpen !== false;
   function zoomScale(unit, availW, availH){
     let s;
     if(readZoom === 'fit')       s = availW / unit.width;
@@ -1959,6 +1972,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <select id="readingSelect" class="reading-select" ${readings.length?'':'disabled'}>${options}</select>
         <button class="rchip-x" id="removeReading" title="Remove this reading from your shelf" ${readings.length<=1?'disabled':''}>✕ Remove</button>
         ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single">Single page</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span><button class="vbtn capmode" id="captureModeBtn" title="Box: drag a box on the page to capture a passage or figure. Toggle to select text normally.">▭ Box</button>` : ''}
+        <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧ Hide notes' : '◨ Show notes'}<span class="hl-count" id="hlCount"></span></button>
         <span class="shelf-spacer"></span>
         ${folderChip()}
         <button class="openbtn" id="openReading">＋ Load readings</button>
@@ -1989,6 +2003,13 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     frame.querySelectorAll('.vbtn[data-vm]').forEach(b => b.onclick = () => { readPageMode = b.dataset.vm; DB.readPageMode = readPageMode; saveDB(); renderRead(); });
     const cmBtn = document.getElementById('captureModeBtn');
     if(cmBtn){ cmBtn.onclick = toggleCaptureMode; setCaptureMode(pdfCaptureMode); }
+    applyNotesPane();
+    const nt = document.getElementById('notesToggle');
+    if(nt) nt.onclick = () => {
+      notesOpen = !notesOpen; DB.notesOpen = notesOpen; saveDB();
+      nt.innerHTML = (notesOpen ? '◧ Hide notes' : '◨ Show notes') + '<span class="hl-count" id="hlCount"></span>';
+      applyNotesPane(); renderHighlightList();
+    };
     renderHighlightList();
     renderQAList();
     const dp = document.getElementById('docPane');

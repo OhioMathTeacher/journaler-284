@@ -165,6 +165,12 @@
   .reader .doc .pdfhint { border: 2px dashed var(--comment-border); border-radius: 8px; padding: 20px; text-align: center; color: var(--muted); margin-bottom: 22px; font-size: 13.5px; }
   .reader .doc p { font-family: var(--write); font-size: 16.5px; line-height: 1.75; max-width: 66ch; }
   .reader .doc .sel { background: var(--highlight-soft); border-radius: 3px; cursor: pointer; }
+  /* Collapsed: one column, and the aside is display:none rather than removed. Its
+     children are the render targets for highlights and the Romano thread, so they must
+     stay in the DOM to keep receiving work captured while the pane is shut. */
+  .reader.notes-hidden { grid-template-columns: minmax(0, 1fr); }
+  .reader.notes-hidden .notes { display: none; }
+  .hl-count { font-variant-numeric: tabular-nums; }
   .reader .notes { background: var(--margin-bg); border-left: 1px solid var(--comment-border); padding: 20px 18px; overflow-y: auto; }
   .reader .notes h4 { margin: 0 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
   .notecard { background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; padding: 11px 13px; margin-bottom: 10px; font-size: 13.5px; }
