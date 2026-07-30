@@ -151,18 +151,17 @@
      white void. Capping the READER means the column never exceeds what a sensible scale
      fills, so the page fills its column and the leftover sits outside the box as ordinary
      page margin. minmax(0,1fr) so a wide page scrolls instead of blowing out the grid. */
-  .reader { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 0; border: 1px solid var(--comment-border); border-radius: 8px; overflow: hidden; min-height: 70vh; max-width: 1900px; margin: 0 auto; container-name: reader; container-type: inline-size; }
+  .reader { display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto 1fr; gap: 0; border: 1px solid var(--comment-border); border-radius: 8px; overflow: hidden; min-height: 70vh; max-width: 1900px; margin: 0 auto; container-name: reader; container-type: inline-size; }
   /* overflow-x too: at 150-200% zoom the page is deliberately wider than its column,
      and without this it was clipped with no way to scroll to the rest of the line. */
-  .reader .doc { background: #fff; padding: 32px clamp(20px,4vw,64px); overflow: auto; }
+  .reader .doc { background: #fff; padding: 26px clamp(20px,4vw,64px); overflow: auto; }
   /* A white sheet on a white surround has no edge — the page just dissolves into the
      pane. Every serious PDF reader puts a neutral behind the page for exactly this
      reason. Slate is warm-leaning so it sits with the parchment rather than fighting it.
      PDFs only: .docx and .txt flow their text straight into this pane and need white. */
   .reader .doc.pdfmode { background: var(--readsurround); }
   .reader .doc.pdfmode .pdf-page { box-shadow: 0 2px 14px rgba(0,0,0,.30); }
-  .reader .doc.pdfmode .pdfnav { background: color-mix(in srgb, var(--readsurround) 94%, transparent); border-bottom-color: rgba(0,0,0,.18); }
-  .reader .doc .pdfhint { border: 2px dashed var(--comment-border); border-radius: 8px; padding: 20px; text-align: center; color: var(--muted); margin-bottom: 22px; font-size: 13.5px; }
+    .reader .doc .pdfhint { border: 2px dashed var(--comment-border); border-radius: 8px; padding: 20px; text-align: center; color: var(--muted); margin-bottom: 22px; font-size: 13.5px; }
   .reader .doc p { font-family: var(--write); font-size: 16.5px; line-height: 1.75; max-width: 66ch; }
   .reader .doc .sel { background: var(--highlight-soft); border-radius: 3px; cursor: pointer; }
   /* Collapsed: one column, and the aside is display:none rather than removed. Its
@@ -174,6 +173,23 @@
      hides: in focus there is the reading and nothing else, by design. */
   .reader.notes-hidden,
   body.focus.reading .reader { grid-template-columns: minmax(0, 1fr); }
+
+  /* One toolbar across the top of the frame. Everything that acts on the DOCUMENT is
+     here — page, view mode, capture, zoom, notes — while the shelf above the frame is
+     only about WHICH document. Splitting those across two strips at different levels is
+     what made this pane read as wrong. Page controls sit left and view controls right,
+     the convention in every PDF viewer, which also retires the centring problem. */
+  .reader .viewbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; background: var(--comment-bg); border-bottom: 1px solid var(--comment-border); flex-wrap: wrap; }
+  .reader .viewbar .vb-group { display: flex; align-items: center; gap: 10px; }
+  .reader .viewbar .vb-spacer { flex: 1 1 auto; }
+  .reader .viewbar .zoomwrap { display: flex; align-items: center; gap: 6px; font-family: var(--sans);
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .reader .viewbar .zoomsel { font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: var(--accent);
+    background: transparent; border: 1px solid var(--comment-border); border-radius: 6px; padding: 5px 7px; cursor: pointer; }
+  .reader .viewbar .zoomsel:focus { outline: none; border-color: var(--accent); }
+  /* Narrow frame: keep the controls, drop the word. */
+  @container reader (max-width: 780px) { .reader .viewbar .zoomwrap > span:first-child { display: none; } }
   .reader.notes-hidden .notes,
   body.focus.reading .notes { display: none; }
   .hl-count { font-variant-numeric: tabular-nums; }
@@ -409,15 +425,6 @@
    the whole time. So the query never fired and the zoom sat on top of Prev/Next. Grid
    tracks cannot overlap at any width; they only squeeze. Empty first track keeps the
    page controls centred, which is where the eye returns while reading. */
-.pdfnav { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 14px; background: rgba(248,244,236,.94); backdrop-filter: blur(3px); padding: 8px; margin: -8px -8px 14px; border-bottom: 1px solid var(--comment-border); }
-.pdfnav-mid { display: flex; align-items: center; justify-content: center; gap: 14px; }
-.zoomwrap { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-.zoomwrap > span { white-space: nowrap; }
-@container reader (max-width: 760px) {
-  .pdfnav { flex-wrap: wrap; }
-  .zoomwrap { position: static; transform: none; }
-}
-@container reader (max-width: 620px) { .zoomwrap > span { display: none; } }
 .pdfnav-btn { font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--accent); background: #fff; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 13px; cursor: pointer; }
 .pdfnav-btn:hover:not(:disabled) { background: var(--comment-bg); }
 .pdfnav-btn:disabled { opacity: .4; cursor: default; }

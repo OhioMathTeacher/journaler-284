@@ -1854,22 +1854,19 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     const single = readPageMode === 'single';
     if(readPageNum > doc.numPages) readPageNum = doc.numPages;
     if(readPageNum < 1) readPageNum = 1;
-    const zoomSel = `<label class="zoomwrap">Zoom
-      <select id="zoomSel" class="zoomsel">${ZOOMS.map(z =>
-        `<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select></label>`;
-    const nav = single
-      ? `<div class="pdfnav"><span class="pdfnav-mid"><button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button><span class="pdfnav-lbl">Page ${readPageNum} of ${doc.numPages}</span><button class="pdfnav-btn" id="pgNext" ${readPageNum>=doc.numPages?'disabled':''}>Next ›</button></span>${zoomSel}</div>`
-      : `<div class="pdfnav"><span class="pdfnav-mid"><span class="pdfnav-lbl">${doc.numPages} pages · scroll to read</span></span>${zoomSel}</div>`;
-    pane.innerHTML = nav;
+    // The page controls live in the toolbar above the frame, not inside this scrolling
+    // pane. Splitting them across two strips was the thing that read as "wrong".
+    const navHost = document.getElementById('pageNav');
+    if(navHost) navHost.innerHTML = single
+      ? `<button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button><span class="pdfnav-lbl">Page ${readPageNum} of ${doc.numPages}</span><button class="pdfnav-btn" id="pgNext" ${readPageNum>=doc.numPages?'disabled':''}>Next ›</button>`
+      : `<span class="pdfnav-lbl">${doc.numPages} pages · scroll to read</span>`;
+    pane.innerHTML = '';
     const wrap = document.createElement('div'); wrap.className = 'pdf-doc'; pane.appendChild(wrap);
     if(single){
       const pv = document.getElementById('pgPrev'), nx = document.getElementById('pgNext');
       if(pv) pv.onclick = ()=>{ if(readPageNum>1){ readPageNum--; renderActiveDoc(r); } };
       if(nx) nx.onclick = ()=>{ if(readPageNum<doc.numPages){ readPageNum++; renderActiveDoc(r); } };
     }
-    const zs = document.getElementById('zoomSel');
-    if(zs) zs.onchange = () => { readZoom = zs.value; DB.readZoom = readZoom; saveDB(); renderActiveDoc(r); };
-
     const avail = Math.max(320, pane.clientWidth - 64);
     // Fit-page needs the height the pane can actually show, less the nav strip.
     const availH = Math.max(280, pane.clientHeight - 96);
@@ -1971,8 +1968,6 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <span class="shelf-lbl">Reading</span>
         <select id="readingSelect" class="reading-select" ${readings.length?'':'disabled'}>${options}</select>
         <button class="rchip-x" id="removeReading" title="Remove this reading from your shelf" ${readings.length<=1?'disabled':''}>✕ Remove</button>
-        ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single">Single page</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span><button class="vbtn capmode" id="captureModeBtn" title="Box: drag a box on the page to capture a passage or figure. Toggle to select text normally.">▭ Box</button>` : ''}
-        <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧ Hide notes' : '◨ Show notes'}<span class="hl-count" id="hlCount"></span></button>
         <span class="shelf-spacer"></span>
         ${folderChip()}
         <button class="openbtn" id="openReading">＋ Load readings</button>
@@ -1981,6 +1976,14 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <input type="file" id="readFolderInput" webkitdirectory hidden>
       </div>
       <div class="reader">
+        <div class="viewbar">
+          <span class="vb-group" id="pageNav"></span>
+          <span class="vb-spacer"></span>
+          ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single">Single page</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>
+          <button class="vbtn capmode" id="captureModeBtn" title="Box: drag a box on the page to capture a passage or figure. Toggle to select text normally.">▭ Box</button>
+          <label class="zoomwrap">Zoom <select id="zoomSel" class="zoomsel">${ZOOMS.map(z=>`<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select></label>` : ''}
+          <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧ Hide notes' : '◨ Show notes'}<span class="hl-count" id="hlCount"></span></button>
+        </div>
         <div class="doc" id="docPane">${docBody(active)}</div>
         <aside class="notes">
           <h4>Your highlights</h4>
@@ -2001,6 +2004,8 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       persistReadings(); renderRead();
     };
     frame.querySelectorAll('.vbtn[data-vm]').forEach(b => b.onclick = () => { readPageMode = b.dataset.vm; DB.readPageMode = readPageMode; saveDB(); renderRead(); });
+    const zs = document.getElementById('zoomSel');
+    if(zs) zs.onchange = () => { readZoom = zs.value; DB.readZoom = readZoom; saveDB(); const rr = readings[activeReading]; if(rr) renderActiveDoc(rr); };
     const cmBtn = document.getElementById('captureModeBtn');
     if(cmBtn){ cmBtn.onclick = toggleCaptureMode; setCaptureMode(pdfCaptureMode); }
     applyNotesPane();
