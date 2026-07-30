@@ -29,7 +29,10 @@
      sliver is a field nobody can find. Also why the export asks outright (ensureName). */
   .namewrap { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
   .namewrap > span { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
-  .namefield { font-family: var(--sans); font-size: 12.5px; color: var(--ink, #2b2a26); background: none; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 10px; width: 13ch; min-width: 0; }
+  /* 22ch fits a full name ("Michael Todd Edwards" is 20) without the caret scrolling
+     the start of it out of view. The tabbar holds flex:1, so this takes its width from
+     the slack there rather than pushing anything off the bar. */
+  .namefield { font-family: var(--sans); font-size: 12.5px; color: var(--ink, #2b2a26); background: none; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 10px; width: 22ch; min-width: 0; }
   .namefield:focus { outline: none; border-color: var(--accent); }
   .namefield::placeholder { color: var(--muted); }
 
