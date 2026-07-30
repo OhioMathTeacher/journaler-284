@@ -17,6 +17,21 @@
   .protonote { background: var(--ink); color: var(--parchment); font-size: 12.5px; padding: 8px 16px; text-align: center; }
   .protonote b { color: #D4A843; }
 
+  /* About mark, far left. Sized so any square image dropped in its place still fits. */
+  .aboutbtn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: 0 0 auto; padding: 0; margin-right: 2px; border: 1px solid var(--comment-border); border-radius: 50%; background: none; color: var(--accent); cursor: pointer; overflow: hidden; }
+  .aboutbtn:hover { background: var(--comment-bg); }
+  .aboutbtn img, .aboutbtn svg { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .aboutbtn svg { width: 20px; height: 20px; }
+  body.focus .aboutbtn { display: none !important; }
+
+  .about-modal h3 { font-family: var(--sans); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 16px 0 5px; }
+  .about-modal p { font-family: var(--sans); font-size: 13.5px; line-height: 1.55; color: var(--ink, #2b2a26); margin: 0; }
+  .about-modal .about-lead { font-family: var(--serif, Georgia, serif); font-size: 15px; margin: -6px 0 4px; }
+  .about-links { display: flex; flex-direction: column; gap: 7px; margin: 18px 0 0; }
+  .about-links a { font-family: var(--sans); font-size: 13.5px; font-weight: 600; color: var(--accent); text-decoration: none; }
+  .about-links a:hover { text-decoration: underline; }
+  .about-build { margin-top: 16px !important; font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted); }
+
   .topbar { display: flex; align-items: center; gap: 10px; border-bottom: 2px solid var(--comment-border); padding: 0 clamp(12px,3vw,24px); position: sticky; top: 0; background: var(--parchment); z-index: 5; }
   .tabbar { display: flex; gap: 2px; flex: 1; flex-wrap: wrap; }
   .tabbar button { font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--muted); background: none; border: none; padding: 12px 15px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }

@@ -153,6 +153,26 @@ function updateAIBtn() {
   }
 }
 
+// ── About. Global (inline onclick in index.html), same overlay pattern as the AI modal.
+function openAbout() {
+  const b = document.getElementById('aboutBuild');
+  if (b) b.textContent = BUILD;
+  document.getElementById('aboutOverlay').classList.add('open');
+}
+function closeAbout() {
+  document.getElementById('aboutOverlay').classList.remove('open');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const o = document.getElementById('aboutOverlay');
+    if (o && o.classList.contains('open')) { closeAbout(); e.stopPropagation(); }
+  }
+});
+document.addEventListener('DOMContentLoaded', () => {
+  const b = document.getElementById('aboutBtn');
+  if (b) b.addEventListener('click', openAbout);
+});
+
 function openAIModal() {
   _modalProvider = getProvider();
   _refreshModalCards();
