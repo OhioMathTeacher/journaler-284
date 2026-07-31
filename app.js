@@ -3366,8 +3366,17 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     const T = turnin();
     const numOf = new Map(ordered.map((e,i) => [e.id, i+1]));
     const done = TURNIN_SLOTS.filter(s => T[s[0]]).length;
-    return `<details class="turnin" ${done < TURNIN_SLOTS.length ? 'open' : ''}>
-      <summary>Before you turn it in — ${done} of ${TURNIN_SLOTS.length} tagged</summary>
+    const all = TURNIN_SLOTS.length, ready = done === all;
+    // Collapsed by default in BOTH states. It is the last thing a student does in
+    // December and an open panel every other week is clutter on the writing surface.
+    // The summary carries the whole status instead, so it never needs opening to be read:
+    // colour, an icon, a count, and a pip per slot that fills as pages get tagged.
+    const pips = TURNIN_SLOTS.map(s => `<i class="${T[s[0]] ? 'on' : ''}"></i>`).join('');
+    return `<details class="turnin ${ready ? 'ready' : 'todo'}">
+      <summary><span class="ti-ico">${ready ? '✅' : '🛑'}</span>
+        <span class="ti-txt">${ready ? 'Ready to turn in' : 'Before you turn it in'}
+          <em>${done} of ${all} tagged</em></span>
+        <span class="ti-pips">${pips}</span></summary>
       <p class="runline">Open a page and use <strong>＋ Tag this page</strong> to say what it is.
         Only the three you flag get read closely; everything else stays unread.</p>
       ${TURNIN_SLOTS.map(([k,label,hint]) => {

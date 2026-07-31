@@ -771,8 +771,33 @@ body.gushing .liftbar { display: none !important; }
 
 /* Turn-in declaration. Collapsed until it matters, because it is the last thing a student
    does in December and clutter on the notebook surface every other week helps nobody. */
-.turnin { margin-top: 14px; border: 1px solid var(--comment-border, #ddd); border-radius: 7px; padding: 10px 12px; background: #fdfbf6; }
-.turnin > summary { cursor: pointer; font-family: var(--sans); font-size: 13px; font-weight: 600; }
+/* Two states, readable without opening it: red and stopped until every slot is tagged,
+   green and done after. Collapsed in both — this is a December job, and an open panel in
+   September is clutter on a writing surface. */
+.turnin { margin-top: 14px; border: 1px solid var(--comment-border, #ddd); border-left-width: 5px;
+  border-radius: 7px; background: #fdfbf6; overflow: hidden; }
+.turnin.todo  { border-color: #d9534f; background: #fdf1f0; }
+.turnin.ready { border-color: #4c9a5e; background: #f0f7f1; }
+.turnin > summary { cursor: pointer; font-family: var(--sans); font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; gap: 9px; padding: 10px 12px; list-style: none; }
+.turnin > summary::-webkit-details-marker { display: none; }
+.turnin > summary::marker { content: ""; }
+.turnin > summary:hover { background: rgba(0,0,0,.03); }
+.turnin > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.turnin .ti-ico { font-size: 15px; line-height: 1; }
+.turnin .ti-txt { display: flex; flex-direction: column; line-height: 1.2; }
+.turnin .ti-txt em { font-style: normal; font-weight: 400; font-size: 11.5px; color: var(--mut, #6b7280); }
+.turnin.todo  .ti-txt { color: #a33; }
+.turnin.ready .ti-txt { color: #2f6b3f; }
+/* A pip per slot. Eight dots read faster than "3 of 8" and show WHICH are still open. */
+.turnin .ti-pips { margin-left: auto; display: flex; gap: 4px; }
+.turnin .ti-pips i { width: 8px; height: 8px; border-radius: 50%; display: block;
+  border: 1px solid currentColor; opacity: .45; }
+.turnin .ti-pips i.on { background: currentColor; opacity: 1; }
+.turnin.todo  .ti-pips { color: #d9534f; }
+.turnin.ready .ti-pips { color: #4c9a5e; }
+.turnin > *:not(summary) { margin-left: 12px; margin-right: 12px; }
+.turnin > *:last-child { margin-bottom: 11px; }
 .turnin .runline { margin: 8px 0 10px; }
 .turnin-row { display: flex; align-items: baseline; gap: 10px; margin: 6px 0; font-family: var(--sans); font-size: 12.5px; }
 .turnin-row .tl { flex: 0 0 12em; display: flex; flex-direction: column; line-height: 1.25; color: var(--mut, #6b7280); }
