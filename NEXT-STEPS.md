@@ -6,7 +6,7 @@ _App/code task list. Update it as things get done; history is in `git log`._
 > readings pipeline, distribution, machines, local paths — lives in the private planning repo,
 > **not here**. Keep it that way when adding notes.
 
-Last updated: **2026-07-31**, build **`2026-07-31-69`**. **Build/version lives in `index.html`** as
+Last updated: **2026-07-31**, build **`2026-07-31-74`**. **Build/version lives in `index.html`** as
 `?v=` on the `app.css` and `app.js` tags. **Set BOTH with one regex** — they drifted apart once
 (css moved, js stuck three builds behind) and the stale JS was served for hours; `app.js` reads it back off its own `src` for the badge
 bottom-right. **Bump `?v=` on every deploy** — on Pages it is the only thing stopping a cached
@@ -21,7 +21,12 @@ whole app). The 318P source is kept at `reference/journaler-318-source.html` as 
 
 **Built and working:**
 - **Freewrite** — gush (timed, editing locked) → shape. Everything typed auto-saves to
-  `localStorage` (`cr284_state`).
+  `localStorage` (`cr284_state`). **Focus mode** is defined by the clock: while it runs, the
+  gush is the only thing on screen. **↑ Lift** moves a selection out of the gush into the
+  One-Pager as its own line, with a keep-count ("Kept 47 of 380 words"). Deliberately **no
+  copy-it-all button** — the scarcity is the assignment. Re-gushing wipes the text but the
+  session now carries `gushes` / `totalMinutes` / `totalWords`, so sheet two reports the whole
+  effort. Counts only, never the erased text.
 - **Post-buzzer reflection partner** with a saved answer box. Skipped entirely under 10 words:
   it was inventing observations about writing that did not happen.
 - **Export One-Pager → PDF** — the submitted artifact. Prints as HTML so embedded images survive,
@@ -299,10 +304,7 @@ who ignores it.
 
 ## Open slices (not started)
 
-- **"Build from the gush."** The assignment says to build the One-Pager *from the gush*, and the
-  shape pane opens blank — the interface asks a question instead of answering it. Wanted: a
-  lift-**selected**-lines gesture, not a bulk copy, so shaping stays selection rather than tidying.
-  **Do this next.**
+- ~~"Build from the gush."~~ **DONE 2026-07-31 (build 74).** ↑ Lift + keep-count; see Freewrite above.
 - **Reconcile the `OPS` table against the assignment handouts.** The framing and placeholder text in
   `OPS` predates them, and drift means two sources of reality for one assignment.
 - **Currere two-pane** — still narrow, never got the wide pass Freewrite has.
