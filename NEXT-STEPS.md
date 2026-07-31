@@ -270,6 +270,33 @@ it ignores `v`, and `Object.assign` preserves keys it does not know.
 - **One-Pagers do not elevate into the Notebook.** They are submitted as their own PDF;
   `pieceKind:'one-pager'` is legacy-only.
 
+## ⚠ Touch devices: there is no touch handling anywhere in this app
+
+Established by reading the code on 2026-07-31, not yet by running it on a device. There is **no
+`touchstart`, no `pointerType`, no `maxTouchPoints`, and no `(pointer: coarse)`** in `app.js` or
+`app.css`. Two mechanisms depend on input that a touch device may not produce, and **both fail
+silently**, which is the one failure mode everything else in this app has been built to avoid.
+
+1. **The edit-lock** (`app.js:571`) is `if(['Backspace','Delete'].includes(e.key)) e.preventDefault()`.
+   Soft keyboards do not reliably emit those `keydown`s. If it does not fire, a timed One-Pager
+   draft has no lock, no error, and no sign of it afterwards — and that lock is the reason the
+   syllabus requires the app for graded drafts at all. **Highest-stakes unknown in the project.**
+2. **Reading selection** is driven by `mousedown`/`mousemove`/`mouseup` into `_dragFrom`/`_dragTo`
+   (`app.js:1759-1761`). Touch does not fire `mousemove` for a drag, so capture falls through to
+   the DOM range — the path `orderByReadingColumns` scrambles. Expected failure is therefore
+   **wrong bands, not absent ones**.
+
+What is *not* broken: `index.html` has a proper viewport meta, and `app.css` collapses the
+notebook grid and the reader to single column at 720px. Small screens were thought about.
+
+**Recommended response, in this order.** Do not try to make the app fully touch-capable before
+Aug 24. Instead: (a) test on a real iPad and replace the inferences above with facts; (b) make it
+**tell on itself** — detect a coarse pointer at boot, report it in Diagnostics, and on the graded
+surfaces either work correctly or say plainly that this one needs a laptop. Wrong-but-silent is
+the only outcome that cannot be accepted, because those drafts are graded. The course site now
+carries hardware guidance saying to write on a computer, but guidance does not protect a student
+who ignores it.
+
 ## Open slices (not started)
 
 - **"Build from the gush."** The assignment says to build the One-Pager *from the gush*, and the
@@ -289,25 +316,16 @@ it ignores `v`, and `Object.assign` preserves keys it does not know.
   highlights themselves landed on the right passages was not checked. Still the open proof.**
 - Optional: route Open-page free-writes into the Notebook, dated.
 
-## Needs testing in a browser (nothing blocks on code)
+## Needs testing on a real device → see `TESTING.md`
 
-- **Bundle → PDF** from both lenses.
-- **Readings folder**, especially the **thumb-drive round trip** — whether a stored handle survives
-  unplug/replug, or a remount at a different path, is untested. Folder-on-disk works.
-- **The reading partner on a larger local model.** A 3B gives thin replies; that is the model, not
-  the prompt. Re-judge before touching the prompt again. **Settings → AI → Local now lists whatever
-  is installed**, so switching is a click — no endpoint to type.
-- **Text selection in a reading**, since it was rebuilt: drag across several lines and check the
-  band is continuous and stops where you released, that ⌘C matches the popup's ⧉ Copy, and that a
-  downward drag never reaches up. Try it in a narrow window too — tolerances are proportional now,
-  but that path is untested at small sizes.
-- **Ollama from a hosted origin.** `OLLAMA_ORIGINS` is a machine setting on whatever runs Ollama,
-  **not** app code: Ollama allows only local origins by default and refuses a call from an `https://`
-  page at its end. Fedora: `sudo systemctl edit ollama` → `Environment="OLLAMA_ORIGINS=<origin>"` →
-  restart. macOS: `launchctl setenv OLLAMA_ORIGINS "<origin>"` → restart Ollama. Also untested:
-  whether `https:` → `http://localhost` hits mixed-content or private-network friction. **Test
-  early** — the hosted-AI alternative needs only a key pasted into the browser, and no-AI mode
-  always works.
+**The device checklist moved to `TESTING.md`** so there is one list rather than two drifting
+copies. It holds the status matrix, the five things to check in order of what it costs to get
+them wrong, and the environment findings per browser. Record results there.
+
+The short version of what it says: the app **boots clean on all four engines** (Gecko, Blink
+twice under different policies, WebKit), which means the browser was never the variable. The
+device is. Nothing below the boot line — the reader, the exports, the edit-lock — has been
+verified anywhere yet.
 
 ## A note on what leaves the machine
 
