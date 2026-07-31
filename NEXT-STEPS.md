@@ -6,7 +6,7 @@ _App/code task list. Update it as things get done; history is in `git log`._
 > readings pipeline, distribution, machines, local paths — lives in the private planning repo,
 > **not here**. Keep it that way when adding notes.
 
-Last updated: **2026-07-31**, build **`2026-07-31-74`**. **Build/version lives in `index.html`** as
+Last updated: **2026-07-31**, build **`2026-07-31-78`**. **Build/version lives in `index.html`** as
 `?v=` on the `app.css` and `app.js` tags. **Set BOTH with one regex** — they drifted apart once
 (css moved, js stuck three builds behind) and the stale JS was served for hours; `app.js` reads it back off its own `src` for the badge
 bottom-right. **Bump `?v=` on every deploy** — on Pages it is the only thing stopping a cached
@@ -22,11 +22,11 @@ whole app). The 318P source is kept at `reference/journaler-318-source.html` as 
 **Built and working:**
 - **Freewrite** — gush (timed, editing locked) → shape. Everything typed auto-saves to
   `localStorage` (`cr284_state`). **Focus mode** is defined by the clock: while it runs, the
-  gush is the only thing on screen. **↑ Lift** moves a selection out of the gush into the
+  gush is the only thing on screen. **`Copy →`** moves a selection out of the gush into the
   One-Pager as its own line, with a keep-count ("Kept 47 of 380 words"). Deliberately **no
   copy-it-all button** — the scarcity is the assignment. Re-gushing wipes the text but the
-  session now carries `gushes` / `totalMinutes` / `totalWords`, so sheet two reports the whole
-  effort. Counts only, never the erased text.
+  session carries `gushes` / `totalMinutes` / `totalWords`, so sheet two reports the whole
+  effort. Counts only, never the erased text. **Verified working by Todd 2026-07-31.**
 - **Post-buzzer reflection partner** with a saved answer box. Skipped entirely under 10 words:
   it was inventing observations about writing that did not happen.
 - **Export One-Pager → PDF** — the submitted artifact. Prints as HTML so embedded images survive,
@@ -260,6 +260,34 @@ it ignores `v`, and `Object.assign` preserves keys it does not know.
 
 **The real safety net is `⤓ Save my work`** — the whole DB as one JSON, restorable on any origin.
 
+## Copy-from-gush: four rules, all learned the hard way (builds 75–78)
+
+Todd used the Freewrite tab for the first time on 2026-07-31 and found three bugs in one
+sitting. All four rules below exist because breaking them fails **silently**.
+
+1. ⚠ **The gush is `readonly` after the buzzer, NEVER `disabled`.** It shipped disabled, and
+   **a disabled textarea cannot be selected in any browser** — so there was no way to select
+   the lines to copy and the whole feature was dead on arrival, with no error. `readonly`
+   freezes the text (sheet two prints it as "the gush, unedited") and keeps it selectable,
+   which is exactly what the chalkboard rule wants. Same in the restore path for a returning
+   student. If you ever reach for `disabled` here, you are removing the feature.
+2. **The insertion marker is a fixed overlay on `<body>`, never a node inside `.page`.**
+   `pg.innerHTML` is serialised straight into `DB.shape` and printed on the submitted PDF, so
+   any marker element, class or attribute inside the pane ends up in a student's turn-in.
+   It is taken down on tab change, on Open page, and when the pane scrolls it out of view.
+3. **Copy inserts at the last caret, not at the end**, and shows where before you click. It
+   used to `appendChild`, so everything stacked at the bottom regardless — and because
+   selecting in the gush moves focus out of the pane, the browser stops painting a caret and
+   the pane gave no clue at all. Wrong was survivable; unknowable was not.
+4. **Every formatting command must be reversible.** `H` is a toggle (pressed on an `h3` it
+   gives back a `p`) because block format was the one trap — B and I already toggled, so an
+   accidental heading looked permanent. Undo/redo buttons and ctrl/cmd-Z are wired too.
+
+Naming: it was **"↑ Lift"** and neither half read. "Lift" is a metaphor and this course writes
+to students literally; the up arrow pointed at a pane that is to the **right**. The label is
+short (`Copy →`) because a long one re-wrapped and shoved the timer row's height around; the
+destination and the order of operations live in the note beside it, which can afford words.
+
 ## Design decisions worth not undoing
 
 - **The One-Pager export measures but never auto-shrinks.** Deciding what to cut is the assignment.
@@ -357,6 +385,12 @@ rather than DEFLATE is what makes it cheap enough to be the only save button. Ke
 is one person, and the syllabus makes the app a hard requirement for the 5 timed One-Pager drafts.
 That decision belongs in the course notes, not here, but the app-side consequence is worth stating:
 nothing in the build list below matters as much as putting the app in front of a few real people.
+
+⚑ **2026-07-31 made that concrete.** Todd sat down and used the Freewrite tab as a writer for the
+first time, and found **three bugs in one session** — a feature that could not work at all
+(`disabled` textarea), copied text landing in the wrong place with no way to see where, and an
+unreversible heading. None of them threw an error; all of them had shipped. One person, one
+sitting, no test plan. That is the whole argument for the 3–5 testers before Aug 24.
 
 ## Verify after any merge between machines
 
