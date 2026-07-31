@@ -145,6 +145,91 @@ commented. First fix `orderByReadingColumns` to reorder only on a genuine gutter
 unblocks everything). Then, once the term is running, evaluate text-anchored highlights as the
 actual fix for stale geometry.
 
+## ▶ START HERE NEXT SESSION — fix `orderByReadingColumns` (app.js:1464)
+
+**One function is the prerequisite for everything else in Readings.** It is named as the root cause
+in two sections above; this is the concrete brief so the next session can act without re-deriving it.
+
+### What it does today
+
+`orderByReadingColumns(items, pageWidth)` runs at **app.js:2505**, inside the text-layer build, on
+`dedupeTextItems(tc.items)` before the layer exists. It:
+
+1. keeps items with non-blank text, bails if fewer than 10;
+2. sorts every item's **left edge** (`transform[4]`);
+3. walks that sorted list and starts a new cluster whenever the gap to the previous left edge
+   exceeds **`pageWidth * 0.06`**;
+4. keeps clusters holding **≥4%** of items and calls each one a column;
+5. if two or more survive, **re-sorts the items into column-then-vertical order**.
+
+### Why it is wrong
+
+It infers columns from **left-edge clustering alone**, and never checks that the gap it found is a
+real gutter. On an ordinary single-column scan the left edges already cluster hard: the left margin,
+first-line paragraph indents, and the ragged starts produced by justified spacing. Two or three of
+those clusters clear both thresholds, so it declares columns that are not on the page and shuffles
+reading order. Nothing downstream can recover: the text layer is built from the shuffled array.
+
+### What it broke, and what routes around it
+
+- `range.getClientRects()` / `range.intersectsNode()` / `cloneContents()` all walk the DOM, so they
+  inherit the scrambling — hence 9 anchors for an 8-line drag, downward drags reaching upward, and
+  copied text with the chapter header spliced in.
+- `bandsFromPoints()` exists **because of this**, driving selection off pointer geometry instead.
+- It would break **pdf.js's own editor too** — `HighlightEditor` / `Outliner` assume they built the
+  text layer in item order. So all three upstream options are blocked until this is fixed.
+
+### The fix
+
+Require evidence of a **genuine gutter** before reordering, not just clustered left edges:
+
+- a **wide** vertical band (a real gutter is far more than 6% of page width),
+- **sustained** down most of the page's text height, not present on a few lines,
+- with **text on both sides** of it across that span,
+- and ideally corroborated by item **right edges**, not left edges alone — a true two-column page has
+  lines *ending* well short of the page's right margin, which indents and ragged starts do not cause.
+
+Cheapest correct version: build the column hypothesis, then **verify** it by checking that the
+candidate gutter is empty across ≥60–70% of the text rows and that both sides carry text on those
+rows. If verification fails, `return items` unchanged. Failing safe to natural order is right: a
+genuinely two-column page read in natural order is mildly wrong, while a single-column page shuffled
+is catastrophically wrong — and single-column is every chapter in this book.
+
+### Before changing it — two things to establish
+
+1. ⚠ **Find the page that motivated it.** The note above says it was added to help selection and
+   marquee capture. If a real two-column page drove it, the fix must keep that page working; if it
+   was added speculatively, the bar can be higher still. **Check this first** — it decides whether
+   the function is fixed or deleted.
+2. **Regression set.** Before touching it, capture the current behaviour on: a body-text page, a
+   chapter-opening page (large display type, deep indents), the front matter (mixed sizes on one
+   line — already the OCR outlier at 10.1% baseline scatter), and any genuinely two-column page. A
+   fix that improves body text and breaks chapter openers is not a fix.
+
+### How to tell it worked
+
+Settings → **Diagnostics** already reports, for the open reading, the **text-layer span count and
+lines detected**. Compare those before and after on the same page. Then the human check: drag across
+eight lines and confirm eight bands, no reaching upward, and copied text in reading order.
+
+### Then, and only then
+
+- Consider `Outliner` from the already-vendored **pdf.js 6.0.227** to replace `unionRectsByLine()`.
+- **After Aug 24**, evaluate **text-quote anchoring** (Hypothesis's model). The deepest lesson from
+  2026-07-30 is in the section above: storing rects means *the wrong numbers were the data*, so a
+  bad highlight can only be discarded, never repaired — which is why **Clear all** had to exist.
+  Quote-anchored highlights would survive zoom, re-crop, **re-OCR**, and a fresh scan. Chapters here
+  do get re-OCR'd, so this is a real gain rather than a theoretical one.
+
+⚠ **Do not rip out working selection before Aug 24.** It works, it is heavily commented, and the
+term starts. This fix is small and surgical; the rewrite is not.
+
+### Open question carried over from 2026-07-30
+
+Whether the build-44 leftovers — the highlight-rect clamp and `overflow: hidden` on `.pdf-page` —
+are still doing anything now that bands are drawn per line, or are redundant belt-and-braces. Check
+before removing: they were added because a band escaped the sheet and painted across the surround.
+
 ## Storage: what survives a revision
 
 **Revising the app does not clear saved work.** `localStorage` and IndexedDB are keyed to the
