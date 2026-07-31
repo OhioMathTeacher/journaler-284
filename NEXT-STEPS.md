@@ -6,7 +6,7 @@ _App/code task list. Update it as things get done; history is in `git log`._
 > readings pipeline, distribution, machines, local paths — lives in the private planning repo,
 > **not here**. Keep it that way when adding notes.
 
-Last updated: **2026-07-31**, build **`2026-07-31-78`**. **Build/version lives in `index.html`** as
+Last updated: **2026-07-31**, build **`2026-07-31-92`**. **Build/version lives in `index.html`** as
 `?v=` on the `app.css` and `app.js` tags. **Set BOTH with one regex** — they drifted apart once
 (css moved, js stuck three builds behind) and the stale JS was served for hours; `app.js` reads it back off its own `src` for the badge
 bottom-right. **Bump `?v=` on every deploy** — on Pages it is the only thing stopping a cached
@@ -150,7 +150,28 @@ commented. First fix `orderByReadingColumns` to reorder only on a genuine gutter
 unblocks everything). Then, once the term is running, evaluate text-anchored highlights as the
 actual fix for stale geometry.
 
-## ▶ START HERE NEXT SESSION — fix `orderByReadingColumns` (app.js:1464)
+## ▶ START HERE NEXT SESSION — TESTING, not building
+
+**2026-07-31 settled the provider question and built a lot of new surface.** Six areas —
+the turn-in tags, the Tags grid, threads, "what keeps coming back", the report shape, the
+readiness gate — **have been used by exactly one person, on the day they were written.**
+
+**Every real defect that day was found by Todd clicking, not by reading code:** a
+Copy-from-gush feature that could never have worked (the textarea was `disabled`, so there
+was nothing to select), dropdown labels that were N identical lines, a report that printed
+40 pages, and a panel below the fold — twice. None was findable by inspection, and all of
+them shipped.
+
+So the next session's job is to put it in front of people, not to add to it. Walk OP1 end
+to end, then the notebook: tag pages, start a thread from a recurring word, keep a reading
+of it, watch the gate go green, print the report and count the pages.
+
+**Groq is the settled provider** (Miami's Gemini issues no API keys; Groq needs no Google
+account). The retired-model fallback is in **both** this app and `journaler`.
+
+Then, when building resumes, the standing first task is below.
+
+## Next code task after testing — fix `orderByReadingColumns` (app.js:1464)
 
 **One function is the prerequisite for everything else in Readings.** It is named as the root cause
 in two sections above; this is the concrete brief so the next session can act without re-deriving it.
@@ -288,6 +309,73 @@ to students literally; the up arrow pointed at a pane that is to the **right**. 
 short (`Copy →`) because a long one re-wrapped and shoved the timer row's height around; the
 destination and the order of operations live in the note beside it, which can afford words.
 
+## The Notebook turn-in and analysis subsystem (builds 79–92) — read before touching it
+
+Built in one session with Todd testing each build. Every rule below exists because a
+version without it failed in front of him.
+
+**What the notebook is now.** Not a pile of entries but a **report**, printed by
+`bundleNotebookPDF()` in the order the rubric is scored:
+
+| | |
+|---|---|
+| Cover | A grading sheet: four rows, each with its evidence gathered, and a score blank |
+| Part 1 | Contents — every entry, numbered, dated, **word count**, opening words |
+| Part 2 | The four required entries, in full | 
+| Part 3 | The Look-Back Letter |
+| Part 4 | The three flagged entries |
+| Part 5 | Threads, and the writer's reading of them |
+
+- ⚠ **THE COMPLETE NOTEBOOK IS DELIBERATELY NOT PRINTED.** It was Part 5 and made the
+  artifact 30–40 pages; 22 of those is 800 pages to grade. Selection is the assignment,
+  the same as the One-Pager. `sections` is still built, so an "include everything"
+  option needs no new plumbing.
+- **Word counts exist because the pages do not.** A bare presence-list lets thirty
+  eleven-word entries look like thirty real ones. Don't remove them from the Contents.
+- **Entry NUMBERS, never page numbers.** A browser paginates by paper size and the
+  assignment permits a paper notebook, whose pages are its own. A number per entry is the
+  one unit both formats reproduce.
+- **`pieceTitle` is a bucket, not a name.** Every free-write shares one title, so any list
+  built from it shows N identical lines. Lists use `entryLabel()` — the entry's own
+  opening words, with the real title in front only for currere/reading entries.
+
+**Tags (the eight turn-in slots).** `DB.turnin` maps slot → entryId. A slot points at one
+entry; an entry may hold several tags on purpose (a currere gush is a plausible thing to
+also want read closely). **Two flags on one page is refused** — the Thinking row is scored
+across three entries, one per act. 8 of 8 never meant eight pages, so the panel says how
+many distinct pages are carrying the tags.
+
+**Threads (the analysis instrument).** `DB.threads` = named threads; `entry.threads` = ids.
+A thread is a name the writer invents and puts on as many entries as it recurs in. The
+lens shows one thread earliest-to-latest **with the gaps named**, first-against-last above
+the run (3+ entries, since two entries *are* the first and the last), and a question whose
+answer is kept as a dated entry **on that thread**.
+
+⚠ **THE APP NEVER INTERPRETS.** It groups, orders, juxtaposes and asks. It does not name
+themes or score depth. See [[seesay-no-app-analysis]] — this is the same law.
+
+**"What keeps coming back"** is the answer to Todd's objection that a search box
+"presupposes that I see patterns, even though I'm looking to the software to help me find
+patterns." The line that holds: **the app can count, but it cannot mean.** It lists terms
+used in N different entries, **ranked by entries spanned, not frequency** — a word used
+forty times in one entry is a mood; once in six entries across three months is a thread.
+Phrases beat their parts. Plurals only in `stem()`, deliberately timid: a missed match
+costs far less than a wrong one on a suggestion list. Its limits are printed for students,
+not hidden — it surfaces noise, and it cannot see paraphrase (*grandmother · grandma · her
+kitchen* are three unrelated tokens). That gap is where a model could earn a place later,
+as a suggestion accepted or rejected, never as the app deciding quietly.
+
+**Readiness is NINE checks, not eight.** Todd: "nothing should be identified as ready to
+turn in until analysis is completed." The ninth is one **kept** reflection on a thread of
+3+ entries — kept, not drafted, because an unsaved textarea is a good intention. Pips,
+lens badge and the print gate all count to nine.
+
+**⚠ THE RECURRING BUG THIS SESSION: controls placed below a full-height surface.** It
+happened twice — the Lift button under a 58vh gush (build 75) and "what keeps coming back"
+under the two-pane thread layout (build 92). Both were invisible and both read as "the
+feature doesn't exist." **If a control answers "now what?", it goes above the writing
+surface or in the left pane, never below.**
+
 ## Design decisions worth not undoing
 
 - **The One-Pager export measures but never auto-shrinks.** Deciding what to cut is the assignment.
@@ -331,6 +419,19 @@ carries hardware guidance saying to write on a computer, but guidance does not p
 who ignores it.
 
 ## Open slices (not started)
+
+**Analysis ideas designed and wanted, none load-bearing for the rubric.** Do these only
+after real testing; the spine is enough to teach with.
+- **Quiet threads have data but no view.** The thread list already marks anything untouched
+  for 21+ days, but nothing gathers them and asks *what happened to this one?* Abandonment
+  is as interesting as persistence. Cheapest of the three — the marking exists.
+- **A reread pass.** One old entry at a time, oldest first, one question: does this connect
+  to anything you have written since? Makes threads where they are noticed, rather than
+  asking a writer to hold forty entries in their head. The answer for students who do not
+  respond to a word list.
+- **Line-level marking.** Mark single lines worth keeping, as readings already allow. A
+  line trail across the term feeds the currere and the MRP and makes "marks of return"
+  literal. Biggest of the three; touches the data model.
 
 - ~~"Build from the gush."~~ **DONE 2026-07-31 (build 74).** ↑ Lift + keep-count; see Freewrite above.
 - **Reconcile the `OPS` table against the assignment handouts.** The framing and placeholder text in
