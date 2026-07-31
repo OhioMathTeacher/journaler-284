@@ -652,6 +652,21 @@ body.capturing .hl-mark:not(.preview) { display: none; }
   #printBundle .pb-toc .pb-t { flex: 1; }
   #printBundle h3 .pb-n { margin-right: .55em; min-width: 0; }
   #printBundle .pb-blank { letter-spacing: .06em; }
+  /* Sheet one is a grading sheet: the four rubric rows down the page, each carrying its
+     own evidence and a blank for the score. The parts that follow arrive in the same
+     order, so nothing is hunted for. */
+  #printBundle .pb-grade { width: 100%; border-collapse: collapse; margin-top: 1.6em; font-size: 10.5pt; }
+  #printBundle .pb-grade th, #printBundle .pb-grade td { border-bottom: 1px solid #bbb; padding: .5em .4em; text-align: left; vertical-align: top; }
+  #printBundle .pb-grade th { font-size: 9.5pt; text-transform: uppercase; letter-spacing: .04em; color: #555; }
+  #printBundle .pb-grade .pb-pts { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #printBundle .pb-grade .pb-tot td { border-top: 2px solid #000; border-bottom: none; font-weight: 700; }
+  #printBundle .pb-kinds { font-size: 9.5pt; color: #666; }
+  #printBundle .pb-part { break-before: page; page-break-before: always; }
+  #printBundle .pb-part > h2 { font-size: 17pt; border-bottom: 2px solid #000; }
+  #printBundle .pb-full { margin: 0 0 1.4em; break-inside: avoid-page; }
+  #printBundle .pb-full .pb-when { font-weight: 400; color: #666; }
+  #printBundle .pb-role { font-size: 9.5pt; color: #555; font-style: italic; margin: 0 0 .5em; }
+  #printBundle .pb-missing { color: #666; }
   #printBundle .pb-cover { break-after: page; page-break-after: always; }
   #printBundle .pb-day, #printBundle .pb-piece { margin: 0 0 1.6em; break-inside: auto; }
   #printBundle .pb-day + .pb-day, #printBundle .pb-piece + .pb-piece { margin-top: 2.2em; }
@@ -753,3 +768,13 @@ body.focus .iconbtn { display: none !important; }
   width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 .liftbar .note { font-family: var(--sans); font-size: 12px; color: var(--mut, #6b7280); }
 body.gushing .liftbar { display: none !important; }
+
+/* Turn-in declaration. Collapsed until it matters, because it is the last thing a student
+   does in December and clutter on the notebook surface every other week helps nobody. */
+.turnin { margin-top: 14px; border: 1px solid var(--comment-border, #ddd); border-radius: 7px; padding: 10px 12px; background: #fdfbf6; }
+.turnin > summary { cursor: pointer; font-family: var(--sans); font-size: 13px; font-weight: 600; }
+.turnin .runline { margin: 8px 0 10px; }
+.turnin-row { display: flex; align-items: center; gap: 10px; margin: 7px 0; font-family: var(--sans); font-size: 12.5px; }
+.turnin-row .tl { flex: 0 0 11em; display: flex; flex-direction: column; line-height: 1.25; }
+.turnin-row .tl em { font-style: normal; font-size: 11px; color: var(--mut, #6b7280); }
+.turnin-row select { flex: 1; min-width: 0; font-family: var(--sans); font-size: 12.5px; padding: 5px 6px; border: 1px solid var(--comment-border, #ddd); border-radius: 5px; background: #fff; }

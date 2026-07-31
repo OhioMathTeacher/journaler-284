@@ -3032,6 +3032,36 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     window.print();
   }
 
+  // ── THE TURN-IN DECLARATION.
+  //
+  // The rubric has four rows and the bundle now prints four parts in that order, so the
+  // notebook is graded straight down the page with no hunting. Three of those rows need
+  // the student to say WHICH entries they mean, and that declaration cannot be derived:
+  // the assignment lets a notebook be kept on paper, a paper notebook carries no
+  // metadata, and both formats must turn in the same artifact. So a person declares it,
+  // in Journaler or with a pen, and the app only makes it easy and typo-proof.
+  //
+  // pieceKind cannot stand in for this. It holds four values (freewrite, currere,
+  // reading, one-pager) and can distinguish two of the five required components at best.
+  // The Week 1 baseline is just another freewrite; the topic map never touches the app.
+  const TURNIN_SLOTS = [
+    ['baseline',  'Week 1 baseline', 'The “why do we write?” free-write from the first day'],
+    ['currere',   'Currere work',    'A gush, brainstorm or storyboard note from Act II'],
+    ['topicmap',  'Topic map',       'Your research topic map'],
+    ['sources',   'Source notes',    'Notes on a source you gathered'],
+    ['letter',    'Look-Back Letter','Your letter to the writer who answered on day one'],
+    ['flag1',     'Flagged entry 1', 'Read closely — one from Act I'],
+    ['flag2',     'Flagged entry 2', 'Read closely — one from Act II'],
+    ['flag3',     'Flagged entry 3', 'Read closely — one from Act III'],
+  ];
+  function turnin(){ return (DB.turnin = DB.turnin || {}); }
+  // Entries in one chronological order, numbered once. Entry 17 is entry 17 in the
+  // Contents, in every part of the bundle, and in what the student writes on the cover.
+  function numberedEntries(){
+    return (DB.journal || []).slice().sort((a,b) =>
+      String(a.date).localeCompare(String(b.date)) || String(a.ts).localeCompare(String(b.ts)));
+  }
+
   // ── Bundle notebook → PDF. The 50-pt Writer's Notebook turn-in artifact.
   //    The bundle follows the lens you're in — By day shows kept practice in date
   //    order (what the notebook is graded on), By piece shows each piece growing.
@@ -3054,15 +3084,26 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     //
     // Numbered in one chronological pass BEFORE the lens is applied, so entry 17 is entry
     // 17 whether the bundle was printed By day or By piece.
-    const ordered = entries.slice().sort((a,b) =>
-      String(a.date).localeCompare(String(b.date)) || String(a.ts).localeCompare(String(b.ts)));
+    const ordered = numberedEntries();
     const numOf = new Map();
     ordered.forEach((e, i) => numOf.set(e, i + 1));
     const nOf = e => numOf.get(e) || 0;
+    const byId = new Map(ordered.map(e => [e.id, e]));
+    const T = turnin();
+    const slotEntry = k => byId.get(T[k]);
+    // One entry, printed whole, labelled with what it is answering.
+    const full = (e, label) => e ? `
+      <article class="pb-full">
+        <h3><span class="pb-n">${nOf(e)}</span>${escHtml(e.pieceTitle || '—')} <span class="pb-when">${escHtml(fmtDate(e.date))}</span></h3>
+        ${label ? `<p class="pb-role">${escHtml(label)}</p>` : ''}
+        ${para(e.text)}
+      </article>` : '';
+    const notChosen = label => `
+      <article class="pb-full pb-missing"><h3>${escHtml(label)}</h3>
+        <p class="pb-role">Not identified. Write the entry number here: ____</p></article>`;
 
     const contents = `
       <section class="pb-contents">
-        <h2>Contents</h2>
         <ol class="pb-toc">
           ${ordered.map(e => `<li><span class="pb-n">${nOf(e)}</span><span class="pb-d">${escHtml(fmtDate(e.date))}</span><span class="pb-t">${escHtml(e.pieceTitle || '—')}</span></li>`).join('')}
         </ol>
@@ -3093,21 +3134,83 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     for(const e of entries) kinds[e.pieceKind] = (kinds[e.pieceKind]||0) + 1;
     const tally = Object.keys(kinds).sort().map(k => `${escHtml(k)}: ${kinds[k]}`).join(' · ');
 
-    const html = `
+    // ── THE BUNDLE IS THE RUBRIC, IN ORDER.
+    //
+    // Sheet one is a grading sheet: the four rubric rows down the page, each with the
+    // evidence for it already gathered and a blank for the score. Then the parts arrive
+    // in that same order, so nothing is hunted for. Required entries, the letter and the
+    // three flagged entries are REPRINTED in their own parts and appear again in the
+    // complete notebook — eight duplicated entries out of thirty is a cheap price for
+    // never searching. Each reprint says which entry number it is, so the two are
+    // obviously the same page rather than two versions of it.
+    const ref = k => { const e = slotEntry(k); return e ? `entry ${nOf(e)}` : '<span class="pb-blank">____</span>'; };
+    const cover = `
       <section class="pb-cover">
         <h1>Writer's Notebook</h1>
-        <p class="pb-sub">TCE 284 · kept pages, ${noteMode === 'day' ? 'by day' : 'by piece'}</p>
-        <dl>
-          <dt>Entries</dt><dd>${entries.length}, numbered 1–${entries.length} in date order</dd>
-          <dt>Span</dt><dd>${escHtml(fmtDate(dates[0]))} — ${escHtml(fmtDate(dates[dates.length-1]))}</dd>
-          <dt>Days written</dt><dd>${new Set(dates).size}</dd>
-          <dt>By kind</dt><dd>${tally}</dd>
-          <dt>Entries I flagged</dt><dd class="pb-blank">_____   _____   _____</dd>
-        </dl>
-        <p class="pb-note">Name: ${printedName()}</p>
+        <p class="pb-sub">TCE 284 · ${printedName()}</p>
+        <table class="pb-grade">
+          <tr><th>Row</th><th>What it is scored on</th><th class="pb-pts">Score</th></tr>
+          <tr><td>1 · Kept practice</td>
+              <td><strong>${entries.length} entries</strong>, numbered 1–${entries.length} ·
+                  ${new Set(dates).size} separate days ·
+                  ${escHtml(fmtDate(dates[0]))} to ${escHtml(fmtDate(dates[dates.length-1]))}<br>
+                  <span class="pb-kinds">${tally}</span></td>
+              <td class="pb-pts">___ / 20</td></tr>
+          <tr><td>2 · Required entries</td>
+              <td>Baseline ${ref('baseline')} · Currere ${ref('currere')} ·
+                  Topic map ${ref('topicmap')} · Source notes ${ref('sources')}<br>
+                  <span class="pb-kinds">Printed in full in Part 2.</span></td>
+              <td class="pb-pts">___ / 5</td></tr>
+          <tr><td>3 · Look-Back Letter</td>
+              <td>${ref('letter')}<br><span class="pb-kinds">Printed in full in Part 3.</span></td>
+              <td class="pb-pts">___ / 10</td></tr>
+          <tr><td>4 · Thinking on the page</td>
+              <td>I flagged ${ref('flag1')}, ${ref('flag2')}, ${ref('flag3')}<br>
+                  <span class="pb-kinds">Printed in full in Part 4. Only these are read closely.</span></td>
+              <td class="pb-pts">___ / 15</td></tr>
+          <tr class="pb-tot"><td colspan="2">Total</td><td class="pb-pts">___ / 50</td></tr>
+        </table>
+      </section>`;
+
+    const part2 = `
+      <section class="pb-part">
+        <h2>Part 2 · Required entries</h2>
+        ${['baseline','currere','topicmap','sources'].map(k => {
+          const slot = TURNIN_SLOTS.find(s => s[0] === k);
+          const e = slotEntry(k);
+          return e ? full(e, slot[1]) : notChosen(slot[1]);
+        }).join('')}
+      </section>`;
+    const letterE = slotEntry('letter');
+    const part3 = `
+      <section class="pb-part">
+        <h2>Part 3 · The Look-Back Letter</h2>
+        ${letterE ? full(letterE, 'Look-Back Letter') : notChosen('Look-Back Letter')}
+      </section>`;
+    const part4 = `
+      <section class="pb-part">
+        <h2>Part 4 · The three entries I flagged</h2>
+        <p class="pb-sub">These are the entries I want read closely.</p>
+        ${['flag1','flag2','flag3'].map(k => {
+          const slot = TURNIN_SLOTS.find(s => s[0] === k);
+          const e = slotEntry(k);
+          return e ? full(e, slot[1]) : notChosen(slot[1]);
+        }).join('')}
+      </section>`;
+
+    const html = `
+      ${cover}
+      <section class="pb-part"><h2>Part 1 · Contents</h2>
+        <p class="pb-sub">Every entry, numbered in date order.</p>
+        ${contents}
       </section>
-      ${contents}
-      ${sections}`;
+      ${part2}
+      ${part3}
+      ${part4}
+      <section class="pb-part"><h2>Part 5 · The complete notebook</h2>
+        <p class="pb-sub">Everything, ${noteMode === 'day' ? 'by day' : 'by piece'}.</p>
+        ${sections}
+      </section>`;
     printDoc('printBundle', html, "Writer's Notebook — TCE 284");
   }
 
@@ -3206,6 +3309,29 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     printDoc('printOnePager', sheet + sessionRecordHTML(M), `One-Pager ${M.n} — ${M.t}`);
   }
 
+  // Eight dropdowns, each listing every entry as "17 · Sep 22 · Free-writes". Dropdowns
+  // rather than typed numbers because a typo here points the grader at the wrong page,
+  // and because the student should be choosing from what they actually wrote.
+  function turnInPanel(){
+    const ordered = numberedEntries();
+    if(!ordered.length) return '';
+    const T = turnin();
+    const opts = (sel) => ['<option value="">— not chosen —</option>'].concat(
+      ordered.map((e,i) => `<option value="${e.id}" ${T[sel]===e.id?'selected':''}>${i+1} · ${escHtml(shortDate(e.date))} · ${escHtml((e.pieceTitle||'—').slice(0,34))}</option>`)
+    ).join('');
+    const done = TURNIN_SLOTS.filter(s => T[s[0]]).length;
+    return `<details class="turnin" ${done < TURNIN_SLOTS.length ? '' : 'open'}>
+      <summary>Before you turn it in — ${done} of ${TURNIN_SLOTS.length} identified</summary>
+      <p class="runline">Your notebook is graded in four parts. Point me at the entries for
+        three of them. Everything else stays unread.</p>
+      ${TURNIN_SLOTS.map(([k,label,hint]) => `
+        <label class="turnin-row"><span class="tl">${label}<em>${hint}</em></span>
+          <select data-slot="${k}">${opts(k)}</select></label>`).join('')}
+    </details>`;
+  }
+  function shortDate(k){ const [y,m,d]=String(k).split('-').map(Number);
+    return new Date(y,(m||1)-1,d||1).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
+
   function renderNote(){
     body.classList.add('wide');
     const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button></div>`;
@@ -3230,6 +3356,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <div class="calhead"><button class="calnav" id="prevM" aria-label="Previous month" ${(y*12+m)<=NOTE_MIN?'disabled':''}>‹</button><span class="mname">${monthName}</span><button class="calnav" id="nextM" aria-label="Next month" ${(y*12+m)>=NOTE_MAX?'disabled':''}>›</button></div>
         <div class="grid">${dow}${cells}</div>
         <p class="runline" style="margin-top:12px">● green = a kept page. Click a day to read it.</p>
+        ${turnInPanel()}
         <div class="composer-foot" style="margin-top:14px"><button class="btn" id="bundleBtn">Bundle notebook → PDF</button></div></div>`;
       rightPane = noteDayDetail();
     } else {
@@ -3238,6 +3365,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         ? pieces.map(p=>`<button class="moment has ${notePieceSel===p.id?'on':''}" data-piece="${p.id}"><span class="mname"><span class="dot"></span>${escHtml(p.title)}</span><span class="mkind">${p.entries.length} kept pass${p.entries.length>1?'es':''}</span></button>`).join('')
         : `<p class="empty" style="font-family:var(--sans)">No kept pages yet. In any tab, write, then hit <strong>＋ Add to notebook</strong>.</p>`;
       leftPane = `<div class="piecelist"><p class="lead">Your pieces</p>${listHtml}
+        ${turnInPanel()}
         <div class="composer-foot" style="margin-top:14px"><button class="btn" id="bundleBtn">Bundle notebook → PDF</button></div></div>`;
       rightPane = notePieceDetail();
     }
@@ -3246,6 +3374,14 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
 
     frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
     // Only one lens renders at a time, so only one bundle button exists.
+    // Saved on change, not on a Save button: there is no submit step here, and a student
+    // who picked their entries and then navigated away should not lose them.
+    frame.querySelectorAll('.turnin select').forEach(sel => sel.onchange = () => {
+      turnin()[sel.dataset.slot] = sel.value || undefined;
+      saveDB();
+      const d = sel.closest('.turnin'), s = d && d.querySelector('summary');
+      if(s) s.textContent = `Before you turn it in — ${TURNIN_SLOTS.filter(x => turnin()[x[0]]).length} of ${TURNIN_SLOTS.length} identified`;
+    });
     const bBtn = document.getElementById('bundleBtn');
     if(bBtn) bBtn.onclick = bundleNotebookPDF;
     if(noteMode === 'day'){
