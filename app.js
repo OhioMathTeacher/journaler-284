@@ -572,6 +572,7 @@ async function runReflection(rf, text, hooks) {
   function resetGush(opts){
     opts = opts || {};
     clearInterval(G.tId); G.running = false;
+    body.classList.remove('gushing');
     const ta = document.getElementById('gush');
     if(ta){ ta.removeEventListener('keydown', guard); ta.classList.remove('locked'); ta.disabled = false; }
     const ts = document.getElementById('timerset'); if(ts) ts.classList.remove('locked');
@@ -591,6 +592,10 @@ async function runReflection(rf, text, hooks) {
     let rb = document.getElementById('resetBtn');
     if(!rb && btn && btn.parentNode){ rb = document.createElement('button'); rb.id = 'resetBtn'; rb.type = 'button'; rb.className = 'btn ghost sm'; btn.parentNode.insertBefore(rb, btn.nextSibling); }
     if(rb){ rb.textContent = '↺ Reset clock'; rb.style.display = ''; rb.onclick = () => resetGush(opts); }
+    // `gushing` is the CLOCK-IS-RUNNING state, distinct from `focus`. Focus can be
+    // toggled by hand at any time; this marks the stretch where the only thing that
+    // should be on screen is the gush. See the focus rules in app.css.
+    body.classList.add('gushing');
     ta.disabled = false; ta.classList.add('locked'); ta.value=''; ta.focus();
     ta.addEventListener('keydown', guard);
     const lm = document.getElementById('lockmsg'); if(lm) lm.innerHTML = '<span class="lockflag">● Locked — gush mode. Keep going.</span>';
@@ -600,6 +605,7 @@ async function runReflection(rf, text, hooks) {
     G.tId = setInterval(() => {
       G.remain--; timer.textContent = fmt(G.remain); timer.classList.toggle('low', G.remain<=30);
       if(G.remain<=0){ clearInterval(G.tId); G.running=false;
+        body.classList.remove('gushing');
         ta.removeEventListener('keydown',guard); ta.classList.remove('locked'); ta.disabled=true;
         if(lm) lm.textContent='Time. The page is yours again.';
         if(opts.focus) setFocus(false);
