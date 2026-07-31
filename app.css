@@ -649,6 +649,7 @@ body.capturing .hl-mark:not(.preview) { display: none; }
   #printBundle .pb-n { display: inline-block; min-width: 2.2em; text-align: right;
     font-variant-numeric: tabular-nums; color: #555; }
   #printBundle .pb-toc .pb-d { min-width: 13em; color: #333; }
+  #printBundle .pb-toc .pb-w { min-width: 3.4em; text-align: right; color: #666; font-variant-numeric: tabular-nums; }
   #printBundle .pb-toc .pb-t { flex: 1; }
   #printBundle h3 .pb-n { margin-right: .55em; min-width: 0; }
   #printBundle .pb-blank { letter-spacing: .06em; }

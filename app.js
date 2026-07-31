@@ -3096,6 +3096,10 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     if(!t) return '(empty)';
     return t.length > max ? t.slice(0, max).replace(/\s+\S*$/, '') + '…' : t;
   }
+  // Printed beside every line of the Contents. The complete notebook is not submitted, so
+  // this is the only evidence of how much writing actually happened: thirty entries of
+  // eleven words each has to be visible without printing thirty entries.
+  function wordsIn(e){ return (String(e && e.text || '').match(/\S+/g) || []).length; }
   function entryLabel(e, max){
     const title = String(e && e.pieceTitle || '').trim();
     const snip = entrySnippet(e, max);
@@ -3151,7 +3155,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     const contents = `
       <section class="pb-contents">
         <ol class="pb-toc">
-          ${ordered.map(e => `<li><span class="pb-n">${nOf(e)}</span><span class="pb-d">${escHtml(fmtDate(e.date))}</span><span class="pb-t">${escHtml(entryLabel(e, 78))}</span></li>`).join('')}
+          ${ordered.map(e => `<li><span class="pb-n">${nOf(e)}</span><span class="pb-d">${escHtml(fmtDate(e.date))}</span><span class="pb-w">${wordsIn(e)}w</span><span class="pb-t">${escHtml(entryLabel(e, 68))}</span></li>`).join('')}
         </ol>
       </section>`;
 
@@ -3190,6 +3194,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     // never searching. Each reprint says which entry number it is, so the two are
     // obviously the same page rather than two versions of it.
     const ref = k => { const e = slotEntry(k); return e ? `entry ${nOf(e)}` : '<span class="pb-blank">____</span>'; };
+    const totalWords = ordered.reduce((n, e) => n + wordsIn(e), 0);
     const cover = `
       <section class="pb-cover">
         <h1>Writer's Notebook</h1>
@@ -3200,6 +3205,8 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
               <td><strong>${entries.length} entries</strong>, numbered 1–${entries.length} ·
                   ${new Set(dates).size} separate days ·
                   ${escHtml(fmtDate(dates[0]))} to ${escHtml(fmtDate(dates[dates.length-1]))}<br>
+                  <strong>${totalWords.toLocaleString()} words</strong> in all,
+                  ${Math.round(totalWords / entries.length)} to an entry on average<br>
                   <span class="pb-kinds">${tally}</span></td>
               <td class="pb-pts">___ / 20</td></tr>
           <tr><td>2 · Required entries</td>
@@ -3252,11 +3259,20 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       </section>
       ${part2}
       ${part3}
-      ${part4}
-      <section class="pb-part"><h2>Part 5 · The complete notebook</h2>
-        <p class="pb-sub">Everything, ${noteMode === 'day' ? 'by day' : 'by piece'}.</p>
-        ${sections}
-      </section>`;
+      ${part4}`;
+    // ⚠ THE COMPLETE NOTEBOOK IS DELIBERATELY NOT PRINTED.
+    //
+    // It was Part 5, and it made this 30–40 pages — 22 of those is 800 pages to grade.
+    // What is submitted is a REPORT: the entries the writer chose, and what they made of
+    // them. Selection is the assignment here exactly as it is on the One-Pager, where
+    // deciding what to cut is the work.
+    //
+    // Kept practice does not need the pages to be readable, only countable, and Part 1
+    // carries that: every entry, numbered, dated, with its word count and opening line.
+    // Thirty entries of eleven words each is visible at a glance there, which is the
+    // loophole a bare presence-list would have left open. `sections` is still built
+    // above; a future "include everything" option can print it without new plumbing.
+    void sections;
     printDoc('printBundle', html, "Writer's Notebook — TCE 284");
   }
 
