@@ -574,7 +574,7 @@ async function runReflection(rf, text, hooks) {
     clearInterval(G.tId); G.running = false;
     body.classList.remove('gushing');
     const ta = document.getElementById('gush');
-    if(ta){ ta.removeEventListener('keydown', guard); ta.classList.remove('locked'); ta.disabled = false; }
+    if(ta){ ta.removeEventListener('keydown', guard); ta.classList.remove('locked'); ta.disabled = false; ta.readOnly = false; }
     const ts = document.getElementById('timerset'); if(ts) ts.classList.remove('locked');
     const btn = document.getElementById('startBtn'); if(btn) btn.disabled = false;
     const lm = document.getElementById('lockmsg'); if(lm) lm.textContent = 'Clock reset — adjust the minutes and start again when you’re ready.';
@@ -596,7 +596,7 @@ async function runReflection(rf, text, hooks) {
     // toggled by hand at any time; this marks the stretch where the only thing that
     // should be on screen is the gush. See the focus rules in app.css.
     body.classList.add('gushing');
-    ta.disabled = false; ta.classList.add('locked'); ta.value=''; ta.focus();
+    ta.disabled = false; ta.readOnly = false; ta.classList.add('locked'); ta.value=''; ta.focus();
     ta.addEventListener('keydown', guard);
     const lm = document.getElementById('lockmsg'); if(lm) lm.innerHTML = '<span class="lockflag">● Locked — gush mode. Keep going.</span>';
     if(opts.focus) setFocus(true);
@@ -606,8 +606,14 @@ async function runReflection(rf, text, hooks) {
       G.remain--; timer.textContent = fmt(G.remain); timer.classList.toggle('low', G.remain<=30);
       if(G.remain<=0){ clearInterval(G.tId); G.running=false;
         body.classList.remove('gushing');
-        ta.removeEventListener('keydown',guard); ta.classList.remove('locked'); ta.disabled=true;
-        if(lm) lm.textContent='Time. The page is yours again.';
+        // READONLY, never disabled. The gush must freeze — sheet two prints it as "the
+        // gush, unedited" — but a DISABLED textarea cannot be selected in any browser, so
+        // disabling it silently made Copy-into-the-One-Pager impossible: there was no way
+        // to select the lines to copy. readonly freezes the text and still lets it be
+        // selected, which is exactly the chalkboard rule.
+        ta.removeEventListener('keydown',guard); ta.classList.remove('locked');
+        ta.disabled=false; ta.readOnly=true;
+        if(lm) lm.textContent='Time. Your gush is fixed now — select the lines you want and copy them across.';
         if(opts.focus) setFocus(false);
         const rf = document.getElementById('reflect'); if(rf){ rf.style.display='block'; runReflection(rf, ta.value, opts.reflect); }
         if(opts.onEnd) opts.onEnd();
@@ -1047,11 +1053,25 @@ async function runReflection(rf, text, hooks) {
 
   // The ratio IS the craft: "kept 47 of 380 words" makes the cutting visible without
   // capping it. A hard limit would be a rule; a mirror is an invitation to choose.
+  //
+  // The same line also carries the ORDER OF OPERATIONS, because the button alone could
+  // not: Todd could not tell whether to click first or select first, and clicking an
+  // empty selection did nothing visible. So the button is disabled until text is
+  // selected, and this note says what to do to enable it. The interface answers the
+  // question rather than leaving the student to guess and get silence.
+  let _keepSync = null;   // the live document-level selectionchange handler, so it can be replaced
   function paintKeepCount(key){
     const el = document.getElementById('keepcount'); if(!el) return;
     const s = DB.freewrite[key] || {};
     const total = ((s.gush||'').match(/\S+/g)||[]).length;
-    el.textContent = s.lifted ? `Kept ${s.lifted} of ${total} words.` : '';
+    const kept = s.lifted ? `Kept ${s.lifted} of ${total} words.` : '';
+    const ta = document.getElementById('gush');
+    const selWords = ta ? ((String(ta.value||'').slice(ta.selectionStart, ta.selectionEnd).trim().match(/\S+/g)||[]).length) : 0;
+    const btn = document.getElementById('liftBtn');
+    if(btn) btn.disabled = !selWords;
+    el.textContent = selWords
+      ? `${selWords} word${selWords===1?'':'s'} selected.${kept ? ' ' + kept : ''}`
+      : (kept || 'Select the lines you want to keep, then copy.');
   }
 
   function renderOPStage(M){
@@ -1065,7 +1085,7 @@ async function runReflection(rf, text, hooks) {
         <div class="gushbar"><div class="timerset" id="timerset"><button class="tadj" id="tminus">−</button><span class="timer editable" id="timer">8:00</span><button class="tadj" id="tplus">+</button></div>
           <button class="btn go" id="startBtn">Start the gush</button>
           <span class="liftbar" id="liftbar" style="display:${fwGushed[fwCur]?'inline-flex':'none'}">
-            <button class="btn ghost sm" id="liftBtn">↑ Lift into the One-Pager</button>
+            <button class="btn ghost sm" id="liftBtn" disabled>Copy into the One-Pager →</button>
             <span class="note" id="keepcount"></span></span>
           <span class="locknote" id="lockmsg">Set your minutes, then start — the page locks and Focus opens.</span></div>
         <textarea class="gush" id="gush" placeholder="Don’t stop, don’t fix. Stalled? Write that you stalled — and keep going." disabled></textarea>
@@ -1086,7 +1106,7 @@ async function runReflection(rf, text, hooks) {
     wireTimer();
     // Restore a saved gush + shaped one-pager for this OP.
     const saved = DB.freewrite[fwCur] || {};
-    const taEl = document.getElementById('gush'); if(saved.gush){ taEl.value = saved.gush; if(fwGushed[fwCur]) taEl.disabled = true; }
+    const taEl = document.getElementById('gush'); if(saved.gush){ taEl.value = saved.gush; if(fwGushed[fwCur]){ taEl.disabled = false; taEl.readOnly = true; } }
     const pgEl = document.getElementById('page'); if(saved.shape){ pgEl.innerHTML = saved.shape; }
     // Save the shaped one-pager as it is typed.
     pgEl.addEventListener('input', ()=>{ DB.freewrite[fwCur] = Object.assign({}, DB.freewrite[fwCur], { shape: pgEl.innerHTML }); saveDB(); });
@@ -1111,28 +1131,47 @@ async function runReflection(rf, text, hooks) {
       // rendered display:none before the first gush and nothing turned it back on until
       // the tab happened to re-render, so a student's first gush offered no way across.
       const lb=document.getElementById('liftbar');if(lb)lb.style.display='inline-flex';}}));
-    // ── Lift-from-gush. The assignment says to build the One-Pager FROM the gush, and the
+    // ── Copy-from-gush. The assignment says to build the One-Pager FROM the gush, and the
     //    shape pane used to open blank — the interface asked a question instead of answering
     //    it, so the only route was reselect-copy-click-paste. That friction pushes toward the
     //    one move we do not want: select all, dump it in, tidy down. That is editing, not
-    //    carving. So: lift a SELECTION, repeatably. There is deliberately no "copy it all"
+    //    carving. So: copy a SELECTION, repeatably. There is deliberately no "copy it all"
     //    button — the scarcity is the assignment.
+    //
+    //    It was called "↑ Lift" and neither half read. "Lift" is a metaphor, and this course
+    //    writes to students literally [[student-facing-language-literal]]; the up arrow
+    //    pointed at a pane that is to the RIGHT. Now: "Copy into the One-Pager →".
     const liftBtn = document.getElementById('liftBtn');
     if(liftBtn) liftBtn.onclick = ()=>{
       const ta = document.getElementById('gush'), pg = document.getElementById('page');
       if(!ta || !pg) return;
       const sel = String(ta.value||'').slice(ta.selectionStart, ta.selectionEnd).trim();
-      const note = document.getElementById('keepcount');
-      if(!sel){ if(note) note.textContent = 'Select the lines that are alive, then lift them.'; return; }
+      if(!sel) return;                       // unreachable: disabled without a selection
       const p = document.createElement('p'); p.textContent = sel;
       pg.appendChild(p);
       DB.freewrite[opKey] = Object.assign({}, DB.freewrite[opKey], { shape: pg.innerHTML });
       const s = DB.freewrite[opKey];
       s.lifted = (s.lifted||0) + (sel.match(/\S+/g)||[]).length;
       saveDB();
+      // Clear the selection so the button falls back to disabled. Without this it stays
+      // live and a second click files the same lines twice.
+      ta.selectionEnd = ta.selectionStart;
       paintKeepCount(opKey);
       pg.focus();
     };
+    // Keep the button and its note in step with the selection. `selectionchange` on a
+    // textarea is recent and uneven across engines, so the older events carry it and
+    // selectionchange is a bonus, not the mechanism [[firefox-not-chrome]].
+    const gushTa = document.getElementById('gush');
+    if(gushTa){
+      const sync = ()=> paintKeepCount(opKey);
+      ['select','keyup','mouseup','input','focus'].forEach(ev => gushTa.addEventListener(ev, sync));
+      // The textarea listeners die with the node on re-render; this one is on `document`
+      // and would stack a stale closure per OP visited, each repainting for the wrong key.
+      if(_keepSync) document.removeEventListener('selectionchange', _keepSync);
+      _keepSync = sync;
+      document.addEventListener('selectionchange', sync);
+    }
     paintKeepCount(opKey);
     const opExp = document.getElementById('opExport');
     if(opExp) opExp.onclick = ()=> exportOnePagerPDF(M);
@@ -1155,7 +1194,7 @@ async function runReflection(rf, text, hooks) {
     openTa.addEventListener('input', ()=>{ DB.freewrite.open = { text: openTa.value }; saveDB(); });
     document.getElementById('openAddNb').onclick = ()=>{ elevate('free', 'freewrite', 'Free-writes & quick-writes', openTa.value); };
     document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true}));
-    document.getElementById('notimer').addEventListener('click',()=>{const ta=document.getElementById('gush');ta.disabled=false;ta.focus();setFocus(true);});
+    document.getElementById('notimer').addEventListener('click',()=>{const ta=document.getElementById('gush');ta.disabled=false;ta.readOnly=false;ta.focus();setFocus(true);});
   }
   // ═══ Images. A phone photo is 2–4MB, and base64 adds a third on top. Inserted raw it
   //     lands in TWO bad places at once: localStorage (which holds the whole DB in a

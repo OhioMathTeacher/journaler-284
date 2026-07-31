@@ -125,7 +125,9 @@
   .minsel { font-family: var(--sans); font-size: 13px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--comment-border); background: #fff; }
 
   textarea.gush { display: block; width: 100%; max-width: var(--writecol); margin: 0 auto; height: 52vh; min-height: 320px; max-height: 600px; overflow-y: auto; resize: none; font-family: var(--write); font-size: 16px; line-height: 1.7; background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; padding: 32px 40px; color: var(--ink); }
-  textarea.gush:disabled { background: #fdfbf6; color: var(--ink); } textarea.locked { border-color: var(--accent-light); box-shadow: 0 0 0 3px var(--highlight-soft); }
+  /* [readonly] is the post-buzzer state: frozen but selectable, so the gush can be copied
+     into the One-Pager. :disabled is the before-you-start state. Both look the same. */
+  textarea.gush:disabled, textarea.gush[readonly] { background: #fdfbf6; color: var(--ink); } textarea.locked { border-color: var(--accent-light); box-shadow: 0 0 0 3px var(--highlight-soft); }
   .reflect { margin-top: 14px; background: var(--margin-bg); border-radius: 7px; padding: 13px 15px; font-size: 14px; } .reflect .lbl { font-weight: 700; font-size: 12.5px; color: var(--accent); display: block; margin-bottom: 4px; } .reflect em { color: var(--muted); }
   /* Where the student answers the partner's question. Saved, and printed on the
      session record that ships with the One-Pager PDF. */
