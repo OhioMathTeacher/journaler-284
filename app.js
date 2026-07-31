@@ -3055,6 +3055,26 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     ['flag3',     'Flagged entry 3', 'Read closely — one from Act III'],
   ];
   function turnin(){ return (DB.turnin = DB.turnin || {}); }
+
+  // ── Naming an entry so a person can recognise it.
+  //
+  // pieceTitle is a BUCKET, not a name: every free-write in the term carries the single
+  // title "Free-writes & quick-writes". A list built from it reads "1 · Jul 29 ·
+  // Free-writes", "2 · Jul 29 · Free-writes", "3 · Jul 30 · Free-writes" — thirty
+  // identical lines, and no way to pick the right one. The only thing that tells two
+  // free-writes apart is what they say, so the label is the entry's own opening words.
+  // Currere and reading entries DO have real titles, so those keep theirs in front.
+  const NB_BUCKET = /^Free-writes/;
+  function entrySnippet(e, max){
+    const t = String(e && e.text || '').replace(/\s+/g, ' ').trim();
+    if(!t) return '(empty)';
+    return t.length > max ? t.slice(0, max).replace(/\s+\S*$/, '') + '…' : t;
+  }
+  function entryLabel(e, max){
+    const title = String(e && e.pieceTitle || '').trim();
+    const snip = entrySnippet(e, max);
+    return (title && !NB_BUCKET.test(title)) ? `${title} · ${snip}` : snip;
+  }
   // Entries in one chronological order, numbered once. Entry 17 is entry 17 in the
   // Contents, in every part of the bundle, and in what the student writes on the cover.
   function numberedEntries(){
@@ -3094,7 +3114,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     // One entry, printed whole, labelled with what it is answering.
     const full = (e, label) => e ? `
       <article class="pb-full">
-        <h3><span class="pb-n">${nOf(e)}</span>${escHtml(e.pieceTitle || '—')} <span class="pb-when">${escHtml(fmtDate(e.date))}</span></h3>
+        <h3><span class="pb-n">${nOf(e)}</span>${escHtml(entryLabel(e, 60))} <span class="pb-when">${escHtml(fmtDate(e.date))}</span></h3>
         ${label ? `<p class="pb-role">${escHtml(label)}</p>` : ''}
         ${para(e.text)}
       </article>` : '';
@@ -3105,7 +3125,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     const contents = `
       <section class="pb-contents">
         <ol class="pb-toc">
-          ${ordered.map(e => `<li><span class="pb-n">${nOf(e)}</span><span class="pb-d">${escHtml(fmtDate(e.date))}</span><span class="pb-t">${escHtml(e.pieceTitle || '—')}</span></li>`).join('')}
+          ${ordered.map(e => `<li><span class="pb-n">${nOf(e)}</span><span class="pb-d">${escHtml(fmtDate(e.date))}</span><span class="pb-t">${escHtml(entryLabel(e, 78))}</span></li>`).join('')}
         </ol>
       </section>`;
 
@@ -3317,7 +3337,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     if(!ordered.length) return '';
     const T = turnin();
     const opts = (sel) => ['<option value="">— not chosen —</option>'].concat(
-      ordered.map((e,i) => `<option value="${e.id}" ${T[sel]===e.id?'selected':''}>${i+1} · ${escHtml(shortDate(e.date))} · ${escHtml((e.pieceTitle||'—').slice(0,34))}</option>`)
+      ordered.map((e,i) => `<option value="${e.id}" ${T[sel]===e.id?'selected':''}>${i+1} · ${escHtml(shortDate(e.date))} · ${escHtml(entryLabel(e, 52))}</option>`)
     ).join('');
     const done = TURNIN_SLOTS.filter(s => T[s[0]]).length;
     return `<details class="turnin" ${done < TURNIN_SLOTS.length ? '' : 'open'}>
