@@ -1032,6 +1032,7 @@ async function runReflection(rf, text, hooks) {
       <div class="layout"><nav class="spine">${spine}</nav><main class="stage" id="stage"></main></div>`;
     frame.querySelectorAll('[data-op]').forEach(b=>b.addEventListener('click',()=>{ if(G.running) return; fwCur=b.dataset.op; renderFree(); }));
     fwCur==='open' ? renderOpen() : renderOPStage(OPS[fwCur]);
+    paintInsMarker();   // Open page has no One-Pager, so the marker must come down
   }
   // ── The writing session. OP1 says the session record and AI-use log travel with
   //    the exported PDF, so what happened during the gush has to be recorded, not
@@ -1060,6 +1061,66 @@ async function runReflection(rf, text, hooks) {
   // selected, and this note says what to do to enable it. The interface answers the
   // question rather than leaving the student to guess and get silence.
   let _keepSync = null;   // the live document-level selectionchange handler, so it can be replaced
+
+  // ── WHERE THE COPIED LINES LAND, and showing that before they land.
+  //
+  // Copy used to appendChild, so every passage went to the bottom of the One-Pager no
+  // matter where the writer had been working. Worse, it was unknowable: selecting in the
+  // gush moves focus out of the shape pane, the caret stops being painted, and the pane
+  // gives no clue at all. So two things: remember the last caret in the pane and insert
+  // THERE, and draw the insertion point while focus is elsewhere.
+  //
+  // The marker is drawn as a fixed-position overlay on <body>, never as a node inside the
+  // pane. Anything inside the pane would be serialised into DB.shape by pg.innerHTML and
+  // printed on the submitted PDF.
+  let _opCaret = null;    // a collapsed Range inside #page, or null
+
+  // The direct child of #page that contains a node — paragraphs are the unit we insert between.
+  function opBlockFor(node, pg){
+    let n = node;
+    while(n && n.parentNode && n.parentNode !== pg) n = n.parentNode;
+    return (n && n.parentNode === pg) ? n : null;
+  }
+  // Insert AFTER this block. null means the pane is empty, so append.
+  function opInsertAfter(pg){
+    if(_opCaret && pg.contains(_opCaret.startContainer)){
+      const b = opBlockFor(_opCaret.startContainer, pg);
+      if(b) return b;
+    }
+    return pg.lastElementChild;   // no caret yet: the end, which is what append always did
+  }
+  function rememberOpCaret(pg){
+    const s = window.getSelection();
+    if(!s || !s.rangeCount) return;
+    const r = s.getRangeAt(0);
+    if(pg && pg.contains(r.startContainer)) _opCaret = r.cloneRange();
+  }
+  function paintInsMarker(){
+    let m = document.getElementById('insMarker');
+    const pg = document.getElementById('page');
+    const bar = document.getElementById('liftbar');
+    const hide = ()=>{ if(m) m.style.display = 'none'; };
+    // Hidden whenever there is nothing to copy into, the pane is off-screen, or the pane
+    // has focus — with focus the browser paints a real caret and two would just confuse.
+    if(!pg || !pg.isConnected || pg.offsetParent === null) return hide();
+    if(!bar || bar.style.display === 'none') return hide();
+    if(document.activeElement === pg) return hide();
+    if(!m){ m = document.createElement('div'); m.id = 'insMarker'; m.className = 'ins-marker'; document.body.appendChild(m); }
+    const pr = pg.getBoundingClientRect();
+    const blk = opInsertAfter(pg);
+    const y = blk ? blk.getBoundingClientRect().bottom : (pr.top + 34);
+    // Clamp to the pane: the pane scrolls, and a marker floating over the toolbar or the
+    // page below it would point at nothing.
+    if(y < pr.top + 4 || y > pr.bottom - 4) return hide();
+    m.style.display = 'block';
+    m.style.top = y + 'px';
+    m.style.left = (pr.left + 34) + 'px';
+    m.style.width = Math.max(0, pr.width - 68) + 'px';
+  }
+  // Fixed to the viewport, so anything that moves the pane has to move the marker.
+  window.addEventListener('resize', paintInsMarker);
+  window.addEventListener('scroll', paintInsMarker, { passive: true });
+
   function paintKeepCount(key){
     const el = document.getElementById('keepcount'); if(!el) return;
     const s = DB.freewrite[key] || {};
@@ -1095,9 +1156,10 @@ async function runReflection(rf, text, hooks) {
         <div class="stagelabel"><span class="n">2</span> Shape — the One-Pager ${M.photos?'(image + text)':''}</div>
         <p class="stagenote">Build your One-Pager from the gush — this is what you submit. <em>Keep the two or three lines that are alive, cut the rest, and build around them.</em></p>
         <div class="toolbar">
-          <button data-cmd="bold"><b>B</b></button><button data-cmd="italic"><i>I</i></button>
-          <button data-cmd="formatBlock" data-val="h3">H</button><button data-cmd="insertUnorderedList">&bull;</button>
-          <span class="sep"></span><button id="imgBtn">&#128247;</button><span class="wc" id="wc">0 words</span></div>
+          <button data-cmd="bold" title="Bold"><b>B</b></button><button data-cmd="italic" title="Italic"><i>I</i></button>
+          <button data-cmd="formatBlock" data-val="h3" title="Heading — press again to turn it back into a paragraph">H</button><button data-cmd="insertUnorderedList" title="Bulleted list">&bull;</button>
+          <span class="sep"></span><button data-cmd="undo" title="Undo">&#8630;</button><button data-cmd="redo" title="Redo">&#8631;</button>
+          <span class="sep"></span><button id="imgBtn" title="Insert a picture">&#128247;</button><span class="wc" id="wc">0 words</span></div>
         <div class="page" id="page" contenteditable="${fwGushed[fwCur]?'true':'false'}" data-ph="${M.ph}"></div>
         <input type="file" id="imgInput" accept="image/*" hidden ${M.photos?'multiple':''}>
         <div class="composer-foot"><button class="btn" id="opExport">Export One-Pager (1-page PDF)</button><span class="note">The PDF you submit: your One-Pager, then your writing session and AI-use log.</span></div>
@@ -1130,7 +1192,7 @@ async function runReflection(rf, text, hooks) {
       // Reveal Lift here too. The shape column appearing is not enough: the button was
       // rendered display:none before the first gush and nothing turned it back on until
       // the tab happened to re-render, so a student's first gush offered no way across.
-      const lb=document.getElementById('liftbar');if(lb)lb.style.display='inline-flex';}}));
+      const lb=document.getElementById('liftbar');if(lb)lb.style.display='inline-flex';paintInsMarker();}}));
     // ── Copy-from-gush. The assignment says to build the One-Pager FROM the gush, and the
     //    shape pane used to open blank — the interface asked a question instead of answering
     //    it, so the only route was reselect-copy-click-paste. That friction pushes toward the
@@ -1150,23 +1212,39 @@ async function runReflection(rf, text, hooks) {
       const sel = String(ta.value||'').slice(ta.selectionStart, ta.selectionEnd).trim();
       if(!sel) return;                       // unreachable: disabled without a selection
       const p = document.createElement('p'); p.textContent = sel;
-      pg.appendChild(p);
+      // Land where the writer last had the caret, not always at the bottom.
+      const after = opInsertAfter(pg);
+      if(after) after.after(p); else pg.appendChild(p);
       DB.freewrite[opKey] = Object.assign({}, DB.freewrite[opKey], { shape: pg.innerHTML });
       const s = DB.freewrite[opKey];
       s.lifted = (s.lifted||0) + (sel.match(/\S+/g)||[]).length;
       saveDB();
+      // Advance the insertion point past what we just filed, so copying three passages in
+      // a row keeps them in the order they were chosen instead of stacking them backwards.
+      const r = document.createRange(); r.setStart(p, 0); r.collapse(true); _opCaret = r;
       // Clear the selection so the button falls back to disabled. Without this it stays
       // live and a second click files the same lines twice.
       ta.selectionEnd = ta.selectionStart;
       paintKeepCount(opKey);
-      pg.focus();
+      paintInsMarker();
     };
     // Keep the button and its note in step with the selection. `selectionchange` on a
     // textarea is recent and uneven across engines, so the older events carry it and
     // selectionchange is a bonus, not the mechanism [[firefox-not-chrome]].
+    // Track where the caret was left in the One-Pager, and keep the insertion marker on it.
+    _opCaret = null;   // the old range points into the previous render's detached nodes
+    const pgEl2 = document.getElementById('page');
+    if(pgEl2){
+      const track = ()=>{ rememberOpCaret(pgEl2); paintInsMarker(); };
+      ['keyup','mouseup','click','input','focus'].forEach(ev => pgEl2.addEventListener(ev, track));
+      pgEl2.addEventListener('blur', paintInsMarker);
+      // The pane scrolls independently of the window, and the marker is fixed to the
+      // viewport, so both have to move it.
+      pgEl2.addEventListener('scroll', paintInsMarker, { passive: true });
+    }
     const gushTa = document.getElementById('gush');
     if(gushTa){
-      const sync = ()=> paintKeepCount(opKey);
+      const sync = ()=>{ paintKeepCount(opKey); paintInsMarker(); };
       ['select','keyup','mouseup','input','focus'].forEach(ev => gushTa.addEventListener(ev, sync));
       // The textarea listeners die with the node on re-render; this one is on `document`
       // and would stack a stale closure per OP visited, each repainting for the wrong key.
@@ -1175,6 +1253,7 @@ async function runReflection(rf, text, hooks) {
       document.addEventListener('selectionchange', sync);
     }
     paintKeepCount(opKey);
+    paintInsMarker();
     const opExp = document.getElementById('opExport');
     if(opExp) opExp.onclick = ()=> exportOnePagerPDF(M);
     wireComposer(opKey);
@@ -1269,7 +1348,32 @@ async function runReflection(rf, text, hooks) {
     const upd=()=>{const n=(page.innerText.trim().match(/\S+/g)||[]).length;wc.textContent=n+' words';wc.classList.toggle('good',n>=500&&n<=650);};
     const save=()=>{ if(!page.isConnected) return; DB.freewrite[opKey]=Object.assign({},DB.freewrite[opKey],{shape:page.innerHTML}); saveDB(); upd(); };
     page.addEventListener('input',upd);
-    document.querySelectorAll('.toolbar button[data-cmd]').forEach(btn=>btn.addEventListener('mousedown',e=>{e.preventDefault();page.focus();document.execCommand(btn.dataset.cmd,false,btn.dataset.val||null);}));
+    // The direct child of #page holding the caret — the block whose tag H switches.
+    const blockTag=()=>{
+      const s=window.getSelection(); if(!s||!s.rangeCount) return '';
+      let n=s.getRangeAt(0).startContainer;
+      if(!page.contains(n)) return '';
+      while(n && n.parentNode && n.parentNode!==page) n=n.parentNode;
+      return (n && n.nodeType===1) ? n.tagName.toLowerCase() : '';
+    };
+    document.querySelectorAll('.toolbar button[data-cmd]').forEach(btn=>btn.addEventListener('mousedown',e=>{
+      e.preventDefault();page.focus();
+      let cmd=btn.dataset.cmd,val=btn.dataset.val||null;
+      // H is a TOGGLE. B and I already toggle, so a heading applied by accident looked
+      // permanent: pressing H again just re-applied h3 and there was no way back to a
+      // paragraph. Pressing it on a heading now returns it to one.
+      if(cmd==='formatBlock' && val==='h3' && blockTag()==='h3') val='p';
+      document.execCommand(cmd,false,val);
+      save();
+    }));
+    // Undo/redo from the keyboard as well, since that is what a writer reaches for first.
+    // execCommand keeps its own history, and the copy-from-gush insert is part of it.
+    page.addEventListener('keydown',e=>{
+      if(!(e.ctrlKey||e.metaKey)) return;
+      const k=e.key.toLowerCase();
+      if(k==='z'){ e.preventDefault(); document.execCommand(e.shiftKey?'redo':'undo'); save(); }
+      else if(k==='y'){ e.preventDefault(); document.execCommand('redo'); save(); }
+    });
     const imgInput=document.getElementById('imgInput');
     document.getElementById('imgBtn').addEventListener('mousedown',e=>{e.preventDefault();imgInput.click();});
     imgInput.addEventListener('change',async ()=>{
@@ -3078,7 +3182,9 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   const R = { free:renderFree, cur:renderCur, read:renderRead, note:renderNote };
   // body.reading lets CSS tell the reader apart from the writing views. Focus mode
   // clamps .frame to 720px, which is right for a gush and wrong for a PDF.
-  function show(t){ tab=t; document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); body.classList.toggle('reading', t==='read'); R[t](); }
+  // paintInsMarker last: the insertion marker is a fixed overlay on <body>, so leaving
+  // Freewrite has to take it down or it hangs over whatever view replaced the pane.
+  function show(t){ tab=t; document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); body.classList.toggle('reading', t==='read'); R[t](); paintInsMarker(); }
   document.querySelectorAll('#tabbar button').forEach(b=>b.addEventListener('click',()=>{ if(G.running)return; show(b.dataset.t); }));
   function setFocus(on){ body.classList.toggle('focus',on); }
   document.getElementById('focusToggle').addEventListener('click',()=>setFocus(!body.classList.contains('focus')));

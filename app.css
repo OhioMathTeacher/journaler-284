@@ -728,5 +728,15 @@ body.focus .iconbtn { display: none !important; }
 /* The button never wraps. A label long enough to break over two lines re-flowed the
    whole timer row every time the text changed, which read as the interface twitching. */
 .liftbar .btn { white-space: nowrap; }
+
+/* Where the next copied passage will land. Selecting in the gush moves focus out of the
+   One-Pager, so the browser stops painting a caret there and the pane gives no clue at
+   all — this stands in for it. Fixed to the viewport and parented to <body> on purpose:
+   a node inside .page would be serialised by pg.innerHTML into the saved shape and onto
+   the submitted PDF. */
+.ins-marker { position: fixed; height: 2px; border-radius: 2px; background: var(--accent);
+  opacity: .5; pointer-events: none; z-index: 40; }
+.ins-marker::before { content: ''; position: absolute; left: -3px; top: -3px;
+  width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 .liftbar .note { font-family: var(--sans); font-size: 12px; color: var(--mut, #6b7280); }
 body.gushing .liftbar { display: none !important; }
