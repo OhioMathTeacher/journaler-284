@@ -1064,11 +1064,11 @@ async function runReflection(rf, text, hooks) {
         <p class="stagenote">Write fast to find your material — nobody grades the gush.</p>
         <div class="gushbar"><div class="timerset" id="timerset"><button class="tadj" id="tminus">−</button><span class="timer editable" id="timer">8:00</span><button class="tadj" id="tplus">+</button></div>
           <button class="btn go" id="startBtn">Start the gush</button>
+          <span class="liftbar" id="liftbar" style="display:${fwGushed[fwCur]?'inline-flex':'none'}">
+            <button class="btn ghost sm" id="liftBtn">↑ Lift into the One-Pager</button>
+            <span class="note" id="keepcount"></span></span>
           <span class="locknote" id="lockmsg">Set your minutes, then start — the page locks and Focus opens.</span></div>
         <textarea class="gush" id="gush" placeholder="Don’t stop, don’t fix. Stalled? Write that you stalled — and keep going." disabled></textarea>
-        <div class="liftbar" id="liftbar" style="display:${fwGushed[fwCur]?'flex':'none'}">
-          <button class="btn ghost sm" id="liftBtn">↑ Lift into the One-Pager</button>
-          <span class="note" id="keepcount"></span></div>
         <div class="reflect" id="reflect" style="display:none"><span class="lbl">After the buzzer — reflection partner</span><span>How did it go? <em>(About the experience, never your words — stubbed.)</em></span></div>
        </div>
        <div class="op-col shape" id="shapeCol">
@@ -1106,7 +1106,11 @@ async function runReflection(rf, text, hooks) {
       DB.freewrite[fwCur]=Object.assign({},DB.freewrite[fwCur],{gush:gtxt,gushed:true,done:true});
       sessionPatch(opKey,{minutes:mins,endedAt:new Date().toISOString(),words:wds,ai:aiLabel(),
         gushes:(prevS.gushes||0)+1, totalMinutes:(prevS.totalMinutes||0)+mins, totalWords:(prevS.totalWords||0)+wds});
-      saveDB();document.body.classList.add('wide');const oc=document.querySelector('.op-cols');if(oc)oc.classList.add('two');const pg=document.getElementById('page');if(pg)pg.setAttribute('contenteditable','true');}}));
+      saveDB();document.body.classList.add('wide');const oc=document.querySelector('.op-cols');if(oc)oc.classList.add('two');const pg=document.getElementById('page');if(pg)pg.setAttribute('contenteditable','true');
+      // Reveal Lift here too. The shape column appearing is not enough: the button was
+      // rendered display:none before the first gush and nothing turned it back on until
+      // the tab happened to re-render, so a student's first gush offered no way across.
+      const lb=document.getElementById('liftbar');if(lb)lb.style.display='inline-flex';}}));
     // ── Lift-from-gush. The assignment says to build the One-Pager FROM the gush, and the
     //    shape pane used to open blank — the interface asked a question instead of answering
     //    it, so the only route was reselect-copy-click-paste. That friction pushes toward the

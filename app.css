@@ -718,9 +718,10 @@ body.focus .iconbtn { display: none !important; }
 .ai-disable { font-family: var(--sans); font-size: 12px; color: #9A9083; background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; }
 .ai-disable:hover { color: #E88; }
 
-/* Lift-from-gush. Sits under the gush, live once the buzzer has gone. Hidden while the
-   clock runs — during a gush there is nothing to lift into and nothing to look at but
-   the gush. */
-.liftbar { display: flex; align-items: baseline; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+/* Lift-from-gush. Live once the buzzer has gone, hidden while the clock runs — during a
+   gush there is nothing to lift into and nothing to look at but the gush.
+   It rides IN the gushbar, above the writing surface and level with the shape column's
+   toolbar. Under the textarea it sat below 58vh of writing and was never found. */
+.liftbar { display: inline-flex; align-items: center; gap: 10px; }
 .liftbar .note { font-family: var(--sans); font-size: 12px; color: var(--mut, #6b7280); }
 body.gushing .liftbar { display: none !important; }
