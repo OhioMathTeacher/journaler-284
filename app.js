@@ -3081,6 +3081,10 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     ['flag3',     'Flagged entry 3', 'Read closely — one from Act III'],
   ];
   function turnin(){ return (DB.turnin = DB.turnin || {}); }
+  // Column heads for the Tags grid. Eight full labels would make the table wider than the
+  // screen; the full name rides in the title attribute and the tooltip.
+  const TAG_ABBR = { baseline:'Base', currere:'Curr', topicmap:'Map', sources:'Src',
+                     letter:'Letter', flag1:'★1', flag2:'★2', flag3:'★3' };
 
   // ── Naming an entry so a person can recognise it.
   //
@@ -3397,17 +3401,94 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         Only the three you flag get read closely; everything else stays unread.</p>
       ${TURNIN_SLOTS.map(([k,label,hint]) => {
         const id = T[k], e = id && ordered.find(x => x.id === id);
-        return `<div class="turnin-row ${e?'has':''}"><span class="tl">${e?'✓':'○'} ${label}<em>${hint}</em></span>
-          <span class="tv">${e ? `entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))} · ${escHtml(entryLabel(e, 40))}` : 'not tagged yet'}</span></div>`;
+        // Rows are LIVE. Todd: "these aren't linked. difficult to edit after the fact."
+        // A checklist that reports a wrong answer without letting you fix it just moves
+        // the work somewhere else.
+        return `<div class="turnin-row ${e?'has':''}">
+          <button class="tl" data-goto="${e ? e.id : ''}" ${e?'':'disabled'}>${e?'✓':'○'} ${label}<em>${hint}</em></button>
+          <button class="tv" data-goto="${e ? e.id : ''}" ${e?'':'disabled'}>${e ? `entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))} · ${escHtml(entryLabel(e, 40))}` : 'not tagged yet'}</button>
+          ${e ? `<button class="tclear" data-untag="${k}" title="Remove this tag">×</button>` : ''}
+        </div>`;
       }).join('')}
+      ${(() => {
+        // 8 of 8 green does not mean eight pages: slots may share one entry, which is
+        // allowed on purpose. Say so, rather than let the pips imply a spread that is not
+        // there. Todd's own test run had eight tags across three pages.
+        const pages = new Set(TURNIN_SLOTS.map(s => T[s[0]]).filter(Boolean)).size;
+        return pages && pages < done
+          ? `<p class="runline tw">${done} tags across <strong>${pages} page${pages>1?'s':''}</strong>. That is allowed — one page can do more than one job — but check it is what you meant.</p>` : '';
+      })()}
     </details>`;
+  }
+  // Clicking a checklist row lands you on that entry in the Tags grid, highlighted, so
+  // the next thing you do — change it — is one click away rather than a hunt.
+  let tagFocus = null;
+  function wireTurninLinks(){
+    frame.querySelectorAll('[data-goto]').forEach(b => { if(!b.dataset.goto) return;
+      b.onclick = () => { tagFocus = b.dataset.goto; noteMode = 'tags'; renderNote(); };
+    });
   }
   function shortDate(k){ const [y,m,d]=String(k).split('-').map(Number);
     return new Date(y,(m||1)-1,d||1).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
 
   function renderNote(){
     body.classList.add('wide');
-    const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button></div>`;
+    const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button><button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">Tags</button></div>`;
+    // ── The Tags lens: every entry against every tag, on one screen.
+    //
+    // Tagging lived only on the individual entry, so finding which page held which tag
+    // meant clicking through days, and changing your mind meant finding the old page
+    // first. A grid answers both at once. It also makes the coupling visible, which
+    // nothing did before: a tagged entry is REPRINTED IN FULL in the report and an
+    // untagged one appears only as a line in the Contents. That is what keeps the report
+    // to under ten pages, and a student who does not know it cannot use it.
+    if(noteMode === 'tags'){
+      const ordered = numberedEntries();
+      const T = turnin();
+      const head = TURNIN_SLOTS.map(([k,label]) =>
+        `<th class="tg-c" title="${escHtml(label)}">${escHtml(TAG_ABBR[k] || label)}</th>`).join('');
+      const rows = ordered.map((e,i) => {
+        const tagged = tagsOn(e.id).length;
+        return `<tr class="${tagged?'tg-in':''} ${tagFocus===e.id?'tg-focus':''}" data-row="${e.id}">
+          <td class="tg-n">${i+1}</td>
+          <td class="tg-d">${escHtml(shortDate(e.date))}</td>
+          <td class="tg-w">${wordsIn(e)}w</td>
+          <td class="tg-t">${escHtml(entryLabel(e, 64))}</td>
+          ${TURNIN_SLOTS.map(([k]) => `<td class="tg-c"><button class="tgbox ${T[k]===e.id?'on':''}" data-tg="${k}" data-tge="${e.id}" title="${escHtml(slotLabel(k))}" aria-pressed="${T[k]===e.id}"></button></td>`).join('')}
+        </tr>`;
+      }).join('');
+      frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Every entry against every tag. Click a box to tag a page — clicking a tag another page holds moves it here.</p>${toggle}</div>
+        <div class="tagsgrid">
+          <p class="runline"><strong>Tagged pages are printed in full in your report.</strong> Everything else appears in the Contents as one line, so the report stays short. ${ordered.filter(e=>tagsOn(e.id).length).length} of ${ordered.length} entries tagged.</p>
+          ${ordered.length ? `<table class="tgtable"><thead><tr><th></th><th>Date</th><th></th><th>Entry</th>${head}</tr></thead><tbody>${rows}</tbody></table>`
+            : `<p class="empty">No kept pages yet.</p>`}
+          ${turnInPanel()}
+        </div>`;
+      frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+      wireTurninLinks();
+      if(tagFocus){
+        const row = frame.querySelector(`tr[data-row="${tagFocus}"]`);
+        if(row && row.scrollIntoView) row.scrollIntoView({ block: 'center' });
+        // One-shot: the highlight marks where you just arrived, not a persistent selection.
+        setTimeout(() => { tagFocus = null; }, 2500);
+      }
+      frame.querySelectorAll('.tgbox').forEach(b => b.onclick = () => {
+        const slot = b.dataset.tg, id = b.dataset.tge, TT = turnin();
+        if(TT[slot] === id){ delete TT[slot]; saveDB(); renderNote(); return; }
+        if(/^flag/.test(slot)){
+          const clash = ['flag1','flag2','flag3'].find(f => f !== slot && TT[f] === id);
+          if(clash){ toast(`This page is already ${slotLabel(clash)}. Flag three different pages, one from each act.`); return; }
+        }
+        const prev = TT[slot];
+        TT[slot] = id; saveDB();
+        if(prev && prev !== id){
+          const n = numberedEntries().findIndex(x => x.id === prev) + 1;
+          toast(`${slotLabel(slot)} moved here from entry ${n}`);
+        }
+        renderNote();
+      });
+      return;
+    }
     let leftPane, rightPane;
     if(noteMode === 'day'){
       const y = noteView.getFullYear(), m = noteView.getMonth();
@@ -3471,9 +3552,10 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         : `Tagged: ${slotLabel(slot)}`);
       renderNote();
     });
-    frame.querySelectorAll('.tagx').forEach(b => b.onclick = () => {
+    frame.querySelectorAll('.tagx, .tclear').forEach(b => b.onclick = () => {
       delete turnin()[b.dataset.untag]; saveDB(); renderNote();
     });
+    wireTurninLinks();
     const bBtn = document.getElementById('bundleBtn');
     if(bBtn) bBtn.onclick = bundleNotebookPDF;
     if(noteMode === 'day'){
