@@ -1045,6 +1045,15 @@ async function runReflection(rf, text, hooks) {
     };
   }
 
+  // The ratio IS the craft: "kept 47 of 380 words" makes the cutting visible without
+  // capping it. A hard limit would be a rule; a mirror is an invitation to choose.
+  function paintKeepCount(key){
+    const el = document.getElementById('keepcount'); if(!el) return;
+    const s = DB.freewrite[key] || {};
+    const total = ((s.gush||'').match(/\S+/g)||[]).length;
+    el.textContent = s.lifted ? `Kept ${s.lifted} of ${total} words.` : '';
+  }
+
   function renderOPStage(M){
     body.classList.toggle('wide', !!fwGushed[fwCur]);
     document.getElementById('stage').innerHTML = `
@@ -1057,11 +1066,14 @@ async function runReflection(rf, text, hooks) {
           <button class="btn go" id="startBtn">Start the gush</button>
           <span class="locknote" id="lockmsg">Set your minutes, then start — the page locks and Focus opens.</span></div>
         <textarea class="gush" id="gush" placeholder="Don’t stop, don’t fix. Stalled? Write that you stalled — and keep going." disabled></textarea>
+        <div class="liftbar" id="liftbar" style="display:${fwGushed[fwCur]?'flex':'none'}">
+          <button class="btn ghost sm" id="liftBtn">↑ Lift into the One-Pager</button>
+          <span class="note" id="keepcount"></span></div>
         <div class="reflect" id="reflect" style="display:none"><span class="lbl">After the buzzer — reflection partner</span><span>How did it go? <em>(About the experience, never your words — stubbed.)</em></span></div>
        </div>
        <div class="op-col shape" id="shapeCol">
         <div class="stagelabel"><span class="n">2</span> Shape — the One-Pager ${M.photos?'(image + text)':''}</div>
-        <p class="stagenote">Build your One-Pager from the gush — this is what you submit.</p>
+        <p class="stagenote">Build your One-Pager from the gush — this is what you submit. <em>Keep the two or three lines that are alive, cut the rest, and build around them.</em></p>
         <div class="toolbar">
           <button data-cmd="bold"><b>B</b></button><button data-cmd="italic"><i>I</i></button>
           <button data-cmd="formatBlock" data-val="h3">H</button><button data-cmd="insertUnorderedList">&bull;</button>
@@ -1085,7 +1097,39 @@ async function runReflection(rf, text, hooks) {
       if(rf0){ rf0.style.display = 'block'; paintReflection(rf0, saved.session.question, reflectHooks(fwCur)); }
     }
     const opKey = fwCur;
-    document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,reflect:reflectHooks(opKey),onEnd:()=>{fwDone[fwCur]=true;fwGushed[fwCur]=true;const gtxt=document.getElementById('gush').value;DB.freewrite[fwCur]=Object.assign({},DB.freewrite[fwCur],{gush:gtxt,gushed:true,done:true});sessionPatch(opKey,{minutes:Math.round(gushSecs/60),endedAt:new Date().toISOString(),words:(gtxt.trim().match(/\S+/g)||[]).length,ai:aiLabel()});saveDB();document.body.classList.add('wide');const oc=document.querySelector('.op-cols');if(oc)oc.classList.add('two');const pg=document.getElementById('page');if(pg)pg.setAttribute('contenteditable','true');}}));
+    document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,reflect:reflectHooks(opKey),onEnd:()=>{fwDone[fwCur]=true;fwGushed[fwCur]=true;const gtxt=document.getElementById('gush').value;
+      // The gush is a chalkboard: a new trial wipes the last one, by design. But the
+      // RECORD should not be wiped with it, or a student who gushed four times shows up
+      // on the evidence sheet as having gushed once. Keep counts, never the erased text.
+      const prevS = (DB.freewrite[opKey]||{}).session || {};
+      const mins = Math.round(gushSecs/60), wds = (gtxt.trim().match(/\S+/g)||[]).length;
+      DB.freewrite[fwCur]=Object.assign({},DB.freewrite[fwCur],{gush:gtxt,gushed:true,done:true});
+      sessionPatch(opKey,{minutes:mins,endedAt:new Date().toISOString(),words:wds,ai:aiLabel(),
+        gushes:(prevS.gushes||0)+1, totalMinutes:(prevS.totalMinutes||0)+mins, totalWords:(prevS.totalWords||0)+wds});
+      saveDB();document.body.classList.add('wide');const oc=document.querySelector('.op-cols');if(oc)oc.classList.add('two');const pg=document.getElementById('page');if(pg)pg.setAttribute('contenteditable','true');}}));
+    // ── Lift-from-gush. The assignment says to build the One-Pager FROM the gush, and the
+    //    shape pane used to open blank — the interface asked a question instead of answering
+    //    it, so the only route was reselect-copy-click-paste. That friction pushes toward the
+    //    one move we do not want: select all, dump it in, tidy down. That is editing, not
+    //    carving. So: lift a SELECTION, repeatably. There is deliberately no "copy it all"
+    //    button — the scarcity is the assignment.
+    const liftBtn = document.getElementById('liftBtn');
+    if(liftBtn) liftBtn.onclick = ()=>{
+      const ta = document.getElementById('gush'), pg = document.getElementById('page');
+      if(!ta || !pg) return;
+      const sel = String(ta.value||'').slice(ta.selectionStart, ta.selectionEnd).trim();
+      const note = document.getElementById('keepcount');
+      if(!sel){ if(note) note.textContent = 'Select the lines that are alive, then lift them.'; return; }
+      const p = document.createElement('p'); p.textContent = sel;
+      pg.appendChild(p);
+      DB.freewrite[opKey] = Object.assign({}, DB.freewrite[opKey], { shape: pg.innerHTML });
+      const s = DB.freewrite[opKey];
+      s.lifted = (s.lifted||0) + (sel.match(/\S+/g)||[]).length;
+      saveDB();
+      paintKeepCount(opKey);
+      pg.focus();
+    };
+    paintKeepCount(opKey);
     const opExp = document.getElementById('opExport');
     if(opExp) opExp.onclick = ()=> exportOnePagerPDF(M);
     wireComposer(opKey);
@@ -2853,8 +2897,15 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
 
     let facts;
     if(s.minutes){
+      // When there was more than one trial, report the whole effort. Reporting only the
+      // last run understates a student who gushed three times to find their material.
+      const n = s.gushes || 1;
+      const trials = n > 1
+        ? `<dt>Timed gushes</dt><dd>${n}, ${s.totalMinutes||s.minutes} minutes and ${s.totalWords||s.words||0} words in total</dd>
+           <dt>Final gush</dt><dd>${s.minutes} minute${s.minutes===1?'':'s'}, ${s.words||0} words</dd>`
+        : `<dt>Gushed</dt><dd>${s.minutes} minute${s.minutes===1?'':'s'}, ${s.words||0} words</dd>`;
       facts = `<dl>
-        <dt>Gushed</dt><dd>${s.minutes} minute${s.minutes===1?'':'s'}, ${s.words||0} words</dd>
+        ${trials}
         <dt>Finished</dt><dd>${escHtml(when)}</dd>
         <dt>AI connected</dt><dd>${escHtml(s.ai || 'None')}</dd>
       </dl>`;
