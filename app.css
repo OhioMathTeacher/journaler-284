@@ -774,7 +774,19 @@ body.gushing .liftbar { display: none !important; }
 .turnin { margin-top: 14px; border: 1px solid var(--comment-border, #ddd); border-radius: 7px; padding: 10px 12px; background: #fdfbf6; }
 .turnin > summary { cursor: pointer; font-family: var(--sans); font-size: 13px; font-weight: 600; }
 .turnin .runline { margin: 8px 0 10px; }
-.turnin-row { display: flex; align-items: center; gap: 10px; margin: 7px 0; font-family: var(--sans); font-size: 12.5px; }
-.turnin-row .tl { flex: 0 0 11em; display: flex; flex-direction: column; line-height: 1.25; }
-.turnin-row .tl em { font-style: normal; font-size: 11px; color: var(--mut, #6b7280); }
-.turnin-row select { flex: 1; min-width: 0; font-family: var(--sans); font-size: 12.5px; padding: 5px 6px; border: 1px solid var(--comment-border, #ddd); border-radius: 5px; background: #fff; }
+.turnin-row { display: flex; align-items: baseline; gap: 10px; margin: 6px 0; font-family: var(--sans); font-size: 12.5px; }
+.turnin-row .tl { flex: 0 0 12em; display: flex; flex-direction: column; line-height: 1.25; color: var(--mut, #6b7280); }
+.turnin-row.has .tl { color: inherit; font-weight: 600; }
+.turnin-row .tl em { font-style: normal; font-size: 11px; color: var(--mut, #6b7280); font-weight: 400; }
+.turnin-row .tv { flex: 1; min-width: 0; color: var(--mut, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.turnin-row.has .tv { color: inherit; }
+
+/* The tag control rides on the entry, because that is where you know what the page is. */
+.tagbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.tagchip { display: inline-flex; align-items: center; gap: 4px; font-family: var(--sans); font-size: 11.5px;
+  background: var(--highlight-soft, #f3e8d6); border: 1px solid var(--accent-light, #d9c7a8);
+  border-radius: 999px; padding: 2px 6px 2px 9px; }
+.tagx { border: 0; background: none; cursor: pointer; font-size: 13px; line-height: 1; color: var(--mut, #6b7280); padding: 0 2px; }
+.tagx:hover { color: var(--danger, #b91c1c); }
+.tagadd { font-family: var(--sans); font-size: 11.5px; padding: 3px 5px; border: 1px dashed var(--comment-border, #ddd);
+  border-radius: 6px; background: none; color: var(--mut, #6b7280); }

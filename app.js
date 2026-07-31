@@ -2984,7 +2984,33 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     const head = (opts.showPiece === false) ? when : `${escHtml(e.pieceTitle)} · ${when}`;
     const openLink = (opts.pieceLink !== false && e.pieceId !== 'free') ? `<button class="entlink" data-open="${e.pieceId}">Open the live piece →</button>` : '';
     return `<div class="entryrow"><div class="k">${head}</div><div class="x">${escHtml(e.text).replace(/\n/g,'<br>')}</div>
+      ${tagBar(e)}
       <div class="entacts"><button class="entlink" data-edit="${e.id}">Edit</button>${openLink}</div></div>`;
+  }
+
+  // ── Tagging happens ON THE PAGE, not in a list.
+  //
+  // The first version was eight dropdowns, each listing every entry. Todd's read: it asks
+  // you to recognise a page from a truncated snippet, and it puts the whole job in one
+  // December sitting. Backwards. Standing on the entry you already know what it is, and
+  // the menu is a fixed eight rather than a list that grows all term.
+  //
+  // DB.turnin stays slot → entryId, one source of truth, so a slot can only ever point at
+  // one page. An ENTRY may hold more than one tag, deliberately: a currere gush is a
+  // plausible thing to also want read closely. Claiming a slot another page holds MOVES
+  // it, and says so, because silently having two baselines is worse than losing one.
+  function tagsOn(id){ const T = turnin(); return TURNIN_SLOTS.filter(s => T[s[0]] === id).map(s => s[0]); }
+  function slotLabel(k){ const s = TURNIN_SLOTS.find(x => x[0] === k); return s ? s[1] : k; }
+  function tagBar(e){
+    const T = turnin(), mine = tagsOn(e.id);
+    const chips = mine.map(k => `<span class="tagchip">${escHtml(slotLabel(k))}<button class="tagx" data-untag="${k}" title="Remove this tag">×</button></span>`).join('');
+    const opts = TURNIN_SLOTS.filter(s => T[s[0]] !== e.id).map(([k,label]) => {
+      const held = T[k];
+      return `<option value="${k}">${escHtml(label)}${held ? ' (move it here)' : ''}</option>`;
+    }).join('');
+    return `<div class="tagbar">${chips}
+      ${opts ? `<select class="tagadd" data-entry="${e.id}"><option value="">＋ Tag this page…</option>${opts}</select>` : ''}
+    </div>`;
   }
 
   function noteDayDetail(){
@@ -3332,21 +3358,23 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   // Eight dropdowns, each listing every entry as "17 · Sep 22 · Free-writes". Dropdowns
   // rather than typed numbers because a typo here points the grader at the wrong page,
   // and because the student should be choosing from what they actually wrote.
+  // The panel is now a CHECKLIST, not the place you do the work. Tagging moved onto the
+  // entry itself; this answers the only question left, which is "have I missed one?"
   function turnInPanel(){
     const ordered = numberedEntries();
     if(!ordered.length) return '';
     const T = turnin();
-    const opts = (sel) => ['<option value="">— not chosen —</option>'].concat(
-      ordered.map((e,i) => `<option value="${e.id}" ${T[sel]===e.id?'selected':''}>${i+1} · ${escHtml(shortDate(e.date))} · ${escHtml(entryLabel(e, 52))}</option>`)
-    ).join('');
+    const numOf = new Map(ordered.map((e,i) => [e.id, i+1]));
     const done = TURNIN_SLOTS.filter(s => T[s[0]]).length;
-    return `<details class="turnin" ${done < TURNIN_SLOTS.length ? '' : 'open'}>
-      <summary>Before you turn it in — ${done} of ${TURNIN_SLOTS.length} identified</summary>
-      <p class="runline">Your notebook is graded in four parts. Point me at the entries for
-        three of them. Everything else stays unread.</p>
-      ${TURNIN_SLOTS.map(([k,label,hint]) => `
-        <label class="turnin-row"><span class="tl">${label}<em>${hint}</em></span>
-          <select data-slot="${k}">${opts(k)}</select></label>`).join('')}
+    return `<details class="turnin" ${done < TURNIN_SLOTS.length ? 'open' : ''}>
+      <summary>Before you turn it in — ${done} of ${TURNIN_SLOTS.length} tagged</summary>
+      <p class="runline">Open a page and use <strong>＋ Tag this page</strong> to say what it is.
+        Only the three you flag get read closely; everything else stays unread.</p>
+      ${TURNIN_SLOTS.map(([k,label,hint]) => {
+        const id = T[k], e = id && ordered.find(x => x.id === id);
+        return `<div class="turnin-row ${e?'has':''}"><span class="tl">${e?'✓':'○'} ${label}<em>${hint}</em></span>
+          <span class="tv">${e ? `entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))} · ${escHtml(entryLabel(e, 40))}` : 'not tagged yet'}</span></div>`;
+      }).join('')}
     </details>`;
   }
   function shortDate(k){ const [y,m,d]=String(k).split('-').map(Number);
@@ -3394,13 +3422,21 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
 
     frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
     // Only one lens renders at a time, so only one bundle button exists.
-    // Saved on change, not on a Save button: there is no submit step here, and a student
-    // who picked their entries and then navigated away should not lose them.
-    frame.querySelectorAll('.turnin select').forEach(sel => sel.onchange = () => {
-      turnin()[sel.dataset.slot] = sel.value || undefined;
+    // Tag / untag from the entry itself. Saved on the spot: there is no submit step here,
+    // and a student who tags a page then navigates away should not lose it.
+    frame.querySelectorAll('.tagadd').forEach(sel => sel.onchange = () => {
+      const slot = sel.value; if(!slot) return;
+      const T = turnin(), prev = T[slot];
+      T[slot] = sel.dataset.entry;
       saveDB();
-      const d = sel.closest('.turnin'), s = d && d.querySelector('summary');
-      if(s) s.textContent = `Before you turn it in — ${TURNIN_SLOTS.filter(x => turnin()[x[0]]).length} of ${TURNIN_SLOTS.length} identified`;
+      const ord = numberedEntries(), n = ord.findIndex(x => x.id === prev) + 1;
+      toast(prev && prev !== sel.dataset.entry
+        ? `${slotLabel(slot)} moved here from entry ${n}`
+        : `Tagged: ${slotLabel(slot)}`);
+      renderNote();
+    });
+    frame.querySelectorAll('.tagx').forEach(b => b.onclick = () => {
+      delete turnin()[b.dataset.untag]; saveDB(); renderNote();
     });
     const bBtn = document.getElementById('bundleBtn');
     if(bBtn) bBtn.onclick = bundleNotebookPDF;
