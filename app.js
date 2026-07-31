@@ -2970,6 +2970,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   let noteSel = null;          // selected calendar day (by-day lens)
   let noteMode = 'day';        // 'day' | 'piece' | 'tags' | 'threads'
   let threadSel = null;        // the thread being looked at
+  let cbSel = null;            // the recurring term being looked at, if any
 
   // ── THREADS: the notebook's analysis instrument.
   //
@@ -2986,6 +2987,70 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   // ⚠ THE APP NEVER INTERPRETS. It groups, it orders, it puts first next to last, and it
   // asks. It does not name themes, score depth, or tell a student what a thread means.
   // The retrieval is the machine's; the noticing is the writer's. Same rule as SeeSay.
+  // ── "WHAT KEEPS COMING BACK" — candidates, never conclusions.
+  //
+  // Threads had a cold-start problem. A concordance answers "look up a word", but Todd's
+  // objection killed it: "this presupposes that I see patterns, even though I'm looking
+  // to the software to help me find patterns." A search box asks the writer to bring the
+  // pattern, which is the thing they came here without.
+  //
+  // The line that holds is: THE APP CAN COUNT, BUT IT CANNOT MEAN. "grandmother appears
+  // in six entries, September to November" is a checkable fact about the text with no
+  // judgment in it. "Your theme is grief" is a claim, and that one stays the writer's.
+  // Recurrence is not a theme; it is raw material for deciding whether something is one.
+  //
+  // Ranked by ENTRIES SPANNED, not by frequency: a word used forty times in one entry is
+  // a mood, while a word used once in six entries across three months is a thread.
+  //
+  // ⚠ Known and accepted limits. It surfaces junk — names, course vocabulary, whatever
+  // someone says often. It CANNOT see paraphrase: grandmother / grandma / her kitchen /
+  // the house on Vine are one thread to a person and four unrelated tokens here. A
+  // preoccupation worded differently every time is invisible to it. Those are the honest
+  // edges of counting, and they are where a model would earn its place later — as a
+  // suggestion the writer accepts or rejects, never as the app deciding quietly.
+  const STOPWORDS = new Set(('a about after all also am an and any are as at be because been before being but by came can cant come could did didnt do does doesnt doing dont down each even for from get gets getting go goes going got had has have having he her here hers him his how i id if ill im in into is isnt it its ive just know like ll made make many maybe me might more most much my never no not now of off on once one only or other our out over really said same say says she should so some still such than that thats the their them then there these they thing things think this those though thought through time to too us very was wasnt way we well went were what when where which while who why will with would you your youre').split(' '));
+  function recurringTerms(minEntries){
+    minEntries = minEntries || 3;
+    const entries = (DB.journal || []).filter(e => String(e.text || '').trim());
+    if(entries.length < minEntries) return [];
+    const seen = new Map();   // term -> Set of entry ids
+    const note = (term, id) => { if(!seen.has(term)) seen.set(term, new Set()); seen.get(term).add(id); };
+    for(const e of entries){
+      const words = String(e.text).toLowerCase()
+        .replace(/[’']/g, "'").replace(/[^a-z' ]+/g, ' ').split(/\s+/)
+        .map(w => w.replace(/^'+|'+$/g, ''))
+        .filter(w => w.length > 3 && !STOPWORDS.has(w));
+      // Singles, and two-word phrases, which catch "the blank page" style repeats that
+      // single words miss. Both keyed per entry, so repetition inside one entry counts once.
+      const uniq = new Set(words);
+      uniq.forEach(w => note(w, e.id));
+      const seq = new Set();
+      for(let i = 0; i < words.length - 1; i++) seq.add(words[i] + ' ' + words[i+1]);
+      seq.forEach(p => note(p, e.id));
+    }
+    const dateOf = new Map(entries.map(e => [e.id, e.date]));
+    const out = [];
+    for(const [term, ids] of seen){
+      if(ids.size < minEntries) continue;
+      const ds = [...ids].map(i => dateOf.get(i)).sort();
+      out.push({ term, n: ids.size, ids: [...ids], from: ds[0], to: ds[ds.length-1] });
+    }
+    // Prefer the PHRASE over its parts. "blank page" in four entries is a better candidate
+    // than "blank" in four and "page" in four, which are the same recurrence listed three
+    // times and read as noise. So a single word is dropped when some phrase containing it
+    // recurs just as widely. A word that ALSO turns up well outside the phrase — "page" in
+    // six entries against "blank page" in four — survives on its own, because it is
+    // genuinely doing something the phrase does not.
+    const phrases = out.filter(o => o.term.includes(' '));
+    const covered = new Set();
+    for(const p of phrases) for(const w of p.term.split(' ')){
+      const single = out.find(o => o.term === w);
+      if(single && single.n <= p.n) covered.add(w);
+    }
+    const kept = out.filter(o => o.term.includes(' ') || !covered.has(o.term));
+    return kept.sort((a, b) => b.n - a.n || a.term.localeCompare(b.term)).slice(0, 40);
+  }
+
   function threads(){ return (DB.threads = DB.threads || []); }
   function threadName(id){ const t = threads().find(x => x.id === id); return t ? t.name : ''; }
   function threadEntries(id){
@@ -3625,6 +3690,31 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <p class="runline">A thread is anything that keeps coming back. Name it, then put it on
           every entry it turns up in.</p></div>`;
 
+      // Candidates, offered where the writer is otherwise stuck: you arrive having
+      // noticed nothing, and leave with a list of what recurs. Which of them MEAN
+      // anything is not the app's call and never appears here.
+      const cand = recurringTerms(3);
+      const comeback = `<div class="comeback">
+        <h4>What keeps coming back</h4>
+        <p class="runline">Words and phrases you have used in <strong>three or more different
+          entries</strong>. This is a count, not a reading — it says what recurs, not what
+          matters. Some of it will be noise. You decide which are threads.</p>
+        ${cand.length ? `<div class="cbterms">${cand.map((c,i) =>
+            `<button class="cbterm ${cbSel===c.term?'on':''}" data-term="${escHtml(c.term)}">${escHtml(c.term)}<span class="cbn">${c.n}</span></button>`).join('')}</div>`
+          : `<p class="empty">Not enough written yet for anything to recur. Come back after a few more entries.</p>`}
+        ${(() => {
+          const hit = cand.find(c => c.term === cbSel); if(!hit) return '';
+          const es = hit.ids.map(id => (DB.journal||[]).find(x => x.id === id)).filter(Boolean)
+            .sort((a,b) => String(a.date).localeCompare(String(b.date)));
+          return `<div class="cbhits">
+            <p class="runline"><strong>“${escHtml(hit.term)}”</strong> — ${hit.n} entries,
+              ${escHtml(shortDate(hit.from))} to ${escHtml(shortDate(hit.to))}</p>
+            ${es.map(e => `<div class="entryrow"><div class="k">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))}</div><div class="x">${escHtml(entrySnippet(e, 300))}</div></div>`).join('')}
+            <div class="composer-foot"><button class="btn sm" id="cbMake">Make “${escHtml(hit.term)}” a thread</button>
+              <span class="note">Creates the thread and puts it on all ${hit.n} entries. Rename it after — the word is a starting point, not the name.</span></div></div>`;
+        })()}
+      </div>`;
+
       let rightT;
       if(!threadSel || !ts.find(t => t.id === threadSel)){
         rightT = `<div class="notedetail"><h3>Pick a thread</h3><p class="empty">Choose a thread to see every entry on it, earliest first — and what changed between the first and the last.</p></div>`;
@@ -3665,9 +3755,23 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         }
       }
       frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Hold one preoccupation still and watch it change across the term.</p>${toggle}</div>
-        <div class="notewrap">${leftT}${rightT}</div>`;
+        <div class="notewrap">${leftT}${rightT}</div>
+        ${comeback}`;
       frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
       frame.querySelectorAll('[data-thread]').forEach(b => b.onclick = () => { threadSel = b.dataset.thread; renderNote(); });
+      frame.querySelectorAll('.cbterm').forEach(b => b.onclick = () => {
+        cbSel = (cbSel === b.dataset.term) ? null : b.dataset.term; renderNote();
+      });
+      const cbM = document.getElementById('cbMake');
+      if(cbM) cbM.onclick = () => {
+        const hit = recurringTerms(3).find(c => c.term === cbSel); if(!hit) return;
+        const id = addThread(hit.term); if(!id) return;
+        hit.ids.forEach(eid => { const e = (DB.journal||[]).find(x => x.id === eid);
+          if(e){ e.threads = e.threads || []; if(!e.threads.includes(id)) e.threads.push(id); } });
+        saveDB(); threadSel = id; cbSel = null;
+        toast(`Thread “${hit.term}” started with ${hit.n} entries`);
+        renderNote();
+      };
       const ntA = document.getElementById('ntAdd'), ntN = document.getElementById('ntName');
       if(ntA) ntA.onclick = () => { const id = addThread(ntN.value); if(id){ threadSel = id; renderNote(); } };
       if(ntN) ntN.onkeydown = ev => { if(ev.key === 'Enter') ntA.click(); };
