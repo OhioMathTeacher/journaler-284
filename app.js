@@ -3009,6 +3009,15 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   // edges of counting, and they are where a model would earn its place later — as a
   // suggestion the writer accepts or rejects, never as the app deciding quietly.
   const STOPWORDS = new Set(('a about after all also am an and any are as at be because been before being but by came can cant come could did didnt do does doesnt doing dont down each even for from get gets getting go goes going got had has have having he her here hers him his how i id if ill im in into is isnt it its ive just know like ll made make many maybe me might more most much my never no not now of off on once one only or other our out over really said same say says she should so some still such than that thats the their them then there these they thing things think this those though thought through time to too us very was wasnt way we well went were what when where which while who why will with would you your youre').split(' '));
+  // Plurals only, and deliberately timid. "work" and "works" are one word to a reader and
+  // two tokens to a counter, which is enough on its own to make a real thread invisible.
+  // Anything more aggressive starts merging words that are not the same — this is a
+  // suggestion list, so a missed match costs far less than a wrong one.
+  function stem(w){
+    if(w.length > 4 && /ies$/.test(w)) return w.slice(0, -3) + 'y';
+    if(w.length > 4 && /s$/.test(w) && !/(ss|us|is)$/.test(w)) return w.slice(0, -1);
+    return w;
+  }
   function recurringTerms(minEntries){
     minEntries = minEntries || 3;
     const entries = (DB.journal || []).filter(e => String(e.text || '').trim());
@@ -3019,6 +3028,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       const words = String(e.text).toLowerCase()
         .replace(/[’']/g, "'").replace(/[^a-z' ]+/g, ' ').split(/\s+/)
         .map(w => w.replace(/^'+|'+$/g, ''))
+        .map(stem)
         .filter(w => w.length > 3 && !STOPWORDS.has(w));
       // Singles, and two-word phrases, which catch "the blank page" style repeats that
       // single words miss. Both keyed per entry, so repetition inside one entry counts once.
@@ -3677,6 +3687,27 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       const ts = threads();
       const ordered = numberedEntries();
       const numOf = new Map(ordered.map((e,i) => [e.id, i+1]));
+      // Candidates, offered in the LEFT pane where the eye already is — this is what you
+      // reach for having noticed nothing, so it cannot sit below a full-height thread.
+      const cbMin = ordered.length < 8 ? 2 : 3;
+      const cand = recurringTerms(cbMin);
+      const comeback = `<div class="comeback">
+        <h4>What keeps coming back</h4>
+        <p class="runline">Words you have used in <strong>${cbMin} or more different entries</strong>.
+          A count, not a reading: it says what recurs, not what matters. Some will be noise.
+          You decide which are threads.</p>
+        ${cand.length ? `<div class="cbterms">${cand.map(c =>
+            `<button class="cbterm ${cbSel===c.term?'on':''}" data-term="${escHtml(c.term)}">${escHtml(c.term)}<span class="cbn">${c.n}</span></button>`).join('')}</div>`
+          : `<p class="empty">Nothing recurs yet. Come back once you have more entries — this needs words that turn up on different days.</p>`}
+        ${(() => {
+          const hit = cand.find(c => c.term === cbSel); if(!hit) return '';
+          return `<div class="cbhits">
+            <p class="runline"><strong>“${escHtml(hit.term)}”</strong> — ${hit.n} entries,
+              ${escHtml(shortDate(hit.from))} to ${escHtml(shortDate(hit.to))}</p>
+            <button class="btn sm" id="cbMake">Make it a thread</button>
+            <p class="note">Puts it on all ${hit.n}. Rename it after — the word is a starting point, not the name.</p></div>`;
+        })()}
+      </div>`;
       const list = ts.length ? ts.map(t => {
         const es = threadEntries(t.id);
         const quiet = es.length ? daysBetween(es[es.length-1].date, ordered.length ? ordered[ordered.length-1].date : es[es.length-1].date) : 0;
@@ -3688,32 +3719,9 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <div class="newthread"><input id="ntName" placeholder="Name a new thread…" maxlength="48">
           <button class="btn ghost sm" id="ntAdd">Start it</button></div>
         <p class="runline">A thread is anything that keeps coming back. Name it, then put it on
-          every entry it turns up in.</p></div>`;
+          every entry it turns up in.</p>
+        ${comeback}</div>`;
 
-      // Candidates, offered where the writer is otherwise stuck: you arrive having
-      // noticed nothing, and leave with a list of what recurs. Which of them MEAN
-      // anything is not the app's call and never appears here.
-      const cand = recurringTerms(3);
-      const comeback = `<div class="comeback">
-        <h4>What keeps coming back</h4>
-        <p class="runline">Words and phrases you have used in <strong>three or more different
-          entries</strong>. This is a count, not a reading — it says what recurs, not what
-          matters. Some of it will be noise. You decide which are threads.</p>
-        ${cand.length ? `<div class="cbterms">${cand.map((c,i) =>
-            `<button class="cbterm ${cbSel===c.term?'on':''}" data-term="${escHtml(c.term)}">${escHtml(c.term)}<span class="cbn">${c.n}</span></button>`).join('')}</div>`
-          : `<p class="empty">Not enough written yet for anything to recur. Come back after a few more entries.</p>`}
-        ${(() => {
-          const hit = cand.find(c => c.term === cbSel); if(!hit) return '';
-          const es = hit.ids.map(id => (DB.journal||[]).find(x => x.id === id)).filter(Boolean)
-            .sort((a,b) => String(a.date).localeCompare(String(b.date)));
-          return `<div class="cbhits">
-            <p class="runline"><strong>“${escHtml(hit.term)}”</strong> — ${hit.n} entries,
-              ${escHtml(shortDate(hit.from))} to ${escHtml(shortDate(hit.to))}</p>
-            ${es.map(e => `<div class="entryrow"><div class="k">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))}</div><div class="x">${escHtml(entrySnippet(e, 300))}</div></div>`).join('')}
-            <div class="composer-foot"><button class="btn sm" id="cbMake">Make “${escHtml(hit.term)}” a thread</button>
-              <span class="note">Creates the thread and puts it on all ${hit.n} entries. Rename it after — the word is a starting point, not the name.</span></div></div>`;
-        })()}
-      </div>`;
 
       let rightT;
       if(!threadSel || !ts.find(t => t.id === threadSel)){
@@ -3755,8 +3763,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         }
       }
       frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Hold one preoccupation still and watch it change across the term.</p>${toggle}</div>
-        <div class="notewrap">${leftT}${rightT}</div>
-        ${comeback}`;
+        <div class="notewrap">${leftT}${rightT}</div>`;
       frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
       frame.querySelectorAll('[data-thread]').forEach(b => b.onclick = () => { threadSel = b.dataset.thread; renderNote(); });
       frame.querySelectorAll('.cbterm').forEach(b => b.onclick = () => {
