@@ -2968,7 +2968,50 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   const NOTE_MAX = 2026*12 + 11; // December 2026
   let noteView = new Date(2026, 6, 1); // July 2026
   let noteSel = null;          // selected calendar day (by-day lens)
-  let noteMode = 'day';        // 'day' | 'piece'
+  let noteMode = 'day';        // 'day' | 'piece' | 'tags' | 'threads'
+  let threadSel = null;        // the thread being looked at
+
+  // ── THREADS: the notebook's analysis instrument.
+  //
+  // The eight turn-in tags are single-use labels — one baseline, one letter — and a tag
+  // that can only be used once can never show a thread. A thread is the opposite: a name
+  // the writer invents ("my grandmother", "fear of the blank page") and puts on as many
+  // entries as it keeps turning up in.
+  //
+  // The point is juxtaposition, not classification. Held together and ordered by date, a
+  // preoccupation becomes visible in a way it never is one entry at a time — and what
+  // changed between the first and the last is the closest thing to evidence of growth
+  // this notebook can produce.
+  //
+  // ⚠ THE APP NEVER INTERPRETS. It groups, it orders, it puts first next to last, and it
+  // asks. It does not name themes, score depth, or tell a student what a thread means.
+  // The retrieval is the machine's; the noticing is the writer's. Same rule as SeeSay.
+  function threads(){ return (DB.threads = DB.threads || []); }
+  function threadName(id){ const t = threads().find(x => x.id === id); return t ? t.name : ''; }
+  function threadEntries(id){
+    return (DB.journal || []).filter(e => (e.threads || []).includes(id))
+      .sort((a,b) => String(a.date).localeCompare(String(b.date)) || String(a.ts).localeCompare(String(b.ts)));
+  }
+  function addThread(name){
+    name = String(name || '').trim(); if(!name) return null;
+    const hit = threads().find(t => t.name.toLowerCase() === name.toLowerCase());
+    if(hit) return hit.id;
+    const id = 't' + Date.now() + Math.round(Math.random() * 1e4);
+    threads().push({ id, name }); saveDB(); return id;
+  }
+  function toggleThread(entryId, tid){
+    const e = (DB.journal || []).find(x => x.id === entryId); if(!e) return;
+    e.threads = e.threads || [];
+    const i = e.threads.indexOf(tid);
+    if(i >= 0) e.threads.splice(i, 1); else e.threads.push(tid);
+    saveDB();
+  }
+  // Days between two entries. A gap is worth showing: picking something back up after
+  // five weeks is a different act from writing about it twice in one week.
+  function daysBetween(a, b){
+    const d = (new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000;
+    return Math.round(d);
+  }
   let notePieceSel = null;     // selected piece (by-piece lens)
   let nbEditingId = null;      // entry being inline-edited
 
@@ -2985,6 +3028,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     const openLink = (opts.pieceLink !== false && e.pieceId !== 'free') ? `<button class="entlink" data-open="${e.pieceId}">Open the live piece →</button>` : '';
     return `<div class="entryrow"><div class="k">${head}</div><div class="x">${escHtml(e.text).replace(/\n/g,'<br>')}</div>
       ${tagBar(e)}
+      ${threadBar(e)}
       <div class="entacts"><button class="entlink" data-edit="${e.id}">Edit</button>${openLink}</div></div>`;
   }
 
@@ -3001,6 +3045,17 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   // it, and says so, because silently having two baselines is worse than losing one.
   function tagsOn(id){ const T = turnin(); return TURNIN_SLOTS.filter(s => T[s[0]] === id).map(s => s[0]); }
   function slotLabel(k){ const s = TURNIN_SLOTS.find(x => x[0] === k); return s ? s[1] : k; }
+  function threadBar(e){
+    const mine = (e.threads || []);
+    const chips = mine.map(id => `<span class="tagchip thr">${escHtml(threadName(id))}<button class="tagx" data-unthread="${id}" data-e="${e.id}" title="Take this entry off the thread">×</button></span>`).join('');
+    const others = threads().filter(t => !mine.includes(t.id));
+    return `<div class="tagbar thr">${chips}
+      <select class="thradd" data-entry="${e.id}">
+        <option value="">＋ Add to a thread…</option>
+        ${others.map(t => `<option value="${t.id}">${escHtml(t.name)}</option>`).join('')}
+        <option value="__new">＋ Start a new thread…</option>
+      </select></div>`;
+  }
   function tagBar(e){
     const T = turnin(), mine = tagsOn(e.id);
     const chips = mine.map(k => `<span class="tagchip">${escHtml(slotLabel(k))}<button class="tagx" data-untag="${k}" title="Remove this tag">×</button></span>`).join('');
@@ -3081,6 +3136,30 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     ['flag3',     'Flagged entry 3', 'Read closely — one from Act III'],
   ];
   function turnin(){ return (DB.turnin = DB.turnin || {}); }
+
+  // ── READINESS INCLUDES THE ANALYSIS.
+  //
+  // Todd: "I don't think anything should be identified as ready to turn in until analysis
+  // is completed." Right — eight tags is filing, not thinking, and a green tick over a
+  // notebook with no reading of it would be the interface telling a comfortable lie.
+  //
+  // The bar is one KEPT reflection on a thread that has enough entries to be a thread at
+  // all. Kept, not drafted: an unsaved textarea is a good intention. Three entries,
+  // because two entries are the first and the last with nothing in between to have
+  // changed.
+  const THREAD_MIN = 3;
+  function analysisDone(){
+    return (DB.journal || []).some(e => e.pieceKind === 'reflection' && (e.threads || []).length
+      && threadEntries(e.threads[0]).length >= THREAD_MIN);
+  }
+  // Everything that must be true before the report is worth sending. Eight tags, then the
+  // reading of a thread — in that order, because you cannot analyse what you have not kept.
+  function readiness(){
+    const T = turnin();
+    const checks = TURNIN_SLOTS.map(([k, label]) => ({ k, label, ok: !!T[k] }));
+    checks.push({ k: 'analysis', label: 'Your reading of a thread', ok: analysisDone() });
+    return { checks, done: checks.filter(c => c.ok).length, all: checks.length };
+  }
   // Column heads for the Tags grid. Eight full labels would make the table wider than the
   // screen; the full name rides in the title attribute and the tooltip.
   const TAG_ABBR = { baseline:'Base', currere:'Curr', topicmap:'Map', sources:'Src',
@@ -3223,7 +3302,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
               <td class="pb-pts">___ / 10</td></tr>
           <tr><td>4 · Thinking on the page</td>
               <td>I flagged ${ref('flag1')}, ${ref('flag2')}, ${ref('flag3')}<br>
-                  <span class="pb-kinds">Printed in full in Part 4. Only these are read closely.</span></td>
+                  <span class="pb-kinds">Printed in full in Part 4; my threads and my reading of them are in Part 5.</span></td>
               <td class="pb-pts">___ / 15</td></tr>
           <tr class="pb-tot"><td colspan="2">Total</td><td class="pb-pts">___ / 50</td></tr>
         </table>
@@ -3255,6 +3334,30 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         }).join('')}
       </section>`;
 
+    // Part 5 · the threads and the writer's reading of them. This is the evidence for the
+    // Thinking row that a pile of entries could never be: a preoccupation held still,
+    // ordered by date, and the student's own account of what changed. The app supplies
+    // the juxtaposition and nothing else — no themes named, no depth scored.
+    const withEntries = threads().map(t => ({ t, es: threadEntries(t.id) })).filter(x => x.es.length);
+    const part5 = withEntries.length ? `
+      <section class="pb-part">
+        <h2>Part 5 · Threads</h2>
+        <p class="pb-sub">What kept coming back, and what I make of it.</p>
+        ${withEntries.map(({t, es}) => {
+          const reads = es.filter(e => e.pieceKind === 'reflection');
+          const runs = es.filter(e => e.pieceKind !== 'reflection');
+          return `<section class="pb-thread">
+            <h3>${escHtml(t.name)}</h3>
+            <p class="pb-sub">${runs.length} ${runs.length===1?'entry':'entries'} ·
+              ${escHtml(fmtDate(es[0].date))} to ${escHtml(fmtDate(es[es.length-1].date))} ·
+              ${daysBetween(es[0].date, es[es.length-1].date)} days</p>
+            <ol class="pb-toc">${runs.map(e => `<li><span class="pb-n">${nOf(e)}</span><span class="pb-d">${escHtml(fmtDate(e.date))}</span><span class="pb-t">${escHtml(entryLabel(e, 70))}</span></li>`).join('')}</ol>
+            ${reads.length ? reads.map(e => `<div class="pb-read"><p class="pb-role">My reading of this thread · ${escHtml(fmtDate(e.date))}</p>${para(e.text)}</div>`).join('')
+                           : `<p class="pb-role">No reading written for this thread.</p>`}
+          </section>`;
+        }).join('')}
+      </section>` : '';
+
     const html = `
       ${cover}
       <section class="pb-part"><h2>Part 1 · Contents</h2>
@@ -3263,7 +3366,8 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       </section>
       ${part2}
       ${part3}
-      ${part4}`;
+      ${part4}
+      ${part5}`;
     // ⚠ THE COMPLETE NOTEBOOK IS DELIBERATELY NOT PRINTED.
     //
     // It was Part 5, and it made this 30–40 pages — 22 of those is 800 pages to grade.
@@ -3385,13 +3489,13 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     if(!ordered.length) return '';
     const T = turnin();
     const numOf = new Map(ordered.map((e,i) => [e.id, i+1]));
-    const done = TURNIN_SLOTS.filter(s => T[s[0]]).length;
-    const all = TURNIN_SLOTS.length, ready = done === all;
+    const R = readiness();
+    const done = R.done, all = R.all, ready = done === all;
     // Collapsed by default in BOTH states. It is the last thing a student does in
     // December and an open panel every other week is clutter on the writing surface.
     // The summary carries the whole status instead, so it never needs opening to be read:
     // colour, an icon, a count, and a pip per slot that fills as pages get tagged.
-    const pips = TURNIN_SLOTS.map(s => `<i class="${T[s[0]] ? 'on' : ''}"></i>`).join('');
+    const pips = R.checks.map(c => `<i class="${c.ok ? 'on' : ''}"></i>`).join('');
     return `<details class="turnin ${ready ? 'ready' : 'todo'}">
       <summary><span class="ti-ico">${ready ? '✅' : '🛑'}</span>
         <span class="ti-txt">${ready ? 'Ready to turn in' : 'Before you turn it in'}
@@ -3411,6 +3515,12 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
           ${e ? `<button class="tclear" data-untag="${k}" title="Remove this tag">×</button>` : ''}
         </div>`;
       }).join('')}
+      ${(() => {
+        const ok = analysisDone();
+        return `<div class="turnin-row ${ok?'has':''}">
+          <button class="tl" data-gothreads="1">${ok?'✓':'○'} Your reading of a thread<em>Put a thread on ${THREAD_MIN}+ entries, then write what you see and keep it</em></button>
+          <button class="tv" data-gothreads="1">${ok ? 'kept' : 'not written yet'}</button></div>`;
+      })()}
       ${(() => {
         // 8 of 8 green does not mean eight pages: slots may share one entry, which is
         // allowed on purpose. Say so, rather than let the pips imply a spread that is not
@@ -3437,19 +3547,38 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     // silent and wrong, which is the failure mode this app is built to avoid.
     const bBtn = document.getElementById('bundleBtn');
     if(bBtn) bBtn.onclick = () => {
-      const missing = TURNIN_SLOTS.filter(s => !turnin()[s[0]]);
+      const missing = readiness().checks.filter(c => !c.ok);
       if(missing.length && (DB.journal||[]).length){
         const ok = confirm(
-          `${missing.length} of ${TURNIN_SLOTS.length} tags are still empty:\n\n` +
-          missing.map(s => '  · ' + s[1]).join('\n') +
-          `\n\nThose parts of your report will be blank. Tag them in the Tags view first?\n\n` +
-          `OK — take me to Tags\nCancel — print it anyway`);
-        if(ok){ noteMode = 'tags'; renderNote(); return; }
+          `${missing.length} of ${readiness().all} things are still undone:\n\n` +
+          missing.map(c => '  · ' + c.label).join('\n') +
+          `\n\nThose parts of your report will be blank or missing.\n\n` +
+          `OK — let me finish first\nCancel — print it anyway`);
+        if(ok){ noteMode = missing.every(c => c.k === 'analysis') ? 'threads' : 'tags'; renderNote(); return; }
       }
       bundleNotebookPDF();
     };
   }
+  function wireThreadBars(){
+    frame.querySelectorAll('.thradd').forEach(sel => sel.onchange = () => {
+      const v = sel.value; if(!v) return;
+      let tid = v;
+      if(v === '__new'){
+        const name = prompt('Name the thread — anything that keeps coming back.\n\ne.g. my grandmother · fear of the blank page · Mrs. Dunn');
+        tid = addThread(name);
+        if(!tid){ sel.value = ''; return; }
+      }
+      toggleThread(sel.dataset.entry, tid);
+      toast('Added to “' + threadName(tid) + '”');
+      renderNote();
+    });
+    frame.querySelectorAll('[data-unthread]').forEach(b => b.onclick = () => {
+      toggleThread(b.dataset.e, b.dataset.unthread); renderNote();
+    });
+  }
   function wireTurninLinks(){
+    wireThreadBars();
+    frame.querySelectorAll('[data-gothreads]').forEach(b => b.onclick = () => { noteMode = 'threads'; renderNote(); });
     // Untag from an entry chip or from the checklist row. Shared, because the checklist
     // now renders in every lens and a per-branch copy would drift.
     frame.querySelectorAll('.tagx, .tclear').forEach(b => b.onclick = () => {
@@ -3467,10 +3596,10 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     // The Tags lens advertises itself. Todd: "Folks won't know to click on Tags." A lens
     // name sitting third in a row of three says nothing about being required before you
     // submit, so it carries its own count and goes red until every column is filled.
-    const tagDone = TURNIN_SLOTS.filter(s => turnin()[s[0]]).length, tagAll = TURNIN_SLOTS.length;
+    const _R = readiness(); const tagDone = _R.done, tagAll = _R.all;
     const tagBadge = (DB.journal||[]).length
       ? `<span class="nbcount ${tagDone<tagAll?'todo':'ready'}">${tagDone}/${tagAll}</span>` : '';
-    const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button><button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">Tags ${tagBadge}</button></div>`;
+    const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button><button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">Tags ${tagBadge}</button><button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads">Threads</button></div>`;
     // ── The Tags lens: every entry against every tag, on one screen.
     //
     // Tagging lived only on the individual entry, so finding which page held which tag
@@ -3479,6 +3608,84 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     // nothing did before: a tagged entry is REPRINTED IN FULL in the report and an
     // untagged one appears only as a line in the Contents. That is what keeps the report
     // to under ten pages, and a student who does not know it cannot use it.
+    if(noteMode === 'threads'){
+      const ts = threads();
+      const ordered = numberedEntries();
+      const numOf = new Map(ordered.map((e,i) => [e.id, i+1]));
+      const list = ts.length ? ts.map(t => {
+        const es = threadEntries(t.id);
+        const quiet = es.length ? daysBetween(es[es.length-1].date, ordered.length ? ordered[ordered.length-1].date : es[es.length-1].date) : 0;
+        return `<button class="moment has ${threadSel===t.id?'on':''}" data-thread="${t.id}">
+          <span class="mname"><span class="dot"></span>${escHtml(t.name)}</span>
+          <span class="mkind">${es.length} ${es.length===1?'entry':'entries'}${quiet>21?` · quiet ${quiet} days`:''}</span></button>`;
+      }).join('') : `<p class="empty" style="font-family:var(--sans)">No threads yet. Open any entry and use <strong>＋ Add to a thread</strong> to start one.</p>`;
+      const leftT = `<div class="piecelist"><p class="lead">Your threads</p>${list}
+        <div class="newthread"><input id="ntName" placeholder="Name a new thread…" maxlength="48">
+          <button class="btn ghost sm" id="ntAdd">Start it</button></div>
+        <p class="runline">A thread is anything that keeps coming back. Name it, then put it on
+          every entry it turns up in.</p></div>`;
+
+      let rightT;
+      if(!threadSel || !ts.find(t => t.id === threadSel)){
+        rightT = `<div class="notedetail"><h3>Pick a thread</h3><p class="empty">Choose a thread to see every entry on it, earliest first — and what changed between the first and the last.</p></div>`;
+      } else {
+        const es = threadEntries(threadSel), name = threadName(threadSel);
+        if(!es.length){
+          rightT = `<div class="notedetail"><h3>${escHtml(name)}</h3><p class="empty">Nothing on this thread yet. Open an entry and add it.</p></div>`;
+        } else {
+          const rows = es.map((e,i) => {
+            const gap = i ? daysBetween(es[i-1].date, e.date) : 0;
+            return `${i && gap > 0 ? `<p class="thgap">${gap} day${gap===1?'':'s'} later</p>` : ''}
+              <div class="entryrow"><div class="k">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))} · ${wordsIn(e)}w</div>
+                <div class="x">${escHtml(e.text).replace(/\n/g,'<br>')}</div></div>`;
+          }).join('');
+          // First against last. The single most useful thing this view can do, and it only
+          // works with three or more — two entries ARE the first and the last.
+          const a = es[0], b = es[es.length-1];
+          const pair = es.length >= 3 ? `
+            <div class="firstlast"><h4>First and last, side by side</h4>
+              <div class="flcols">
+                <div><p class="fllbl">Earliest · ${escHtml(shortDate(a.date))} · entry ${numOf.get(a.id)}</p><div class="x">${escHtml(entrySnippet(a, 460)).replace(/\n/g,'<br>')}</div></div>
+                <div><p class="fllbl">Latest · ${escHtml(shortDate(b.date))} · entry ${numOf.get(b.id)}</p><div class="x">${escHtml(entrySnippet(b, 460)).replace(/\n/g,'<br>')}</div></div>
+              </div>
+              <p class="runline">${daysBetween(a.date, b.date)} days apart.</p></div>` : '';
+          const draft = (DB.threadNotes || {})[threadSel] || '';
+          rightT = `<div class="notedetail">
+            <h3>${escHtml(name)}</h3>
+            <p class="runline">${es.length} entries · ${escHtml(shortDate(a.date))} to ${escHtml(shortDate(b.date))}</p>
+            ${pair}
+            <div class="thask"><h4>Your reading of it</h4>
+              <p class="runline">What runs through these? And what is in the last one that is not
+                in the first? Nobody but you can answer that — I only put them side by side.</p>
+              <textarea id="thNote" placeholder="Write what you see…">${escHtml(draft)}</textarea>
+              <div class="composer-foot"><button class="btn sm" id="thKeep">＋ Add to notebook</button>
+                <span class="note">Saved as a dated entry on this thread, so writing about the thread joins it.</span></div></div>
+            <h4 class="thall">Every entry on this thread, earliest first</h4>
+            ${rows}</div>`;
+        }
+      }
+      frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Hold one preoccupation still and watch it change across the term.</p>${toggle}</div>
+        <div class="notewrap">${leftT}${rightT}</div>`;
+      frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+      frame.querySelectorAll('[data-thread]').forEach(b => b.onclick = () => { threadSel = b.dataset.thread; renderNote(); });
+      const ntA = document.getElementById('ntAdd'), ntN = document.getElementById('ntName');
+      if(ntA) ntA.onclick = () => { const id = addThread(ntN.value); if(id){ threadSel = id; renderNote(); } };
+      if(ntN) ntN.onkeydown = ev => { if(ev.key === 'Enter') ntA.click(); };
+      const thN = document.getElementById('thNote');
+      if(thN) thN.oninput = () => { (DB.threadNotes = DB.threadNotes || {})[threadSel] = thN.value; saveDB(); };
+      const thK = document.getElementById('thKeep');
+      if(thK) thK.onclick = () => {
+        const txt = (thN.value || '').trim();
+        if(!txt){ toast('Write something first.'); return; }
+        const ent = elevate('thread-' + threadSel, 'reflection', 'On the thread: ' + threadName(threadSel), txt);
+        // The reflection joins the thread it is about, so next term's first/last pairing
+        // includes the writer's own reading of the thread.
+        if(ent){ ent.threads = [threadSel]; saveDB(); }
+        toast('Kept in your notebook ✎');
+        renderNote();
+      };
+      return;
+    }
     if(noteMode === 'tags'){
       const ordered = numberedEntries();
       const T = turnin();

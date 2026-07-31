@@ -668,6 +668,9 @@ body.capturing .hl-mark:not(.preview) { display: none; }
   #printBundle .pb-full .pb-when { font-weight: 400; color: #666; }
   #printBundle .pb-role { font-size: 9.5pt; color: #555; font-style: italic; margin: 0 0 .5em; }
   #printBundle .pb-missing { color: #666; }
+  #printBundle .pb-thread { margin: 0 0 1.6em; break-inside: avoid-page; }
+  #printBundle .pb-thread h3 { font-size: 13pt; }
+  #printBundle .pb-read { margin: .6em 0 0; padding-left: .9em; border-left: 2px solid #bbb; }
   #printBundle .pb-cover { break-after: page; page-break-after: always; }
   #printBundle .pb-day, #printBundle .pb-piece { margin: 0 0 1.6em; break-inside: auto; }
   #printBundle .pb-day + .pb-day, #printBundle .pb-piece + .pb-piece { margin-top: 2.2em; }
@@ -851,3 +854,26 @@ body.gushing .liftbar { display: none !important; }
   padding: 1px 6px; border-radius: 999px; vertical-align: baseline; font-variant-numeric: tabular-nums; }
 .nbview .nbcount.todo  { background: #d9534f; color: #fff; }
 .nbview .nbcount.ready { background: #4c9a5e; color: #fff; }
+
+/* ── Threads: hold one preoccupation still and watch it change. The app groups, orders
+   and juxtaposes; it never says what a thread means. */
+.tagbar.thr { margin-top: 5px; }
+.tagchip.thr { background: #eef4f7; border-color: #c9dbe4; }
+.thradd { font-family: var(--sans); font-size: 11.5px; padding: 3px 5px; border: 1px dashed var(--comment-border, #ddd); border-radius: 6px; background: none; color: var(--mut, #6b7280); }
+.newthread { display: flex; gap: 6px; margin: 12px 0 4px; }
+.newthread input { flex: 1; min-width: 0; font-family: var(--sans); font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--comment-border, #ddd); border-radius: 6px; }
+.thgap { font-family: var(--sans); font-size: 11.5px; color: var(--mut, #6b7280); margin: 10px 0 6px; padding-left: 2px; }
+.thgap::before { content: "↓ "; }
+/* First against last is the whole argument for this view, so it sits above the run of
+   entries rather than at the end of it. */
+.firstlast { border: 1px solid var(--accent-light, #d9c7a8); background: var(--highlight-soft, #fdf6ef); border-radius: 8px; padding: 12px 14px; margin: 14px 0; }
+.firstlast h4 { font-family: var(--sans); font-size: 13px; margin: 0 0 10px; }
+.flcols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.fllbl { font-family: var(--sans); font-size: 11.5px; color: var(--mut, #6b7280); margin: 0 0 5px; }
+.flcols .x { font-family: var(--write, Georgia, serif); font-size: 14px; line-height: 1.55; }
+@media (max-width: 760px){ .flcols { grid-template-columns: 1fr; } }
+.thask { margin: 16px 0; }
+.thask h4 { font-family: var(--sans); font-size: 13px; margin: 0 0 4px; }
+.thask textarea { width: 100%; box-sizing: border-box; min-height: 110px; font-family: var(--write, Georgia, serif);
+  font-size: 15px; line-height: 1.6; padding: 10px 12px; border: 1px solid var(--comment-border, #ddd); border-radius: 7px; resize: vertical; }
+h4.thall { font-family: var(--sans); font-size: 13px; margin: 20px 0 4px; padding-top: 12px; border-top: 1px solid var(--comment-border, #e5e7eb); }
