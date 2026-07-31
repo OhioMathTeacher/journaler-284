@@ -1,5 +1,11 @@
 # Journaler · TCE 284
 
+**▶ Run the app → https://ohiomathteacher.github.io/journaler-284/**
+
+That link is the working app. What you are reading now is only the source
+repository behind it, which is why you are looking at a README rather than
+at Journaler.
+
 A local-first **reading-and-writing** app for the TCE 284 Reading Journal. Open a
 course article PDF, read it closely, think in the margins with an AI partner, and
 keep a **dated journal** across the semester — then export the whole journal as **one
