@@ -3436,6 +3436,17 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     frame.querySelectorAll('.tagadd').forEach(sel => sel.onchange = () => {
       const slot = sel.value; if(!slot) return;
       const T = turnin(), prev = T[slot];
+      // One page may hold several tags — a currere gush is a plausible thing to also want
+      // read closely. But not two FLAGS: the Thinking row is scored across three entries,
+      // one per act, so three flags on one page is one entry wearing three hats and the
+      // row cannot do its job. This is the only combination worth refusing outright.
+      if(/^flag/.test(slot)){
+        const clash = ['flag1','flag2','flag3'].find(f => f !== slot && T[f] === sel.dataset.entry);
+        if(clash){
+          toast(`This page is already ${slotLabel(clash)}. Flag three different pages, one from each act.`);
+          sel.value = ''; return;
+        }
+      }
       T[slot] = sel.dataset.entry;
       saveDB();
       const ord = numberedEntries(), n = ord.findIndex(x => x.id === prev) + 1;
