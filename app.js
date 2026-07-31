@@ -3424,7 +3424,37 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   // Clicking a checklist row lands you on that entry in the Tags grid, highlighted, so
   // the next thing you do — change it — is one click away rather than a hunt.
   let tagFocus = null;
+  // Every lens ends the same way — the turn-in panel and the button that prints the
+  // report. The Tags lens returns early from renderNote with its own markup, so this
+  // wiring has to be callable from either branch rather than living in one of them.
+  const noteFoot = () => `${turnInPanel()}
+    <div class="composer-foot" style="margin-top:14px"><button class="btn" id="bundleBtn">Bundle notebook → PDF</button></div>`;
+  function wireNoteFoot(){
+    const goT = document.getElementById('goTags');
+    if(goT) goT.onclick = () => { noteMode = 'tags'; renderNote(); };
+    // Caught at the moment it matters. A student who never found the Tags view would
+    // otherwise print a report with empty parts and no idea anything was missing —
+    // silent and wrong, which is the failure mode this app is built to avoid.
+    const bBtn = document.getElementById('bundleBtn');
+    if(bBtn) bBtn.onclick = () => {
+      const missing = TURNIN_SLOTS.filter(s => !turnin()[s[0]]);
+      if(missing.length && (DB.journal||[]).length){
+        const ok = confirm(
+          `${missing.length} of ${TURNIN_SLOTS.length} tags are still empty:\n\n` +
+          missing.map(s => '  · ' + s[1]).join('\n') +
+          `\n\nThose parts of your report will be blank. Tag them in the Tags view first?\n\n` +
+          `OK — take me to Tags\nCancel — print it anyway`);
+        if(ok){ noteMode = 'tags'; renderNote(); return; }
+      }
+      bundleNotebookPDF();
+    };
+  }
   function wireTurninLinks(){
+    // Untag from an entry chip or from the checklist row. Shared, because the checklist
+    // now renders in every lens and a per-branch copy would drift.
+    frame.querySelectorAll('.tagx, .tclear').forEach(b => b.onclick = () => {
+      delete turnin()[b.dataset.untag]; saveDB(); renderNote();
+    });
     frame.querySelectorAll('[data-goto]').forEach(b => { if(!b.dataset.goto) return;
       b.onclick = () => { tagFocus = b.dataset.goto; noteMode = 'tags'; renderNote(); };
     });
@@ -3471,10 +3501,10 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
             Contents as one line, which is what keeps the report short.</p>
           ${ordered.length ? `<table class="tgtable"><thead><tr><th></th><th>Date</th><th></th><th>Entry</th>${head}</tr></thead><tbody>${rows}</tbody></table>`
             : `<p class="empty">No kept pages yet.</p>`}
-          ${turnInPanel()}
+          ${noteFoot()}
         </div>`;
       frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
-      wireTurninLinks();
+      wireTurninLinks(); wireNoteFoot();
       if(tagFocus){
         const row = frame.querySelector(`tr[data-row="${tagFocus}"]`);
         if(row && row.scrollIntoView) row.scrollIntoView({ block: 'center' });
@@ -3519,8 +3549,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <div class="calhead"><button class="calnav" id="prevM" aria-label="Previous month" ${(y*12+m)<=NOTE_MIN?'disabled':''}>‹</button><span class="mname">${monthName}</span><button class="calnav" id="nextM" aria-label="Next month" ${(y*12+m)>=NOTE_MAX?'disabled':''}>›</button></div>
         <div class="grid">${dow}${cells}</div>
         <p class="runline" style="margin-top:12px">● green = a kept page. Click a day to read it.</p>
-        ${turnInPanel()}
-        <div class="composer-foot" style="margin-top:14px"><button class="btn" id="bundleBtn">Bundle notebook → PDF</button></div></div>`;
+        ${noteFoot()}</div>`;
       rightPane = noteDayDetail();
     } else {
       const pieces = journalPieces();
@@ -3528,8 +3557,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         ? pieces.map(p=>`<button class="moment has ${notePieceSel===p.id?'on':''}" data-piece="${p.id}"><span class="mname"><span class="dot"></span>${escHtml(p.title)}</span><span class="mkind">${p.entries.length} kept pass${p.entries.length>1?'es':''}</span></button>`).join('')
         : `<p class="empty" style="font-family:var(--sans)">No kept pages yet. In any tab, write, then hit <strong>＋ Add to notebook</strong>.</p>`;
       leftPane = `<div class="piecelist"><p class="lead">Your pieces</p>${listHtml}
-        ${turnInPanel()}
-        <div class="composer-foot" style="margin-top:14px"><button class="btn" id="bundleBtn">Bundle notebook → PDF</button></div></div>`;
+        ${noteFoot()}</div>`;
       rightPane = notePieceDetail();
     }
     frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Your kept pages — the writing you elevated with <strong>＋ Add to notebook</strong>. See them <strong>by day</strong>, or watch one piece grow <strong>by piece</strong>. This is the 50-pt Writer’s Notebook.</p>${toggle}</div>
@@ -3561,28 +3589,8 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         : `Tagged: ${slotLabel(slot)}`);
       renderNote();
     });
-    frame.querySelectorAll('.tagx, .tclear').forEach(b => b.onclick = () => {
-      delete turnin()[b.dataset.untag]; saveDB(); renderNote();
-    });
     wireTurninLinks();
-    const goT = document.getElementById('goTags');
-    if(goT) goT.onclick = () => { noteMode = 'tags'; renderNote(); };
-    const bBtn = document.getElementById('bundleBtn');
-    // Caught at the moment it matters. A student who never found the Tags view would
-    // otherwise print a report with empty parts and no idea anything was missing —
-    // silent and wrong, which is the failure mode this app is built to avoid.
-    if(bBtn) bBtn.onclick = () => {
-      const missing = TURNIN_SLOTS.filter(s => !turnin()[s[0]]);
-      if(missing.length && (DB.journal||[]).length){
-        const ok = confirm(
-          `${missing.length} of ${TURNIN_SLOTS.length} tags are still empty:\n\n` +
-          missing.map(s => '  · ' + s[1]).join('\n') +
-          `\n\nThose parts of your report will be blank. Tag them in the Tags view first?\n\n` +
-          `OK — take me to Tags\nCancel — print it anyway`);
-        if(ok){ noteMode = 'tags'; renderNote(); return; }
-      }
-      bundleNotebookPDF();
-    };
+    wireNoteFoot();
     if(noteMode === 'day'){
       const y = noteView.getFullYear(), m = noteView.getMonth();
       const pm = document.getElementById('prevM'), nm = document.getElementById('nextM');
