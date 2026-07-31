@@ -285,14 +285,16 @@
   body.focus .gushbar { justify-content: center; }
   body.focus textarea.gush { height: 64vh; min-height: 360px; max-height: none; font-size: 18px; background: #fff; }
 
-  /* ── Focus while the clock is running: the gush and NOTHING else.
-     After the first gush the stage becomes two columns (gush | shaped One-Pager).
-     Focus then squeezed BOTH of them into its 720px frame, side by side, which is
-     what read on screen as two gushes at once — it was actually the new gush next
-     to the previous One-Pager. Focus means one thing at a time, and while the clock
-     runs that thing is the gush. */
-  body.focus.gushing .op-cols { grid-template-columns: minmax(0, 1fr) !important; }
-  body.focus.gushing .op-col.shape { display: none !important; }
+  /* ── While the clock is running, the gush pane is the ONLY pane.
+     Keyed to `gushing`, not to `focus`. Gushing auto-enters focus, but a student can
+     leave focus mid-gush and the rule has to survive that: gush mode is defined by the
+     clock, not by the chrome. Hiding the shaped One-Pager is also the pedagogy —
+     seeing your half-built page while gushing invites you to write toward it, and the
+     gush is for finding material, not composing it.
+     (After the first gush the stage is two columns, gush beside the One-Pager. Focus
+     used to cram both into its 720px frame, which is what read as two gushes at once.) */
+  body.gushing .op-cols { grid-template-columns: minmax(0, 1fr) !important; }
+  body.gushing .op-col.shape { display: none !important; }
   /* Focus WITHOUT a running clock keeps both panes, because you may have entered it
      to shape rather than to gush. Two panes will not fit in 720px, so widen only in
      that case — `wide` is the class that already marks the two-column state. A single
