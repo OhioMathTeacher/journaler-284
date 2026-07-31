@@ -43,8 +43,46 @@ const CUSTOM_ENDPOINT_KEY = 'cr_custom_endpoint';
 const CUSTOM_MODEL_KEY = 'cr_custom_model';
 const LOCAL_ENDPOINT_KEY = 'cr_local_endpoint';
 const LOCAL_MODEL_KEY    = 'cr_local_model';
+const GROQ_MODEL_KEY     = 'cr_groq_model';
 
 function getProvider() { return localStorage.getItem(PROVIDER_KEY) || 'none'; }
+
+// ── Groq model resolution.
+//
+// Groq retires models on a rolling schedule. The id used to be hardcoded in the request,
+// which meant the day it was decommissioned EVERY student broke at once, mid-class, with a
+// raw `Groq API error 400`. Nobody would have a fix in the room. So: keep a default, and
+// when the API says the model is gone, ask what is live now, remember it, and carry on.
+//
+// This matters more here than it would elsewhere because Groq is the recommended provider
+// for the course — university Gemini issues no API keys, and Groq needs no Google account.
+const GROQ_MODEL_DEFAULT = 'llama-3.3-70b-versatile';
+// Tried in this order when we have to go looking. Anything not listed is still eligible
+// via the score below, so a model that does not exist yet can still be chosen.
+const GROQ_PREFERRED = ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile',
+                        'llama-3.1-8b-instant', 'llama3-70b-8192'];
+function getGroqModel() { return localStorage.getItem(GROQ_MODEL_KEY) || GROQ_MODEL_DEFAULT; }
+
+// Not everything Groq serves can hold a conversation: whisper transcribes, guard
+// classifies, tts speaks. The /models list does not say which is which, so the name is
+// the only signal there is. Crude, but wrong-and-loud beats picking a speech model.
+function groqUsableModel(id) {
+  const s = String(id || '').toLowerCase();
+  return !!s && !/whisper|tts|guard|embed|moderation|rerank/.test(s);
+}
+async function groqDiscoverModel(apiKey) {
+  const res = await fetch('https://api.groq.com/openai/v1/models',
+    { headers: { 'Authorization': `Bearer ${apiKey}` } });
+  if (!res.ok) return '';
+  const data = await res.json().catch(() => null);
+  const ids = (data && data.data || []).map(m => m && m.id).filter(groqUsableModel);
+  if (!ids.length) return '';
+  for (const p of GROQ_PREFERRED) if (ids.includes(p)) return p;
+  // Nothing familiar survives. Prefer something that looks like a large instruct model
+  // over whatever happens to sort first.
+  const score = id => (/70b|100b|120b|405b/.test(id) ? 2 : 0) + (/versatile|instruct/.test(id) ? 1 : 0);
+  return ids.slice().sort((a, b) => score(b) - score(a) || a.localeCompare(b))[0];
+}
 
 // Which model was connected, in plain words, for the AI-use log printed on every
 // export. Act I allows the machine ONE job — asking how the writing went — so the
@@ -55,7 +93,9 @@ function aiLabel() {
   if (p === 'local')     return 'Local model on this computer (Ollama · ' + (getLocalModel() || 'unnamed') + ')';
   if (p === 'anthropic') return 'Anthropic Claude Sonnet';
   if (p === 'gemini')    return 'Google Gemini 2.5 Flash';
-  if (p === 'groq')      return 'Groq Llama 3.3 70B';
+  // Names the model actually in use, not the one we shipped hoping for. This string is
+  // printed on the submitted PDF, so it has to stay true after a model swap.
+  if (p === 'groq')      return 'Groq · ' + getGroqModel();
   if (p === 'custom')    return (localStorage.getItem(CUSTOM_MODEL_KEY) || 'OpenAI-compatible model')
     + ' (' + (localStorage.getItem(CUSTOM_ENDPOINT_KEY) || 'custom endpoint') + ')';
   return p;
@@ -425,21 +465,39 @@ async function callModel(prompt) {
   }
 
   if (provider === 'groq') {
+    const ask = (model) => fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 200,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
     try {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          max_tokens: 200,
-          messages: [{ role: 'user', content: prompt }]
-        })
-      });
+      let model = getGroqModel();
+      let res = await ask(model);
+      let err = res.ok ? null : await res.json().catch(() => ({}));
+      // A retired model is the one failure worth recovering from in place: it hits every
+      // student on the same day, it is nobody's mistake, and the answer is one lookup
+      // away. A bad key is not — that one needs the student.
+      if (err && res.status !== 401) {
+        const msg = String(err && err.error && err.error.message || '').toLowerCase();
+        if (res.status === 404 || /decommission|deprecat|does not exist|not found|unsupported|invalid model/.test(msg)) {
+          const fresh = await groqDiscoverModel(apiKey).catch(() => '');
+          if (fresh && fresh !== model) {
+            localStorage.setItem(GROQ_MODEL_KEY, fresh);
+            try { window.logEvent('ai', 'groq model retired — switched', { from: model, to: fresh }); } catch (e) {}
+            model = fresh;
+            res = await ask(model);
+            err = res.ok ? null : await res.json().catch(() => ({}));
+          }
+        }
+      }
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
         if (res.status === 401) return 'Invalid Groq key. Update it via the AI button in the header.';
         return `Groq API error ${res.status}: ${err?.error?.message || 'Unknown error'}`;
       }
@@ -698,6 +756,10 @@ async function runReflection(rf, text, hooks) {
     if(document.getElementById('diagBody')) renderDiagnostics();
   }
   function clearLog(){ _log = []; try { localStorage.removeItem(LOG_KEY); } catch(e){} renderDiagnostics(); }
+  // The AI provider layer sits outside this closure and has things worth logging — a
+  // retired Groq model swapped out under the student, above all. Without this the log
+  // would be silent about the one event they would need to explain.
+  window.logEvent = logEvent;
 
   function bytesOf(s){ try { return new Blob([s]).size; } catch(e){ return (s||'').length; } }
   function fmtBytes(n){ return n > 1048576 ? (n/1048576).toFixed(1)+' MB' : n > 1024 ? (n/1024).toFixed(0)+' KB' : n+' B'; }
@@ -3321,7 +3383,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     if(_aiSub === 'free'){
       if(foot) foot.textContent = 'Free tiers. The key is stored in this browser and sent only to that provider.';
       [['gemini','Gemini 2.5 Flash','Free tier via Google — use a personal Gmail account.', GEMINI_KEY],
-       ['groq','Groq · Llama 3.3 70B','Free tier. Any email — no Google account needed.', GROQ_KEY]]
+       ['groq','Groq · ' + getGroqModel(),'Free tier. Any email — no Google account needed.', GROQ_KEY]]
         .forEach(([id,title,sub,keyName]) => {
           list.appendChild(aiCard(title, sub, 'Free', getProvider() === id, () => {
             const k = prompt('Paste your ' + title + ' API key:', localStorage.getItem(keyName) || '');
