@@ -6,7 +6,7 @@ _App/code task list. Update it as things get done; history is in `git log`._
 > readings pipeline, distribution, machines, local paths — lives in the private planning repo,
 > **not here**. Keep it that way when adding notes.
 
-Last updated: **2026-07-30**, build **`2026-07-30-67`**. **Build/version lives in `index.html`** as
+Last updated: **2026-07-31**, build **`2026-07-31-69`**. **Build/version lives in `index.html`** as
 `?v=` on the `app.css` and `app.js` tags. **Set BOTH with one regex** — they drifted apart once
 (css moved, js stuck three builds behind) and the stale JS was served for hours; `app.js` reads it back off its own `src` for the badge
 bottom-right. **Bump `?v=` on every deploy** — on Pages it is the only thing stopping a cached
@@ -285,7 +285,8 @@ it ignores `v`, and `Object.assign` preserves keys it does not know.
 - ~~Relink orphaned readings~~ **DONE 2026-07-30 (build 40).** Ids now derive from the filename
   (`f:<name>`), and `migrateReadingIds()` re-keys existing shelves once, carrying highlights and Q&A
   across. Bytes stay filed under the old id, so records keep a `legacyId` and `readingBytesFor` falls
-  back to it. **Untested with real student data — the McGuffey run is the first proof.**
+  back to it. **The McGuffey run exercised the restore and the zip came back fine; whether the
+  highlights themselves landed on the right passages was not checked. Still the open proof.**
 - Optional: route Open-page free-writes into the Notebook, dated.
 
 ## Needs testing in a browser (nothing blocks on code)
@@ -315,34 +316,27 @@ whichever model is configured. On a local model that stays on the machine. On a 
 does not. The reflection partner likewise sends the gush text. Worth being explicit with students
 about, and worth weighing when recommending a provider.
 
-## ⚑ TWO-MACHINE TEST — the McGuffey run (2026-07-30)
+## ⚑ TWO-MACHINE TEST — the McGuffey run (2026-07-30): the zip works
 
-First real cross-machine test. Nothing here has been tried outside one desktop. Build must
-read **`2026-07-30-41`** on BOTH machines — check the badge bottom-right and hard-refresh if not.
+**Ran it. The one-zip save/restore works well across machines.** That was the biggest structural
+bet in the app — carrying the whole workspace, readings included, as a single file needing no
+account and no cloud — and it holds up in practice, not just on the bench. Packing with STORE
+rather than DEFLATE is what makes it cheap enough to be the only save button. Keep that decision.
 
-**Before leaving (iMac, readings already loaded):**
-1. Note whether the **📁 Use a readings folder** chip appears in the Readings shelf. Present =
-   Chromium; absent = Firefox/Safari. Write down which, for both machines. This decides whether any
-   folder-handle feature is worth building for students.
-2. Make a highlight on a chapter and ask the reading partner one question, so there is something
-   with a known right answer to check later.
-3. Click **⤓ Save my work**. One zip: your work plus the reading files. Put it on a thumb drive or
-   anywhere you like — it needs no account and no cloud. Note how long packing takes and how big the
-   file is; if that is painful with all 27 chapters, say so and we will reconsider.
+**Still unreported from the run, and worth capturing on the next trip:**
+- **Whether restored highlights landed on the right passages.** This is the real proof of the
+  filename-id change (`f:<name>` + `migrateReadingIds`), and it is still untested against anyone's
+  data but one person's. A highlight on the wrong passage is the single most useful bug here.
+- **Which browser each machine runs**, and whether the **📁 Use a readings folder** chip appeared.
+  Present = Chromium; absent = Firefox/Safari. This decides whether the folder-handle path is worth
+  developing for students at all, or whether the zip simply replaces it.
+- **How long packing took and how big the file got** with all 27 chapters aboard. If that is painful
+  on a slower machine, reconsider before a class of 25 does it.
 
-**At McGuffey:**
-5. Open the app. It should be empty — new machine, new origin-and-profile, nothing carried.
-6. **⤒ Open my file** → pick the **zip**. It reloads.
-7. Check, in order:
-   - the reading shelf lists your chapters **and they open** (bytes came out of the zip);
-   - your **highlights are on the right passages** — this is the whole point of the filename-id
-     change, and it is untested in the wild;
-   - the reading-partner thread is there;
-   - your notebook, One-Pagers and name came across;
-   - the images inside any One-Pager survived.
-
-**Bring back:** which browser each machine runs, whether the folder chip appeared, and anything
-that landed in the wrong place. A highlight on the wrong passage is the single most useful bug.
+**The wider gap is unchanged and is not about code: no student has used this.** All testing to date
+is one person, and the syllabus makes the app a hard requirement for the 5 timed One-Pager drafts.
+That decision belongs in the course notes, not here, but the app-side consequence is worth stating:
+nothing in the build list below matters as much as putting the app in front of a few real people.
 
 ## Verify after any merge between machines
 
