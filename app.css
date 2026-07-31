@@ -639,6 +639,19 @@ body.capturing .hl-mark:not(.preview) { display: none; }
      passes across ~30 pieces, and a page break per piece would print mostly white
      space. Separation comes from spacing and the rule under each heading instead.
      An entry still never splits across pages, so the grader reads one pass whole. */
+  /* Contents. Entry NUMBERS, never page numbers: the assignment demands the same format
+     from a paper notebook, and a browser paginates by paper size while a paper notebook
+     has its own pages. A number per entry is the one unit both can reproduce, and it is
+     what a student writes in the "entries I flagged" blanks on the cover. */
+  #printBundle .pb-contents { break-after: page; page-break-after: always; }
+  #printBundle .pb-toc { list-style: none; margin: .8em 0 0; padding: 0; font-size: 10.5pt; }
+  #printBundle .pb-toc li { display: flex; gap: .7em; padding: .18em 0; break-inside: avoid-page; }
+  #printBundle .pb-n { display: inline-block; min-width: 2.2em; text-align: right;
+    font-variant-numeric: tabular-nums; color: #555; }
+  #printBundle .pb-toc .pb-d { min-width: 13em; color: #333; }
+  #printBundle .pb-toc .pb-t { flex: 1; }
+  #printBundle h3 .pb-n { margin-right: .55em; min-width: 0; }
+  #printBundle .pb-blank { letter-spacing: .06em; }
   #printBundle .pb-cover { break-after: page; page-break-after: always; }
   #printBundle .pb-day, #printBundle .pb-piece { margin: 0 0 1.6em; break-inside: auto; }
   #printBundle .pb-day + .pb-day, #printBundle .pb-piece + .pb-piece { margin-top: 2.2em; }

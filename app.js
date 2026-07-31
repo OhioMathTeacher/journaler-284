@@ -3043,6 +3043,31 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       return new Date(y, (m||1)-1, d||1).toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric', year:'numeric'}); };
     const para = t => String(t||'').split(/\n{2,}/).map(p => `<p>${escHtml(p).replace(/\n/g,'<br>')}</p>`).join('');
 
+    // ── ENTRY NUMBERS + CONTENTS.
+    //
+    // The notebook is graded on kept practice and on three entries the student flags, so
+    // both the reader and the writer need to be able to say "entry 17" and land in the
+    // same place. Page numbers cannot do that: a browser paginates by paper size, and a
+    // student who keeps a paper notebook has different pages anyway. The assignment
+    // requires the SAME format from both, so the unit has to be one the paper notebook
+    // can reproduce with a pen. A number per entry can.
+    //
+    // Numbered in one chronological pass BEFORE the lens is applied, so entry 17 is entry
+    // 17 whether the bundle was printed By day or By piece.
+    const ordered = entries.slice().sort((a,b) =>
+      String(a.date).localeCompare(String(b.date)) || String(a.ts).localeCompare(String(b.ts)));
+    const numOf = new Map();
+    ordered.forEach((e, i) => numOf.set(e, i + 1));
+    const nOf = e => numOf.get(e) || 0;
+
+    const contents = `
+      <section class="pb-contents">
+        <h2>Contents</h2>
+        <ol class="pb-toc">
+          ${ordered.map(e => `<li><span class="pb-n">${nOf(e)}</span><span class="pb-d">${escHtml(fmtDate(e.date))}</span><span class="pb-t">${escHtml(e.pieceTitle || '—')}</span></li>`).join('')}
+        </ol>
+      </section>`;
+
     let sections = '';
     if(noteMode === 'day'){
       const byDate = {};
@@ -3051,7 +3076,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <section class="pb-day">
           <h2>${escHtml(fmtDate(k))}</h2>
           ${byDate[k].sort((a,b)=>a.ts.localeCompare(b.ts)).map(e => `
-            <article><h3>${escHtml(e.pieceTitle||'')}</h3>${para(e.text)}</article>`).join('')}
+            <article><h3><span class="pb-n">${nOf(e)}</span>${escHtml(e.pieceTitle||'')}</h3>${para(e.text)}</article>`).join('')}
         </section>`).join('');
     } else {
       sections = journalPieces().map(p => `
@@ -3059,7 +3084,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
           <h2>${escHtml(p.title)}</h2>
           <p class="pb-sub">${p.entries.length} kept pass${p.entries.length>1?'es':''} · earliest first</p>
           ${p.entries.slice().sort((a,b)=>a.ts.localeCompare(b.ts)).map(e => `
-            <article><h3>${escHtml(fmtDate(e.date))}</h3>${para(e.text)}</article>`).join('')}
+            <article><h3><span class="pb-n">${nOf(e)}</span>${escHtml(fmtDate(e.date))}</h3>${para(e.text)}</article>`).join('')}
         </section>`).join('');
     }
 
@@ -3073,13 +3098,15 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <h1>Writer's Notebook</h1>
         <p class="pb-sub">TCE 284 · kept pages, ${noteMode === 'day' ? 'by day' : 'by piece'}</p>
         <dl>
-          <dt>Kept passes</dt><dd>${entries.length}</dd>
+          <dt>Entries</dt><dd>${entries.length}, numbered 1–${entries.length} in date order</dd>
           <dt>Span</dt><dd>${escHtml(fmtDate(dates[0]))} — ${escHtml(fmtDate(dates[dates.length-1]))}</dd>
           <dt>Days written</dt><dd>${new Set(dates).size}</dd>
           <dt>By kind</dt><dd>${tally}</dd>
+          <dt>Entries I flagged</dt><dd class="pb-blank">_____   _____   _____</dd>
         </dl>
         <p class="pb-note">Name: ${printedName()}</p>
       </section>
+      ${contents}
       ${sections}`;
     printDoc('printBundle', html, "Writer's Notebook — TCE 284");
   }
