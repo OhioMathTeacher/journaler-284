@@ -3397,8 +3397,9 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <span class="ti-txt">${ready ? 'Ready to turn in' : 'Before you turn it in'}
           <em>${done} of ${all} tagged</em></span>
         <span class="ti-pips">${pips}</span></summary>
-      <p class="runline">Open a page and use <strong>＋ Tag this page</strong> to say what it is.
+      <p class="runline">Every column needs at least one filled box.
         Only the three you flag get read closely; everything else stays unread.</p>
+      ${noteMode === 'tags' ? '' : `<p class="runline"><button class="btn sm" id="goTags">Open the Tags view →</button></p>`}
       ${TURNIN_SLOTS.map(([k,label,hint]) => {
         const id = T[k], e = id && ordered.find(x => x.id === id);
         // Rows are LIVE. Todd: "these aren't linked. difficult to edit after the fact."
@@ -3433,7 +3434,13 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
 
   function renderNote(){
     body.classList.add('wide');
-    const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button><button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">Tags</button></div>`;
+    // The Tags lens advertises itself. Todd: "Folks won't know to click on Tags." A lens
+    // name sitting third in a row of three says nothing about being required before you
+    // submit, so it carries its own count and goes red until every column is filled.
+    const tagDone = TURNIN_SLOTS.filter(s => turnin()[s[0]]).length, tagAll = TURNIN_SLOTS.length;
+    const tagBadge = (DB.journal||[]).length
+      ? `<span class="nbcount ${tagDone<tagAll?'todo':'ready'}">${tagDone}/${tagAll}</span>` : '';
+    const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button><button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">Tags ${tagBadge}</button></div>`;
     // ── The Tags lens: every entry against every tag, on one screen.
     //
     // Tagging lived only on the individual entry, so finding which page held which tag
@@ -3459,7 +3466,9 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       }).join('');
       frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Every entry against every tag. Click a box to tag a page — clicking a tag another page holds moves it here.</p>${toggle}</div>
         <div class="tagsgrid">
-          <p class="runline"><strong>Tagged pages are printed in full in your report.</strong> Everything else appears in the Contents as one line, so the report stays short. ${ordered.filter(e=>tagsOn(e.id).length).length} of ${ordered.length} entries tagged.</p>
+          <p class="runline"><strong>Every column needs at least one filled box.</strong>
+            A tagged page is printed in full in your report; everything else appears in the
+            Contents as one line, which is what keeps the report short.</p>
           ${ordered.length ? `<table class="tgtable"><thead><tr><th></th><th>Date</th><th></th><th>Entry</th>${head}</tr></thead><tbody>${rows}</tbody></table>`
             : `<p class="empty">No kept pages yet.</p>`}
           ${turnInPanel()}
@@ -3556,8 +3565,24 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       delete turnin()[b.dataset.untag]; saveDB(); renderNote();
     });
     wireTurninLinks();
+    const goT = document.getElementById('goTags');
+    if(goT) goT.onclick = () => { noteMode = 'tags'; renderNote(); };
     const bBtn = document.getElementById('bundleBtn');
-    if(bBtn) bBtn.onclick = bundleNotebookPDF;
+    // Caught at the moment it matters. A student who never found the Tags view would
+    // otherwise print a report with empty parts and no idea anything was missing —
+    // silent and wrong, which is the failure mode this app is built to avoid.
+    if(bBtn) bBtn.onclick = () => {
+      const missing = TURNIN_SLOTS.filter(s => !turnin()[s[0]]);
+      if(missing.length && (DB.journal||[]).length){
+        const ok = confirm(
+          `${missing.length} of ${TURNIN_SLOTS.length} tags are still empty:\n\n` +
+          missing.map(s => '  · ' + s[1]).join('\n') +
+          `\n\nThose parts of your report will be blank. Tag them in the Tags view first?\n\n` +
+          `OK — take me to Tags\nCancel — print it anyway`);
+        if(ok){ noteMode = 'tags'; renderNote(); return; }
+      }
+      bundleNotebookPDF();
+    };
     if(noteMode === 'day'){
       const y = noteView.getFullYear(), m = noteView.getMonth();
       const pm = document.getElementById('prevM'), nm = document.getElementById('nextM');
