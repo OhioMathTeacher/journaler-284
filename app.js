@@ -1071,7 +1071,7 @@ async function runReflection(rf, text, hooks) {
     if(btn) btn.disabled = !selWords;
     el.textContent = selWords
       ? `${selWords} word${selWords===1?'':'s'} selected.${kept ? ' ' + kept : ''}`
-      : (kept || 'Select the lines you want to keep, then copy.');
+      : (kept || 'Select lines in your gush, then copy them into the One-Pager.');
   }
 
   function renderOPStage(M){
@@ -1085,7 +1085,7 @@ async function runReflection(rf, text, hooks) {
         <div class="gushbar"><div class="timerset" id="timerset"><button class="tadj" id="tminus">−</button><span class="timer editable" id="timer">8:00</span><button class="tadj" id="tplus">+</button></div>
           <button class="btn go" id="startBtn">Start the gush</button>
           <span class="liftbar" id="liftbar" style="display:${fwGushed[fwCur]?'inline-flex':'none'}">
-            <button class="btn ghost sm" id="liftBtn" disabled>Copy into the One-Pager →</button>
+            <button class="btn ghost sm" id="liftBtn" disabled>Copy →</button>
             <span class="note" id="keepcount"></span></span>
           <span class="locknote" id="lockmsg">Set your minutes, then start — the page locks and Focus opens.</span></div>
         <textarea class="gush" id="gush" placeholder="Don’t stop, don’t fix. Stalled? Write that you stalled — and keep going." disabled></textarea>
@@ -1140,7 +1140,9 @@ async function runReflection(rf, text, hooks) {
     //
     //    It was called "↑ Lift" and neither half read. "Lift" is a metaphor, and this course
     //    writes to students literally [[student-facing-language-literal]]; the up arrow
-    //    pointed at a pane that is to the RIGHT. Now: "Copy into the One-Pager →".
+    //    pointed at a pane that is to the RIGHT. Now just "Copy →" — the destination lives
+    //    in the note beside it, because a long label re-wrapped and shoved the timer row's
+    //    height around every time the text changed. Short button, talkative note.
     const liftBtn = document.getElementById('liftBtn');
     if(liftBtn) liftBtn.onclick = ()=>{
       const ta = document.getElementById('gush'), pg = document.getElementById('page');

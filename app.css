@@ -725,5 +725,8 @@ body.focus .iconbtn { display: none !important; }
    It rides IN the gushbar, above the writing surface and level with the shape column's
    toolbar. Under the textarea it sat below 58vh of writing and was never found. */
 .liftbar { display: inline-flex; align-items: center; gap: 10px; }
+/* The button never wraps. A label long enough to break over two lines re-flowed the
+   whole timer row every time the text changed, which read as the interface twitching. */
+.liftbar .btn { white-space: nowrap; }
 .liftbar .note { font-family: var(--sans); font-size: 12px; color: var(--mut, #6b7280); }
 body.gushing .liftbar { display: none !important; }
