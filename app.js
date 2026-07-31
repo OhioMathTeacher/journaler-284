@@ -703,10 +703,16 @@ async function runReflection(rf, text, hooks) {
     try { dbBytes = bytesOf(localStorage.getItem(LS_KEY) || ''); } catch(e){}
     out['Your work (localStorage)'] = fmtBytes(dbBytes);
     out['All site storage'] = fmtBytes(total);
+    // WebKit (Safari, GNOME Web) has no storage.estimate, so this line used to just
+    // vanish — and a MISSING line reads as "nothing to report" when it actually means
+    // "this browser will not say." Say which, or the reader has to know the API to
+    // notice the difference. Safari is also the browser most likely to evict storage,
+    // so being blind to quota there is the case worth naming rather than hiding.
     if(navigator.storage && navigator.storage.estimate){
       try { const est = await navigator.storage.estimate();
-        out['Quota used'] = `${fmtBytes(est.usage||0)} of ${fmtBytes(est.quota||0)}`; } catch(e){}
-    }
+        out['Quota used'] = `${fmtBytes(est.usage||0)} of ${fmtBytes(est.quota||0)}`; }
+      catch(e){ out['Quota used'] = 'unavailable — storage.estimate failed: ' + e.message; }
+    } else out['Quota used'] = 'this browser does not report quota (WebKit/Safari)';
     out['Journal entries'] = (DB.journal||[]).length;
     out['Readings on shelf'] = (readings||[]).length;
     const hl = DB.highlights || {}, qa = DB.qa || {};
@@ -726,11 +732,24 @@ async function runReflection(rf, text, hooks) {
     const r = readings[activeReading];
     if(r){
       out['Current reading'] = r.name + (r.fromDir ? ' (from folder)' : '');
+      // ⚠ These counts read the LIVE DOM, but the reading NAME above comes from saved
+      // state — so a snapshot taken from another tab, or before the Readings tab has
+      // ever been opened, finds no spans. That used to print "no text layer (image-only
+      // PDF?)", which blamed the file for the panel's own blind spot; it sent one
+      // cross-browser session chasing a chapter whose OCR was fine. Distinguish
+      // "nothing rendered" from "rendered and genuinely has no text", and don't accuse
+      // a .docx of being an image-only PDF — non-PDF readings have no text layer at all.
+      const isPdf = /\.pdf$/i.test(r.name || '');
+      const pagesUp = document.querySelectorAll('#docPane .pdf-page').length;
       const spans = document.querySelectorAll('#docPane .textLayer span').length;
-      if(spans){
+      if(!isPdf){
+        out['Text-layer spans'] = 'n/a — this reading is not a PDF';
+      } else if(!pagesUp){
+        out['Text-layer spans'] = 'not measured — no page on screen (open the Readings tab, then snapshot)';
+      } else if(spans){
         out['Text-layer spans'] = spans;
         try { out['Lines detected'] = docLines().length; } catch(e){ out['Lines detected'] = 'error: '+e.message; }
-      } else out['Text-layer spans'] = '0 — no text layer (image-only PDF?)';
+      } else out['Text-layer spans'] = `0 across ${pagesUp} rendered page(s) — no text layer (image-only PDF?)`;
     }
     return out;
   }
