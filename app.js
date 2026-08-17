@@ -56,11 +56,15 @@ function getProvider() { return localStorage.getItem(PROVIDER_KEY) || 'none'; }
 //
 // This matters more here than it would elsewhere because Groq is the recommended provider
 // for the course — university Gemini issues no API keys, and Groq needs no Google account.
-const GROQ_MODEL_DEFAULT = 'llama-3.3-70b-versatile';
+// Refreshed 17 Aug 2026: every model previously listed here had been retired.
+// llama-3.3-70b-versatile and llama-3.1-8b-instant ended 16 Aug 2026, and the
+// 3.1-70b and llama3-70b-8192 ids went earlier. The recovery below did its job
+// -- this list going stale costs a round trip, not a broken class -- but with
+// Groq the recommended provider for this course, the default should be live.
+const GROQ_MODEL_DEFAULT = 'openai/gpt-oss-120b';
 // Tried in this order when we have to go looking. Anything not listed is still eligible
 // via the score below, so a model that does not exist yet can still be chosen.
-const GROQ_PREFERRED = ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile',
-                        'llama-3.1-8b-instant', 'llama3-70b-8192'];
+const GROQ_PREFERRED = ['openai/gpt-oss-120b', 'qwen/qwen3.6-27b', 'openai/gpt-oss-20b'];
 function getGroqModel() { return localStorage.getItem(GROQ_MODEL_KEY) || GROQ_MODEL_DEFAULT; }
 
 // Not everything Groq serves can hold a conversation: whisper transcribes, guard
@@ -421,17 +425,27 @@ async function callModel(prompt) {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-allow-browser': 'true'
+          // The header is anthropic-dangerous-direct-browser-access. This said
+          // anthropic-dangerous-allow-browser, the name of the SDK's JavaScript
+          // option rather than the header, so the browser's preflight was never
+          // satisfied and this provider could not have worked from a page.
+          'anthropic-dangerous-direct-browser-access': 'true'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          // claude-sonnet-4-20250514 retired 15 June 2026.
+          model: 'claude-sonnet-5',
           max_tokens: 200,
+          // Sonnet 5 thinks by default and max_tokens caps thinking and reply
+          // together, so a 200-token budget would be spent thinking and return
+          // nothing. Short prompts here; disable it explicitly.
+          thinking: { type: 'disabled' },
           messages: [{ role: 'user', content: prompt }]
         })
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         if (res.status === 401) return 'Invalid Anthropic key. Update it via the AI button in the header.';
+        if (res.status === 404) return 'That Anthropic model is unavailable — it may have been retired. This needs a fix in the app, not a new key.';
         return `Anthropic API error ${res.status}: ${err?.error?.message || 'Unknown error'}`;
       }
       const data = await res.json();
@@ -454,7 +468,10 @@ async function callModel(prompt) {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        if (res.status === 400 || res.status === 403) return 'Invalid Gemini key. Update it via the AI button in the header.';
+        // A retired model id also produces a 400, so reporting every 400 as a
+        // key fault sent students to replace a key that was working.
+        if (res.status === 401 || res.status === 403) return 'Invalid Gemini key. Update it via the AI button in the header.';
+        if (res.status === 404) return 'That Gemini model is unavailable — it may have been retired. This needs a fix in the app, not a new key.';
         return `Gemini API error ${res.status}: ${err?.error?.message || 'Unknown error'}`;
       }
       const data = await res.json();
