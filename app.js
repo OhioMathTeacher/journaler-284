@@ -67,6 +67,22 @@ const GROQ_MODEL_DEFAULT = 'openai/gpt-oss-120b';
 const GROQ_PREFERRED = ['openai/gpt-oss-120b', 'qwen/qwen3.6-27b', 'openai/gpt-oss-20b'];
 function getGroqModel() { return localStorage.getItem(GROQ_MODEL_KEY) || GROQ_MODEL_DEFAULT; }
 
+// One budget for every provider, so the five call sites below cannot drift apart.
+// It was 200, which is roughly two sentences and left Romano cut off mid-word on
+// any reply that ran a little long -- what the reader saw was "I sure can. What'".
+// The prompt, not the budget, is what keeps him brief; this is only the ceiling
+// he must never hit, because hitting it truncates rather than shortens.
+const REPLY_MAX_TOKENS = 700;
+
+// A reply that stopped because it ran out of room is not an answer, and silently
+// showing the fragment is the app stating something false with confidence --
+// the reader has no way to tell a terse Romano from a severed one. Say it.
+function markIfTruncated(text, wasCut) {
+  const t = String(text || '');
+  if (!wasCut || !t) return t || 'No response received.';
+  return t.replace(/\s+$/, '') + ' […cut off — Romano ran out of room. Ask him to continue.]';
+}
+
 // Not everything Groq serves can hold a conversation: whisper transcribes, guard
 // classifies, tts speaks. The /models list does not say which is which, so the name is
 // the only signal there is. Crude, but wrong-and-loud beats picking a speech model.
@@ -322,7 +338,7 @@ async function callModel(prompt) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model,
-          max_tokens: 200,
+          max_tokens: REPLY_MAX_TOKENS,
           messages: [{ role: 'user', content: prompt }]
         })
       });
@@ -330,7 +346,10 @@ async function callModel(prompt) {
         return `Local model error ${res.status}. ${localFailureHint(endpoint)}`;
       }
       const data = await res.json();
-      return data.choices?.[0]?.message?.content || 'No response received.';
+      return markIfTruncated(
+        data.choices?.[0]?.message?.content || '',
+        data.choices?.[0]?.finish_reason === 'length'
+      );
     } catch (err) {
       return `Could not reach the local model. ${localFailureHint(endpoint)}`;
     }
@@ -353,7 +372,7 @@ async function callModel(prompt) {
         body: JSON.stringify({
           // claude-sonnet-4-20250514 retired 15 June 2026.
           model: 'claude-sonnet-5',
-          max_tokens: 200,
+          max_tokens: REPLY_MAX_TOKENS,
           // Sonnet 5 thinks by default and max_tokens caps thinking and reply
           // together, so a 200-token budget would be spent thinking and return
           // nothing. Short prompts here; disable it explicitly.
@@ -368,7 +387,10 @@ async function callModel(prompt) {
         return `Anthropic API error ${res.status}: ${err?.error?.message || 'Unknown error'}`;
       }
       const data = await res.json();
-      return data.content?.map(b => b.text || '').join('') || 'No response received.';
+      return markIfTruncated(
+        data.content?.map(b => b.text || '').join('') || '',
+        data.stop_reason === 'max_tokens'
+      );
     } catch (err) {
       return 'Error reaching Anthropic. Please check your connection and try again.';
     }
@@ -382,7 +404,16 @@ async function callModel(prompt) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 200, temperature: 0.7 }
+          generationConfig: {
+            maxOutputTokens: REPLY_MAX_TOKENS,
+            temperature: 0.7,
+            // Gemini 2.5 Flash thinks by default and maxOutputTokens caps the
+            // thinking and the reply TOGETHER -- exactly the trap handled for
+            // Sonnet 5 above, but never applied here. With the old 200-token
+            // budget the thinking spent nearly all of it and the reader got a
+            // few words ending mid-contraction. Short prompts; turn it off.
+            thinkingConfig: { thinkingBudget: 0 }
+          }
         })
       });
       if (!res.ok) {
@@ -394,7 +425,11 @@ async function callModel(prompt) {
         return `Gemini API error ${res.status}: ${err?.error?.message || 'Unknown error'}`;
       }
       const data = await res.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received.';
+      const cand = data.candidates?.[0];
+      return markIfTruncated(
+        cand?.content?.parts?.map(p => p.text || '').join('') || '',
+        cand?.finishReason === 'MAX_TOKENS'
+      );
     } catch (err) {
       return 'Error reaching Gemini. Please check your connection and try again.';
     }
@@ -409,7 +444,7 @@ async function callModel(prompt) {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 200,
+        max_tokens: REPLY_MAX_TOKENS,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -438,7 +473,10 @@ async function callModel(prompt) {
         return `Groq API error ${res.status}: ${err?.error?.message || 'Unknown error'}`;
       }
       const data = await res.json();
-      return data.choices?.[0]?.message?.content || 'No response received.';
+      return markIfTruncated(
+        data.choices?.[0]?.message?.content || '',
+        data.choices?.[0]?.finish_reason === 'length'
+      );
     } catch (err) {
       return 'Error reaching Groq. Please check your connection and try again.';
     }
@@ -452,7 +490,7 @@ async function callModel(prompt) {
       const res = await fetch(`${endpoint}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({ model, max_tokens: 200, messages: [{ role: 'user', content: prompt }] })
+        body: JSON.stringify({ model, max_tokens: REPLY_MAX_TOKENS, messages: [{ role: 'user', content: prompt }] })
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -460,7 +498,10 @@ async function callModel(prompt) {
         return `API error ${res.status}: ${err?.error?.message || 'Unknown error'}`;
       }
       const data = await res.json();
-      return data.choices?.[0]?.message?.content || 'No response received.';
+      return markIfTruncated(
+        data.choices?.[0]?.message?.content || '',
+        data.choices?.[0]?.finish_reason === 'length'
+      );
     } catch (err) {
       return 'Could not reach that endpoint. Check the URL and your connection.';
     }
@@ -2896,7 +2937,21 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     folderInput.onchange = async () => { await addReadingFiles(folderInput.files); folderInput.value = ''; };
     // The ask bar is for the reading at large — no passage. It used to pass the
     // lingering captureText, which is what filed stray questions under old quotes.
-    document.getElementById('askbtn').addEventListener('click',()=>{const el=document.getElementById('askin');const v=el.value.trim();if(!v)return;el.value='';askRomanoInto('', v, readPageNum);});
+    // Enter submits as well as the button: this is a chat box, and every other
+    // chat box in the world sends on Enter. Without it the typed question just
+    // sits there and the reader assumes the AI is broken.
+    const askEl = document.getElementById('askin');
+    const sendAsk = () => {
+      const v = askEl.value.trim();
+      if(!v) return;
+      askEl.value = '';
+      askRomanoInto('', v, readPageNum);
+    };
+    document.getElementById('askbtn').addEventListener('click', sendAsk);
+    askEl.addEventListener('keydown', e => {
+      // Shift+Enter stays free for anyone who expects it to mean "not yet".
+      if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendAsk(); }
+    });
   }
 
   // ---------- Notebook — kept pages, seen two ways (by day · by piece) ----------
