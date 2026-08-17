@@ -12,7 +12,7 @@
      every deploy: GitHub Pages will otherwise serve the cached files after a push.
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-07-31-92">
+<link rel="stylesheet" href="app.css?v=2026-08-17-93">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -57,7 +57,8 @@
   <button class="focusbtn" id="saveWorkBtn" title="Save everything — your writing AND your readings — as one file. Put it on a thumb drive or anywhere you like, and open it on any computer.">⤓ Save my work</button>
   <button class="focusbtn" id="openWorkBtn" title="Open a saved Journaler file or zip to pick up where you left off (on any computer)">⤒ Open my file</button>
   <input type="file" id="workFileInput" accept=".json,.zip,application/json,application/zip" hidden>
-  <button class="ai-btn" id="aiBtn" onclick="openAIModal()"><span class="ai-dot"></span><span id="aiBtnLabel">AI · off</span></button>
+  <!-- Opens the chooser (Settings → AI), not the custom-endpoint editor. -->
+  <button class="ai-btn" id="aiBtn" onclick="openSettingsAI()"><span class="ai-dot"></span><span id="aiBtnLabel">AI · off</span></button>
   <button class="focusbtn" id="focusToggle">◱ Focus mode</button>
   <!-- Settings. Things you touch once a term — the AI, the readings folder, the
        theme — plus diagnostics, kept off the writing surface. -->
@@ -156,50 +157,15 @@
 
 <div class="ai-modal-overlay" id="aiModalOverlay" onclick="if(event.target===this)closeAIModal()">
   <div class="ai-modal">
-    <h2>Connect your AI</h2>
-    <p style="font-family:'DM Sans',sans-serif;font-size:0.78rem;color:#7A7A6A;margin:-0.6rem 0 1.1rem">Pick a model to power the reflection partner, the studio tools, and the research partner. Your key stays in this browser.</p>
-    <div class="ai-provider-cards">
-      <div class="ai-provider-card" id="card-local" onclick="selectProvider('local')">
-        <div class="ai-card-title">Local model (Ollama)</div>
-        <div class="ai-card-desc">Private · runs on this computer · no key, no internet.</div>
-        <div class="ai-card-badge ai-badge-free">Local</div>
-      </div>
-      <div class="ai-provider-card" id="card-anthropic" onclick="selectProvider('anthropic')">
-        <div class="ai-card-title">Anthropic Claude</div>
-        <div class="ai-card-desc">Your own key. Claude Sonnet — powerful and precise.</div>
-        <div class="ai-card-badge ai-badge-paid">Own Key</div>
-      </div>
-      <div class="ai-provider-card" id="card-gemini" onclick="selectProvider('gemini')">
-        <div class="ai-card-title">Gemini 2.5 Flash</div>
-        <div class="ai-card-desc">Free tier via Google. Use a personal Gmail account.</div>
-        <div class="ai-card-badge ai-badge-free">Free</div>
-      </div>
-      <div class="ai-provider-card" id="card-groq" onclick="selectProvider('groq')">
-        <div class="ai-card-title">Groq (Llama 3.3)</div>
-        <div class="ai-card-desc">Free tier. Any email — no Google account needed.</div>
-        <div class="ai-card-badge ai-badge-groq">Free</div>
-      </div>
-      <div class="ai-provider-card" id="card-custom" onclick="selectProvider('custom')">
-        <div class="ai-card-title">OpenAI-compatible</div>
-        <div class="ai-card-desc">ChatGPT · DeepSeek · OpenRouter · Alkimi — any endpoint + key + model.</div>
-        <div class="ai-card-badge ai-badge-groq">Custom</div>
-      </div>
-      <div class="ai-provider-card" id="card-none" onclick="selectProvider('none')">
-        <div class="ai-card-title">No AI</div>
-        <div class="ai-card-desc">Read and annotate without AI assistance.</div>
-        <div class="ai-card-badge ai-badge-none">Off</div>
-      </div>
-    </div>
-    <div class="ai-key-section" id="aiKeySection" style="display:none">
-      <input type="password" id="aiKeyInput" placeholder="Paste your API key here…" autocomplete="off" spellcheck="false"
-        onkeydown="if(event.key==='Enter')saveAISettings();if(event.key==='Escape')closeAIModal()">
-      <div class="ai-key-hint" id="aiKeyHint">Stored only in your browser · Never in the source code</div>
-    </div>
-    <div class="ai-key-section" id="aiLocalSection" style="display:none">
-      <select id="aiLocalModel"></select>
-      <div class="ai-key-hint" id="aiLocalHint">Looking for a local model…</div>
-    </div>
-    <div class="ai-key-section" id="aiCustomSection" style="display:none">
+    <!-- This modal used to be the app's whole AI chooser, with its own flat grid of
+         provider cards. Settings → AI is now that chooser, with the three cost tabs
+         the other apps use, and two panels that could each write the provider was a
+         standing invitation for them to disagree about what was selected. What is
+         left here is the one thing the tabbed panel delegates rather than duplicates:
+         the endpoint + model + key editor behind its "OpenAI-compatible" card. -->
+    <h2>OpenAI-compatible endpoint</h2>
+    <p style="font-family:'DM Sans',sans-serif;font-size:0.78rem;color:#7A7A6A;margin:-0.6rem 0 1.1rem">Point Journaler at any service that speaks the OpenAI chat API. Your key stays in this browser. To pick a local or free model instead, use <b>Settings → AI</b>.</p>
+    <div class="ai-key-section" id="aiCustomSection">
       <div class="ai-preset-row">
         <button type="button" class="ai-preset" onclick="applyCustomPreset('openai')">ChatGPT</button>
         <button type="button" class="ai-preset" onclick="applyCustomPreset('deepseek')">DeepSeek</button>
@@ -208,7 +174,9 @@
       </div>
       <input type="text" id="aiCustomEndpoint" placeholder="Base URL, e.g. https://api.openai.com/v1" autocomplete="off" spellcheck="false">
       <input type="text" id="aiCustomModel" placeholder="Model, e.g. gpt-4o-mini" autocomplete="off" spellcheck="false">
-      <input type="password" id="aiCustomKey" placeholder="API key…" autocomplete="off" spellcheck="false" onkeydown="if(event.key===\'Enter\')saveAISettings();if(event.key===\'Escape\')closeAIModal()">
+      <!-- The quotes here were backslash-escaped, which is a JS syntax error inside
+           an HTML attribute: Enter and Escape did nothing in this field only. -->
+      <input type="password" id="aiCustomKey" placeholder="API key…" autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')saveAISettings();if(event.key==='Escape')closeAIModal()">
       <div class="ai-key-hint">Pick a preset or type any OpenAI-compatible endpoint. For Alkimi, use its base URL + your Alkimi key. Stored only in your browser.</div>
     </div>
     <div class="ai-modal-actions">
@@ -228,6 +196,6 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="app.js?v=2026-07-31-92"></script>
+<script src="app.js?v=2026-08-17-93"></script>
 </body>
 </html>

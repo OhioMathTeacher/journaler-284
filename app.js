@@ -217,31 +217,24 @@ document.addEventListener('DOMContentLoaded', () => {
   if (b) b.addEventListener('click', openAbout);
 });
 
+// The AI chooser is Settings → AI (three tabs: Local / $0 / Pay (Own Key)), and
+// everything that used to open the old provider-grid modal goes there instead, so
+// there is exactly one place that answers "which model am I using?". The function
+// itself is defined with the settings code further down and exported on window,
+// because renderAiTab lives inside that block and is not visible from here.
+
+// What remains of the old modal: the custom-endpoint editor, reached from the
+// "OpenAI-compatible" card in Settings → AI. It no longer chooses a provider
+// family — opening it means the user has already chosen "bring your own endpoint".
 function openAIModal() {
-  _modalProvider = getProvider();
-  _refreshModalCards();
+  _modalProvider = 'custom';
   _refreshKeySection();
   document.getElementById('aiModalOverlay').classList.add('open');
-  if (_modalProvider !== 'none' && _modalProvider !== 'local') {
-    setTimeout(() => document.getElementById('aiKeyInput').focus(), 50);
-  }
+  setTimeout(() => document.getElementById('aiCustomEndpoint')?.focus(), 50);
 }
 
 function closeAIModal() {
   document.getElementById('aiModalOverlay').classList.remove('open');
-}
-
-function selectProvider(p) {
-  _modalProvider = p;
-  _refreshModalCards();
-  _refreshKeySection();
-  if (p !== 'none' && p !== 'local') setTimeout(() => document.getElementById('aiKeyInput').focus(), 30);
-}
-
-function _refreshModalCards() {
-  ['local','anthropic','gemini','groq','custom','none'].forEach(p => {
-    document.getElementById('card-' + p).classList.toggle('selected', p === _modalProvider);
-  });
 }
 
 // "llama3.2:3b" → "Llama 3.2 · 3B"; "smollm2:1.7b" → "SmolLM 2 · 1.7B".
@@ -256,112 +249,33 @@ function prettyModelLabel(id) {
   return name + size;
 }
 
-// Fill the local-model dropdown by probing for a running model. No typing.
-async function _populateLocalModels() {
-  const sel  = document.getElementById('aiLocalModel');
-  const hint = document.getElementById('aiLocalHint');
-  sel.innerHTML = '';
-  hint.textContent = 'Looking for a local model…';
-  const found = await detectLocalModels();
-  // Dedupe by model id — localhost and 127.0.0.1 reach the same Ollama.
-  const seen = new Set();
-  const models = found.filter(m => (seen.has(m.id) ? false : seen.add(m.id)));
-  if (!models.length) {
-    const opt = document.createElement('option');
-    opt.value = ''; opt.textContent = '— none detected —';
-    sel.appendChild(opt);
-    hint.textContent = 'No local model detected. ' + localFailureHint(getLocalEndpoint());
-    return;
-  }
-  const current = getLocalModel();
-  models.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = JSON.stringify(m);
-    opt.textContent = prettyModelLabel(m.id);
-    if (m.id === current) opt.selected = true;
-    sel.appendChild(opt);
-  });
-  hint.textContent = 'Private · on this computer · no key, no internet.';
-}
 
+// Fill the custom-endpoint fields from storage. The local picker and the
+// per-provider key fields that used to live here went with the provider grid --
+// Settings → AI owns those now.
 function _refreshKeySection() {
-  const section = document.getElementById('aiKeySection');
-  const localSection = document.getElementById('aiLocalSection');
-  const input   = document.getElementById('aiKeyInput');
-  const hint    = document.getElementById('aiKeyHint');
-  // Local model: a picker, not a key.
-  if (_modalProvider === 'local') {
-    section.style.display = 'none';
-    localSection.style.display = 'block';
-    _populateLocalModels();
-    return;
-  }
-  localSection.style.display = 'none';
   const customSection = document.getElementById('aiCustomSection');
-  if (customSection) customSection.style.display = 'none';
-  if (_modalProvider === 'none') {
-    section.style.display = 'none';
-    return;
-  }
-  if (_modalProvider === 'custom') {
-    section.style.display = 'none';
-    if (customSection) {
-      customSection.style.display = 'block';
-      document.getElementById('aiCustomEndpoint').value = localStorage.getItem(CUSTOM_ENDPOINT_KEY) || '';
-      document.getElementById('aiCustomModel').value = localStorage.getItem(CUSTOM_MODEL_KEY) || '';
-      document.getElementById('aiCustomKey').value = getStoredKey('custom') ? '••••••••••••••••' : '';
-    }
-    return;
-  }
-  section.style.display = 'block';
-  const stored = getStoredKey(_modalProvider);
-  input.value = stored ? '••••••••••••••••' : '';
-  if (_modalProvider === 'anthropic') {
-    input.placeholder = 'sk-ant-…';
-    hint.innerHTML = 'Stored only in your browser · Never in source code · Get a key at <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>';
-  } else if (_modalProvider === 'gemini') {
-    input.placeholder = 'AIza…';
-    hint.innerHTML = 'Visit <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a> to get your free key — <strong style="color:#D4A843">use a personal Gmail, not a school account.</strong> Stored only in your browser. Never shared.';
-  } else {
-    input.placeholder = 'gsk_…';
-    hint.innerHTML = 'Visit <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com</a> to get your free key — any email works, no Google account needed. Stored only in your browser. Never shared.';
-  }
+  if (!customSection) return;
+  customSection.style.display = 'block';
+  document.getElementById('aiCustomEndpoint').value = localStorage.getItem(CUSTOM_ENDPOINT_KEY) || '';
+  document.getElementById('aiCustomModel').value = localStorage.getItem(CUSTOM_MODEL_KEY) || '';
+  document.getElementById('aiCustomKey').value = getStoredKey('custom') ? '••••••••••••••••' : '';
 }
 
+// Save is only ever reached for the custom endpoint now. Selecting a local or
+// free/paid provider is a click in Settings → AI, which commits immediately.
 function saveAISettings() {
-  // Local model: save the picked endpoint + model (no key).
-  if (_modalProvider === 'local') {
-    const sel = document.getElementById('aiLocalModel');
-    if (sel && sel.value) {
-      const m = JSON.parse(sel.value);
-      localStorage.setItem(PROVIDER_KEY, 'local');
-      localStorage.setItem(LOCAL_ENDPOINT_KEY, m.endpoint);
-      localStorage.setItem(LOCAL_MODEL_KEY, m.id);
-    }
-    closeAIModal();
-    updateAIBtn();
-    return;
-  }
-  if (_modalProvider === 'custom') {
-    const ep = document.getElementById('aiCustomEndpoint').value.trim().replace(/\/+$/, '');
-    const model = document.getElementById('aiCustomModel').value.trim();
-    const key = document.getElementById('aiCustomKey').value.trim();
-    localStorage.setItem(PROVIDER_KEY, 'custom');
-    if (ep) localStorage.setItem(CUSTOM_ENDPOINT_KEY, ep);
-    if (model) localStorage.setItem(CUSTOM_MODEL_KEY, model);
-    if (key && !key.startsWith('•')) localStorage.setItem(CUSTOM_KEY, key);
-    closeAIModal(); updateAIBtn(); return;
-  }
-  const val = document.getElementById('aiKeyInput').value.trim();
-  localStorage.setItem(PROVIDER_KEY, _modalProvider);
-  if (_modalProvider !== 'none' && val && !val.startsWith('•')) {
-    const storageKey = _modalProvider === 'anthropic' ? ANTHROPIC_KEY
-                     : _modalProvider === 'gemini'    ? GEMINI_KEY
-                     :                                  GROQ_KEY;
-    localStorage.setItem(storageKey, val);
-  }
+  const ep = document.getElementById('aiCustomEndpoint').value.trim().replace(/\/+$/, '');
+  const model = document.getElementById('aiCustomModel').value.trim();
+  const key = document.getElementById('aiCustomKey').value.trim();
+  localStorage.setItem(PROVIDER_KEY, 'custom');
+  if (ep) localStorage.setItem(CUSTOM_ENDPOINT_KEY, ep);
+  if (model) localStorage.setItem(CUSTOM_MODEL_KEY, model);
+  if (key && !key.startsWith('•')) localStorage.setItem(CUSTOM_KEY, key);
   closeAIModal();
   updateAIBtn();
+  // The panel behind this modal shows the selection, so it has to be told.
+  if (document.getElementById('settingsOverlay')?.classList.contains('open')) window.renderAiTab?.();
 }
 
 function applyCustomPreset(name) {
@@ -369,7 +283,9 @@ function applyCustomPreset(name) {
     openai:     { ep: 'https://api.openai.com/v1',      model: 'gpt-4o-mini' },
     deepseek:   { ep: 'https://api.deepseek.com/v1',    model: 'deepseek-chat' },
     openrouter: { ep: 'https://openrouter.ai/api/v1',   model: 'meta-llama/llama-3.3-70b-instruct' },
-    groq:       { ep: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' }
+    // llama-3.3-70b-versatile stopped being served on 16 August 2026. This preset
+    // fills the model field, so a retired id here hands the user a broken setup.
+    groq:       { ep: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b' }
   }[name];
   if (!P) return;
   document.getElementById('aiCustomEndpoint').value = P.ep;
@@ -381,21 +297,24 @@ async function callModel(prompt) {
   const provider = getProvider();
   const apiKey   = getStoredKey(provider);
 
+  // Every "you have not set this up yet" path lands on the chooser, which is
+  // Settings → AI -- not the custom-endpoint editor, which assumes a decision
+  // the user has not made yet.
   if (provider === 'none') {
-    openAIModal();
-    return 'No AI provider selected. Choose one using the AI button in the header.';
+    openSettingsAI();
+    return 'No AI provider selected. Choose one in Settings → AI.';
   }
   if (provider !== 'local' && !apiKey) {
-    openAIModal();
-    return 'No API key found. Enter your key in the AI settings.';
+    openSettingsAI();
+    return 'No API key found. Add your key in Settings → AI.';
   }
 
   if (provider === 'local') {
     const endpoint = getLocalEndpoint();
     const model    = getLocalModel();
     if (!model) {
-      openAIModal();
-      return 'No local model selected. Pick one in the AI settings.';
+      openSettingsAI();
+      return 'No local model selected. Pick one in Settings → AI.';
     }
     try {
       const res = await fetch(`${endpoint}/v1/chat/completions`, {
@@ -4031,18 +3950,32 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     const found = await Promise.all(urls.map(async u => { const m = await listLocalModels(u, 1500); return m ? { url:u, models:m } : null; }));
     return found.filter(Boolean);
   }
-  function aiCard(title, sub, badge, on, onclick){
+  // keyUrl, when given, adds a "Get a key ↗" link inside the card. Keys here are
+  // collected with prompt(), which cannot carry a link, so without this a student
+  // who has no key is told to paste one with no way to find out where from.
+  function aiCard(title, sub, badge, on, onclick, keyUrl){
     const b = document.createElement('button');
     b.className = 'ai-card' + (on ? ' on' : '');
-    b.innerHTML = `<span class="ai-card-main"><b>${escHtml(title)}</b><small>${escHtml(sub)}</small></span>` +
+    b.innerHTML = `<span class="ai-card-main"><b>${escHtml(title)}</b><small>${escHtml(sub)}</small>` +
+                  (keyUrl ? `<a class="ai-getkey" href="${escHtml(keyUrl)}" target="_blank" rel="noopener">Get a key ↗</a>` : '') +
+                  `</span>` +
                   (badge ? `<span class="ai-badge">${escHtml(badge)}</span>` : '');
     b.onclick = onclick;
+    // The link is inside a button; without this, following it also fires the
+    // card's prompt() behind the newly-opened tab.
+    const a = b.querySelector('.ai-getkey');
+    if(a) a.addEventListener('click', e => e.stopPropagation());
     return b;
   }
   function renderAiTab(){
     const list = document.getElementById('aiList'); if(!list) return;
     const sel = document.getElementById('aiSelected');
-    if(sel) sel.textContent = getProvider() === 'none' ? 'No AI connected' : 'Selected: ' + aiLabel();
+    // Always "Selected: …", the same phrasing as the other apps' panels — the
+    // label answers one question and should answer it the same way everywhere.
+    if(sel){
+      sel.innerHTML = 'Selected: <b></b>';
+      sel.querySelector('b').textContent = getProvider() === 'none' ? 'none' : aiLabel();
+    }
     const foot = document.getElementById('aiFoot');
     list.innerHTML = '';
 
@@ -4087,9 +4020,9 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
 
     if(_aiSub === 'free'){
       if(foot) foot.textContent = 'Free tiers. The key is stored in this browser and sent only to that provider.';
-      [['gemini','Gemini 2.5 Flash','Free tier via Google — use a personal Gmail account.', GEMINI_KEY],
-       ['groq','Groq · ' + getGroqModel(),'Free tier. Any email — no Google account needed.', GROQ_KEY]]
-        .forEach(([id,title,sub,keyName]) => {
+      [['gemini','Gemini 2.5 Flash','Free tier via Google — use a personal Gmail account.', GEMINI_KEY, 'https://aistudio.google.com/app/apikey'],
+       ['groq','Groq · ' + getGroqModel(),'Free tier. Any email — no Google account needed.', GROQ_KEY, 'https://console.groq.com/keys']]
+        .forEach(([id,title,sub,keyName,keyUrl]) => {
           list.appendChild(aiCard(title, sub, 'Free', getProvider() === id, () => {
             const k = prompt('Paste your ' + title + ' API key:', localStorage.getItem(keyName) || '');
             if(k === null) return;
@@ -4097,7 +4030,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
             localStorage.setItem(PROVIDER_KEY, id);
             logEvent('ai', 'provider → ' + id);
             updateAIBtn(); renderAiTab();
-          }));
+          }, keyUrl));
         });
       return;
     }
@@ -4110,7 +4043,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         localStorage.setItem(ANTHROPIC_KEY, k.trim());
         localStorage.setItem(PROVIDER_KEY, 'anthropic');
         logEvent('ai', 'provider → anthropic'); updateAIBtn(); renderAiTab();
-      }));
+      }, 'https://console.anthropic.com/settings/keys'));
     list.appendChild(aiCard('OpenAI-compatible', localStorage.getItem(CUSTOM_ENDPOINT_KEY) || 'Any /v1/chat/completions endpoint', 'Own key',
       getProvider() === 'custom', () => { window.closeSettings(); openAIModal(); }));
   }
@@ -4129,6 +4062,17 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     renderDiagnostics(); renderDiagSnapshot();
   }
   window.openSettings = openSettings;
+  // The single entry point to the AI chooser: the toolbar AI button and every
+  // "you have not set this up yet" path in callModel() call this.
+  window.openSettingsAI = function openSettingsAI() {
+    openSettings();
+    document.querySelectorAll('#setTabs .set-tab').forEach(x => x.classList.toggle('on', x.dataset.set === 'ai'));
+    document.querySelectorAll('.set-pane').forEach(x => x.classList.toggle('on', x.id === 'set-ai'));
+    renderAiTab();
+  };
+  // saveAISettings() lives outside this block and has to refresh the panel
+  // behind the custom-endpoint modal once a save lands.
+  window.renderAiTab = renderAiTab;
   window.closeSettings = () => document.getElementById('settingsOverlay').classList.remove('open');
   const _setBtn = document.getElementById('settingsBtn');
   if(_setBtn) _setBtn.addEventListener('click', openSettings);
