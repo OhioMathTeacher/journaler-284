@@ -89,14 +89,21 @@
   .namefield::placeholder { color: var(--muted); }
 
   /* width is contextual */
-  .frame { max-width: 1180px; margin: 0 auto; padding: 22px clamp(12px,3vw,28px) 60px; }
+  /* ⚠ LEFT-ALIGNED, not centred. Todd: "The other tabs are flush left. This looks
+     weird." Readings and Notebook take the whole window, so they start hard against
+     the left padding; a centred 1180 frame put Tips, Freewrite and Currere hundreds
+     of pixels further in on a wide monitor, and changing tab slid the page sideways.
+     The cap stays — nobody wants a 2,000px line of prose — but the slack now falls
+     on the right, where it costs nothing, instead of being split around the content. */
+  .frame { max-width: 1180px; margin: 0; padding: 22px clamp(12px,3vw,28px) 60px; }
   /* ⚠ FULL-BLEED IS ITS OWN CLASS, and it is not the same thing as the One-Pager's
      two-column layout. Both used to be `body.wide`, so opening a gushed One-Pager
      tore the whole frame out to the window edge while every other page in the same
      tab sat at 1180 — click "1 · Why You Write" then "Why do we write?" and the
      page jumped. Readings and Notebook genuinely need the window (a PDF beside its
      notes, a grid eight columns wide). A writing surface never does. */
-  body.bleed .frame { max-width: none; padding-left: clamp(12px,2vw,20px); padding-right: clamp(12px,2vw,20px); }
+  body.bleed .frame { max-width: none; }   /* width only — the padding must match, or
+     Notebook starts 8px left of Freewrite and the page still twitches on tab change */
 
   .head h1 { font-family: var(--write); font-weight: 600; font-size: 30px; margin: 0 0 4px; }
   .head p { margin: 0 0 18px; color: var(--muted); font-size: 16.5px; max-width: 70ch; }
@@ -503,7 +510,9 @@
    assignment. ========================================================== */
 /* 38rem, not the 34 a short-lined poem wants: Whitman's lines are long and every
    one of them was folding twice. A measure set for Dickinson mangles Whitman. */
-.poempage { max-width: 38rem; margin: 0 auto; padding: 0 4px 40px; }
+/* Same reasoning: left-aligned under the kicker, not floated in the middle of
+   whatever the rail leaves over. */
+.poempage { max-width: 38rem; margin: 0; padding: 0 4px 40px; }
 .pmkick { font-family: var(--sans); font-size: 11.5px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 0 0 18px; }
 .pmtitle { font-family: var(--write); font-size: clamp(30px, 4.4vw, 40px); font-weight: 600;
