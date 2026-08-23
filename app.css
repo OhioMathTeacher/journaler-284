@@ -435,6 +435,12 @@
 .am-save { background: var(--cave-glow); color: var(--cave-dark); flex: 1; }
 .am-save:hover { background: #E0B84E; }
 .am-cancel { background: rgba(255,255,255,0.06); color: #9A9083; }
+/* Past the "one model" default. Quiet on purpose: a student has no reason to want
+   it, and the person who does knows it is there. */
+.ai-more { display: block; width: 100%; margin: 8px 0 0; padding: 6px 2px; background: none;
+  border: 0; font-family: var(--sans); font-size: 13px; color: #8FA2B8; cursor: pointer;
+  text-align: left; text-decoration: underline; text-underline-offset: 2px; }
+.ai-more:hover { color: #D4A843; }
 .am-cancel:hover { background: rgba(255,255,255,0.12); }
   .ai-preset-row{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.55rem}
   .ai-preset{background:rgba(255,255,255,.08);color:#e8dcc8;border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:.32rem .62rem;font-size: 0.897rem;cursor:pointer;font-family:'DM Sans',sans-serif}

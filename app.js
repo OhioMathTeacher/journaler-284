@@ -155,6 +155,52 @@ function localProbeEndpoints() {
   return eps;
 }
 
+// ⚠ THE ONE MODEL STUDENTS SEE, in order of preference.
+//
+// A shared Ollama box lists everything on it. On ToddGPT that is the 27B Todd keeps
+// for his own work plus the bake-off losers — mistral:7b, gemma3:4b, gemma3:12b —
+// and a student picking one of those gets a worse partner with no way of knowing.
+// mistral scored 0/5 on staying inside two sentences.
+//
+// qwen3.5:9b is the measured choice (06-model-sizing.md): best writing, and the only
+// model that reliably obeyed persona changes. The 4B is the fallback for a machine
+// that cannot hold the 9B.
+//
+// ⚠ If NONE of these is present the full list is shown instead. A student running
+// their own Ollama with some other model must not be locked out of a working setup
+// by a preference expressed here.
+//
+// ⚠ And this is a DEFAULT, not a lock. Todd: "But I'd like to see all of them. Maybe
+// too tricky to filter by user?" — it does not need to know who is looking. A student
+// opening this tab has one obvious choice and no way to pick a worse one by accident;
+// anyone who actually wants the rest clicks one link. Nobody has to be identified for
+// that to work, which is the whole reason not to try.
+const LOCAL_PREFERRED = ['qwen3.5:9b', 'qwen3.5:4b'];
+let _showAllLocal = false;
+
+// ⚠ One box, three URLs. The probe tries localhost, 127.0.0.1 and the host that
+// served the page, and on ToddGPT all three answer — so an undeduplicated list shows
+// every model three times. Keyed by model id, first endpoint in probe order wins.
+function flattenLocal(found){
+  const seen = new Set(), out = [];
+  (found || []).forEach(f => (f.models || []).forEach(m => {
+    if(seen.has(m.id)) return;
+    seen.add(m.id);
+    out.push({ url: f.url, id: m.id });
+  }));
+  return out;
+}
+
+// [{url, id}] narrowed to the preferred model, or everything if none is there.
+function preferLocal(found){
+  const all = flattenLocal(found);
+  for(const want of LOCAL_PREFERRED){
+    const hit = all.find(x => x.id === want || String(x.id).startsWith(want + '-'));
+    if(hit) return { list: [hit], hidden: all.length - 1 };
+  }
+  return { list: all, hidden: 0 };
+}
+
 let _localModels = [];
 // Probe the candidate endpoints for an OpenAI-compatible model list. Returns
 // [{endpoint, id}] in endpoint-priority order; never throws.
@@ -5466,16 +5512,31 @@ You: Really. The first line only has to exist, not be good.`;
         if(document.getElementById('aiList') !== list) return;
         list.innerHTML = '';
         const cur = getProvider() === 'local' ? (getLocalEndpoint() + '|' + getLocalModel()) : '';
-        found.forEach(f => f.models.forEach(m => {
-          list.appendChild(aiCard(m.id, f.url, 'Local', cur === (f.url + '|' + m.id), () => {
+        const pick = preferLocal(found);
+        const all = flattenLocal(found);
+        const shown = _showAllLocal ? all : pick.list;
+        if(pick.hidden && !_showAllLocal) logEvent('ai', 'local models hidden', {
+          shown: pick.list.map(x => x.id), hidden: pick.hidden });
+        shown.forEach(m => {
+          list.appendChild(aiCard(m.id, m.url, 'Local', cur === (m.url + '|' + m.id), () => {
             localStorage.setItem(PROVIDER_KEY, 'local');
-            localStorage.setItem(LOCAL_ENDPOINT_KEY, f.url);
+            localStorage.setItem(LOCAL_ENDPOINT_KEY, m.url);
             localStorage.setItem(LOCAL_MODEL_KEY, m.id);
-            addExtraEndpoint(f.url);
-            logEvent('ai', 'provider → local', { endpoint: f.url, model: m.id });
+            addExtraEndpoint(m.url);
+            logEvent('ai', 'provider → local', { endpoint: m.url, model: m.id });
             updateAIBtn(); renderAiTab();
           }));
-        }));
+        });
+        // The way past the default, for the person who set it.
+        if(pick.hidden){
+          const more = document.createElement('button');
+          more.className = 'ai-more';
+          more.textContent = _showAllLocal
+            ? 'Show only the model for this course'
+            : `Show all ${all.length} models on this server`;
+          more.onclick = () => { _showAllLocal = !_showAllLocal; renderAiTab(); };
+          list.appendChild(more);
+        }
         if(!found.length) list.innerHTML =
           '<p class="ai-scan">No local model answered. Start Ollama (or LM Studio) and reopen this tab. ' +
           'If the page is served over https, the model must allow this origin — see OLLAMA_ORIGINS.</p>';
