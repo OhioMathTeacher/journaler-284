@@ -440,19 +440,30 @@
    do. The rail keeps the card idiom; the poem does not. */
 .poemlayout .stage.plain { background: none; border: 0; border-radius: 0; padding: 0;
   min-height: 0; }
-/* Wider than Freewrite's 216px: these labels are poem titles and poets' names, and
-   at 216 "Sonnet 130: My mistress' eyes…" wrapped to four lines. */
-.poemlayout { grid-template-columns: 250px 1fr; }
-.poemlayout .moment .mname { font-family: var(--write); font-weight: 600; font-size: 16.5px; }
-.poemlayout .moment .mkind { line-height: 1.45; }
-/* The shared .moment.on -- a 3px edge and a white fill -- is enough in Freewrite,
-   where five items sit in a fixed order you already know. Here there are sixteen
-   near-identical cards and the only question the rail has to answer at a glance is
-   "which one am I reading", so this one gets the accent outright. */
-.poemlayout .moment.on { background: var(--accent); border-color: var(--accent); }
-.poemlayout .moment.on .mname { color: #fff; }
-.poemlayout .moment.on .mkind { color: rgba(255,255,255,.78); }
-.poemlayout .moment.on .dot { background: rgba(255,255,255,.8); }
+.poemlayout { grid-template-columns: 232px 1fr; }
+/* ── The rail: sixteen links, one screen ──────────────────────────────────────
+   These were .moment cards, four lines and a border each, which came to roughly
+   1,400px of rail for a term — you had to scroll the sidebar to see the list it
+   exists to show. A link is a date and a title on one line, and sixteen of them
+   come to about 400px. The poet and the class poem the stand-in answers move into
+   the tooltip; they are worth having and not worth a line each. */
+.poemrail { display: flex; flex-direction: column; position: sticky; top: 64px; }
+.poemrail .lead { font-family: var(--sans); font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 2px 0 8px 8px; }
+.pmlink { display: flex; align-items: baseline; gap: .5rem; width: 100%; text-align: left;
+  background: none; border: 0; border-left: 2px solid transparent; border-radius: 0;
+  padding: 4px 6px 4px 8px; cursor: pointer; font-family: var(--sans); font-size: 13.5px;
+  line-height: 1.35; color: var(--ink); }
+.pmlink:hover { background: var(--comment-bg); }
+.pmlink:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pmwhen { flex: 0 0 3.1rem; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Clipped, not wrapped: a wrapped title turns one link into three and the whole
+   point of this rail is that all of them are visible at once. */
+.pmwhat { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.pmlink.on { border-left-color: var(--accent); background: var(--comment-bg); }
+.pmlink.on .pmwhat { color: var(--accent); font-weight: 700; }
+.pmlink.on .pmwhen { color: var(--accent); }
 
 /* ===== The poem page ========================================================
    Todd: "a little more stylized, a little more poem", pointing at how the Poetry

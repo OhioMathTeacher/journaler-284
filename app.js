@@ -5284,15 +5284,21 @@ You: Really. The first line only has to exist, not be good.`;
     // into "Poems so far" and "Still to come", and Todd's answer was "I would list all
     // of them". The date is on every row and the current one is unmistakable, so the
     // split was doing nothing the list did not already say.
+    //
+    // ⚠ ONE LINE PER POEM. These were .moment cards -- title, date, poet and the class
+    // poem, each on its own line, in a bordered box -- which is right for Freewrite's
+    // five stages and wrong for sixteen of anything. Todd: "I just want a link for each
+    // poem, not giant cards for each day... We shouldn't have to scroll to see all the
+    // links." Sixteen rows have to fit on one screen, so: a date column and a title,
+    // clipped, with the poet and the class poem in the tooltip.
     const row = q => {
       const sh = poemShown(q);
-      const stand = sh !== q;
-      return `<button class="moment ${q.date === p.date ? 'on' : ''}" data-poem="${q.date}">
-        <span class="mname"><span class="dot"></span>${escHtml(sh.title)}</span>
-        <span class="mkind">${escHtml(shortDate(q.date))} · ${escHtml(sh.poet)}${
-          stand ? `<br>for “${escHtml(q.title)}”` : ''}</span></button>`;
+      const full = `${sh.title} — ${sh.poet}` + (sh !== q ? `  ·  for “${q.title}”` : '');
+      return `<button class="pmlink ${q.date === p.date ? 'on' : ''}" data-poem="${q.date}"
+        title="${escHtml(full)}"><span class="pmwhen">${escHtml(shortDate(q.date))}</span
+        ><span class="pmwhat">${escHtml(sh.title)}</span></button>`;
     };
-    const rail = `<nav class="spine">
+    const rail = `<nav class="poemrail">
       <p class="lead">Every poem this term</p>
       ${list.map(row).join('')}
     </nav>`;
@@ -5314,10 +5320,10 @@ You: Really. The first line only has to exist, not be good.`;
     frame.querySelectorAll('[data-poem]').forEach(b => b.onclick = () => {
       poemSel = b.dataset.poem; renderPoem();
     });
-    // The rail is the same list on every poem and only the highlight moves, so the
-    // highlight has to be on screen for that to mean anything. By November the current
-    // row is the sixteenth and sits below the fold on arrival. 'nearest' does nothing
-    // when it is already visible, which is most days.
+    // Belt and braces. All sixteen links fit on a screen now, so this should never
+    // fire -- but a large text size or a short window could still push the last few
+    // under, and a highlight you cannot see is not a highlight. 'nearest' does
+    // nothing when the row is already visible, which is every normal case.
     const here = frame.querySelector('[data-poem].on');
     if(here && here.scrollIntoView) here.scrollIntoView({ block: 'nearest' });
     wirePoemActions(shown, p);
