@@ -164,7 +164,11 @@
   .locknote { font-size: 14.5px; color: var(--muted); } .lockflag { color: var(--danger); font-weight: 700; }
   .minsel { font-family: var(--sans); font-size: 15px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--comment-border); background: #fff; }
 
-  textarea.gush { display: block; width: 100%; max-width: var(--writecol); margin: 0; height: 52vh; min-height: 320px; max-height: 600px; overflow-y: auto; resize: none; font-family: var(--write); font-size: 18.5px; line-height: 1.7; background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; padding: 32px 40px; color: var(--ink); }
+  /* ⚠ NO max-width. Todd: "Make this wider to fit the size of the window." The
+     writing surface fills its pane; --writecol still governs the narrower things
+     around it, and Focus mode still clamps the frame to 720px, which is where a
+     tight measure actually matters — during the timed gush. */
+  textarea.gush { display: block; width: 100%; margin: 0; height: 52vh; min-height: 320px; max-height: 600px; overflow-y: auto; resize: none; font-family: var(--write); font-size: 18.5px; line-height: 1.7; background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; padding: 32px 40px; color: var(--ink); }
   /* [readonly] is the post-buzzer state: frozen but selectable, so the gush can be copied
      into the One-Pager. :disabled is the before-you-start state. Both look the same. */
   textarea.gush:disabled, textarea.gush[readonly] { background: #fdfbf6; color: var(--ink); } textarea.locked { border-color: var(--accent-light); box-shadow: 0 0 0 3px var(--highlight-soft); }
@@ -178,7 +182,7 @@
   .toolbar button { font-family: var(--write); font-size: 17px; width: 34px; height: 32px; border: 1px solid var(--comment-border); background: #fff; border-radius: 5px; cursor: pointer; }
   .toolbar .sep { width: 1px; height: 22px; background: var(--comment-border); margin: 0 4px; }
   .toolbar .wc { margin-left: auto; font-family: var(--sans); font-size: 14px; color: var(--muted); } .toolbar .wc.good { color: var(--go); font-weight: 600; }
-  .page { background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; box-shadow: 0 1px 8px rgba(44,36,22,.06); width: 100%; max-width: var(--writecol); height: 52vh; min-height: 320px; max-height: 600px; overflow-y: auto; margin: 0; padding: 32px 40px; font-family: var(--write); font-size: 18px; line-height: 1.65; }
+  .page { background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; box-shadow: 0 1px 8px rgba(44,36,22,.06); width: 100%; height: 52vh; min-height: 320px; max-height: 600px; overflow-y: auto; margin: 0; padding: 32px 40px; font-family: var(--write); font-size: 18px; line-height: 1.65; }
   .page:empty:before { content: attr(data-ph); color: var(--muted); font-style: italic; } .page img { max-width: 100%; border-radius: 3px; margin: 6px 0; }
   .composer-foot { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; } .composer-foot .note { font-size: 14.5px; color: var(--muted); }
   .stems { margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -482,6 +486,18 @@
    340 fits all but the longest; those still clip, with the full title in the
    tooltip. A drag-to-resize pane is the other answer and is not built. */
 .poemlayout { grid-template-columns: 340px 1fr; column-gap: 76px; }
+/* ⚠ The 720px stacking rule for .layout sits EARLIER in this file, so this wider
+   rail quietly won on phones and pushed the page 63px past the viewport — the
+   whole app scrolled sideways on Tips and nowhere else. Restated here. */
+@media (max-width: 720px){
+  .poemlayout { grid-template-columns: 1fr; column-gap: 0; }
+  /* ⚠ And the tip comes FIRST. Stacked in source order the rail put twenty-seven
+     rows above the thing the page exists to show, so on a phone you scrolled the
+     whole term to read today's. The list is the index; it belongs underneath. */
+  .poemlayout .stage { order: 1; }
+  .poemrail { order: 2; position: static; margin-top: 26px;
+    border-top: 1px solid var(--comment-border); padding-top: 16px; }
+}
 /* ── The rail: sixteen links, one screen ──────────────────────────────────────
    These were .moment cards, four lines and a border each, which came to roughly
    1,400px of rail for a term — you had to scroll the sidebar to see the list it
