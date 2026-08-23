@@ -333,6 +333,32 @@ async function callModel(prompt) {
       return 'No local model selected. Pick one in Settings → AI.';
     }
     try {
+      // Qwen3.5 and other reasoning models spend the whole token budget in a
+      // separate `reasoning` field and hand back content:"" with
+      // finish_reason:"length" -- the reader sees nothing at all. Measured on
+      // ToddGPT 2026-08-23: /v1 returned 700 tokens and an empty string on both
+      // qwen3.5:9b and qwen3.5:4b; Ollama's own /api/chat with think:false
+      // returned the same reply in 28 tokens. So try Ollama natively first.
+      // LM Studio (:1234) and llama.cpp have no /api/chat, fall through to /v1
+      // below unchanged, so a student's own laptop keeps working exactly as now.
+      const oll = await fetch(`${endpoint}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          stream: false,
+          think: false,
+          options: { num_predict: REPLY_MAX_TOKENS },
+          messages: [{ role: 'user', content: prompt }]
+        })
+      }).catch(() => null);
+      if (oll && oll.ok) {
+        const d = await oll.json();
+        return markIfTruncated(
+          (d && d.message && d.message.content) || '',
+          d && d.done_reason === 'length'
+        );
+      }
       const res = await fetch(`${endpoint}/v1/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -880,6 +906,81 @@ async function runReflection(rf, text, hooks) {
   // occasional by nature. A second button only offered a way to arrive at another
   // machine missing your chapters.
   function saveWork(){ return exportEverything(document.getElementById('saveWorkBtn')); }
+
+  // ── Conversation transcript, following verbatim-app's reader.html.
+  //    Its header is the part worth copying: student words and AI words reported
+  //    SEPARATELY, side by side, alongside provider and model. The file states its
+  //    own provenance instead of leaving a reader to guess who wrote what. One
+  //    self-contained page -- no viewer needed, opens anywhere, prints.
+  function wordsIn(s){ const t = String(s||'').trim(); return t ? t.split(/\s+/).length : 0; }
+  function buildTranscriptHTML(){
+    const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const all = allQA() || {};
+    const byReading = [];
+    let stuW = 0, aiW = 0, turns = 0;
+    for(const r of readings){
+      const list = (all[r.id] || []).filter(x => x.reply);
+      if(!list.length) continue;
+      list.forEach(x => { stuW += wordsIn(x.question); aiW += wordsIn(x.reply); turns++; });
+      byReading.push({ r, list });
+    }
+    const model = (typeof getProvider === 'function' && getProvider() === 'local')
+      ? (typeof getLocalModel === 'function' ? getLocalModel() : '') : '';
+    const fact = (k,v) => `<div class="fact"><span class="k">${esc(k)}</span><span class="v">${esc(v==null||v===''?'—':v)}</span></div>`;
+    const now = new Date();
+    let h = `<div class="facts">`
+      + fact('Name', (DB.name||'').trim())
+      + fact('Readings', byReading.length)
+      + fact('Exchanges', turns)
+      // The whole point of the header, borrowed from verbatim: never one merged number.
+      + fact('Words', `${stuW} mine · ${aiW} the partner's`)
+      + fact('AI provider', typeof getProvider === 'function' ? getProvider() : '—')
+      + fact('Model', model)
+      + fact('Exported', now.toLocaleString())
+      + `</div>`
+      + `<p class="note">Words are counted separately on purpose. The partner's words are
+         not mine and are not part of what I wrote. Kept exchanges do not count toward
+         notebook entries or word counts.</p>`;
+    for(const {r, list} of byReading){
+      h += `<h2>${esc(readingLabel(r))}</h2>`;
+      for(const x of list){
+        const cite = x.page ? `${readingLabel(r)}, p. ${x.page}` : readingLabel(r);
+        h += `<section class="ex">`;
+        if(x.passage || x.quote) h += `<blockquote class="passage">${esc(x.passage || x.quote)}<cite>— ${esc(cite)}</cite></blockquote>`;
+        h += `<div class="turn me"><p class="who">I asked</p><div class="text">${esc(x.question || 'Help me think about this passage.')}</div><p class="meta">${wordsIn(x.question)} words</p></div>`;
+        h += `<div class="turn ai"><p class="who">The reading partner</p><div class="text">${esc(x.reply)}</div><p class="meta">${wordsIn(x.reply)} words · not my writing</p></div>`;
+        h += `</section>`;
+      }
+    }
+    if(!byReading.length) h += `<p class="note">No conversations yet.</p>`;
+    return `<!doctype html><meta charset="utf-8"><title>Journaler conversations — ${esc((DB.name||'').trim()||'untitled')}</title>
+<style>
+ body{font:16px/1.55 Georgia,serif;max-width:44rem;margin:2.5rem auto;padding:0 1.2rem;color:#26241f;background:#faf7f1}
+ h1{font-size:1.5rem;margin:0 0 .2rem} h2{font-size:1.05rem;margin:2.2rem 0 .6rem;border-bottom:1px solid #ddd6c8;padding-bottom:.2rem}
+ .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.3rem .9rem;margin:1rem 0}
+ .fact{display:flex;gap:.4rem;font-size:.82rem} .fact .k{color:#8a8271} .fact .v{font-weight:600}
+ .note{font-size:.8rem;color:#6d6559;font-style:italic;border-left:2px solid #ddd6c8;padding-left:.7rem}
+ .ex{margin:1.4rem 0;padding-bottom:1rem;border-bottom:1px dotted #ddd6c8}
+ .passage{margin:0 0 .7rem;padding:.5rem .8rem;background:#f1ece1;border-left:3px solid #c69a5c;font-size:.9rem;color:#4a4438}
+ .passage cite{display:block;margin-top:.3rem;font-size:.78rem;color:#8a8271;font-style:normal}
+ .turn{margin:.6rem 0} .who{margin:0 0 .15rem;font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;color:#8a8271}
+ .turn.ai .text{background:#f1ece1;padding:.5rem .8rem;border-radius:6px}
+ .meta{margin:.2rem 0 0;font-size:.72rem;color:#9a9182}
+ @media print{body{background:#fff;margin:0;max-width:none}}
+</style>
+<h1>Conversations with the reading partner</h1>${h}`;
+  }
+  function exportTranscript(btn){
+    try{
+      const blob = new Blob([buildTranscriptHTML()], { type:'text/html;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const d = new Date(), pad = n => String(n).padStart(2,'0');
+      a.download = `journaler-conversations-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.html`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+      toast('Saved your conversations.');
+    }catch(e){ console.warn('exportTranscript', e); toast('Could not build the file: ' + (e.message||e)); }
+  }
   // ── Export everything: the JSON plus the reading FILES, as one zip. Save my work is
   //    the small, frequent backup; this is the occasional artifact you carry to another
   //    machine, so a second computer needs ONE file instead of a save file plus a pile
@@ -996,11 +1097,11 @@ async function runReflection(rf, text, hooks) {
     if(!el){ el = document.createElement('div'); el.id = 'cr284Toast'; el.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--parchment);font-family:var(--sans);font-size:13px;padding:9px 16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:60;opacity:0;transition:opacity .2s;pointer-events:none'; document.body.appendChild(el); }
     el.textContent = msg; el.style.opacity = '1'; clearTimeout(_toastT); _toastT = setTimeout(()=>{ el.style.opacity = '0'; }, 1700);
   }
-  function elevate(pieceId, pieceKind, pieceTitle, text, dateKey){
+  function elevate(pieceId, pieceKind, pieceTitle, text, dateKey, meta){
     text = (text||'').trim();
     if(!text){ toast('Nothing to keep yet — write something first.'); return null; }
     const now = new Date();
-    const entry = { id:'j'+now.getTime()+Math.round(Math.random()*1e5), pieceId, pieceKind, pieceTitle, ts:now.toISOString(), date: dateKey || now.toISOString().slice(0,10), edited: now.toISOString(), text };
+    const entry = Object.assign({ id:'j'+now.getTime()+Math.round(Math.random()*1e5), pieceId, pieceKind, pieceTitle, ts:now.toISOString(), date: dateKey || now.toISOString().slice(0,10), edited: now.toISOString(), text }, meta || {});
     DB.journal.push(entry); saveDB(); toast('Kept in your notebook ✎'); return entry;
   }
   function journalByDate(dateKey){ return DB.journal.filter(e=>e.date===dateKey); }
@@ -2393,6 +2494,58 @@ async function runReflection(rf, text, hooks) {
     const pieceId = r ? 'reading:' + r.id : 'reading';
     elevate(pieceId, 'reading', label ? 'Reading · ' + label : 'Reading notes', body);
   }
+  // The partner's name, in one place. "ToddGPT" was considered and rejected on
+  // 2026-08-23: Todd's name on the replies implies he can read what students write
+  // here, and the notebook is the one place nothing is graded or read.
+  //
+  // A human name alone hides that this is software, so anything KEPT, exported or
+  // printed carries AI_TAG ("Romano · AI") rather than AI_NAME. The live reading view
+  // uses the bare name; the permanent record always marks it.
+  const AI_NAME = 'Romano';          // the name students see, everywhere
+  const AI_TAG  = AI_NAME + ' \u00b7 AI';   // the attribution chip -- always marks it as AI
+
+  // Keep an exchange with the reading partner. Decided 2026-08-23: good ideas do
+  // spring from arguing with the text, and that is exactly what the notebook is for.
+  //
+  // The rule is LABELLING, not exclusion. elevateHighlight already puts non-student
+  // text in the notebook every time it runs — a quotation — and that is fine because
+  // it goes in quoted and attributed. This does the same for the partner's words.
+  // What must never happen is a reply landing as bare prose that reads as the
+  // student's own, because the notebook is graded and numbered (see the ENTRY
+  // NUMBERS note in the print bundle). Keep the attribution lines below.
+  // The selected text, but only when the selection lies inside the partner's reply --
+  // selecting your own question or the quoted passage should not become "what he said".
+  function qaCardOfSelection(){
+    const s = window.getSelection();
+    if(!s || s.isCollapsed || !String(s).trim()) return null;
+    let n = s.anchorNode; n = (n && n.nodeType === 3) ? n.parentNode : n;
+    const reply = n && n.closest ? n.closest('.qa-say.rmreply') : null;
+    return reply ? reply.closest('.notecard.qa') : null;
+  }
+  function selectedWithin(card){
+    if(!card) return '';
+    const s = window.getSelection();
+    if(!s || s.isCollapsed) return '';
+    let n = s.anchorNode; n = (n && n.nodeType === 3) ? n.parentNode : n;
+    if(!n || !n.closest || !n.closest('.qa-say.rmreply')) return '';
+    return card.contains(n) ? String(s).trim() : '';
+  }
+  function elevateQA(rec, excerpt){
+    if(!rec || !rec.reply) return;
+    const r = readings[activeReading];
+    const label = r ? readingLabel(r) : '';
+    const where = label + (rec.page ? ', p. ' + rec.page : '');
+    const said = String(excerpt || rec.reply).trim();
+    const partial = !!excerpt && excerpt.trim() !== String(rec.reply).trim();
+    const body = [
+      rec.quote ? '“' + rec.quote + '”' + (where.trim() ? '\n— ' + where : '') : '',
+      rec.question ? '\nI asked: ' + rec.question : '',
+      '\n' + AI_NAME + ' said' + (partial ? ', in part' : '') + ': “' + said + '”'
+    ].filter(Boolean).join('\n');
+    const pieceId = r ? 'reading:' + r.id : 'reading';
+    const title = label ? 'From chat about ' + label : 'From chat about the reading';
+    elevate(pieceId, 'conversation', title, body, null, { author: AI_TAG, authorKind:'ai' });
+  }
   function downloadCapture(){
     if(!captureImage) return;
     const a = document.createElement('a');
@@ -2436,13 +2589,91 @@ async function runReflection(rf, text, hooks) {
     return seg ? `From "${readingLabel(r)}" — the pages the reader is on right now:\n\n${seg}` : '';
   }
 
-  // Romano — the reading partner (Tom Romano, author of the book). Warm, first
-  // person, ≤2 sentences, turns a question back. Uses the shared callModel client.
-  const READING_PARTNER = `You are Tom Romano — writer, teacher, and author of "Write What Matters" — a warm reading-and-writing partner for a college student reading your book. You help them think about the passage and their own writing life; you never lecture or summarize for them.
+  // ═══ HARNESS: things the prompt cannot be trusted to do ═══════════════════
+  //
+  // Measured on ToddGPT 2026-08-23 across 11 persona revisions: instructions about
+  // LENGTH and about never ending on a question were ignored a large fraction of the
+  // time, and no rewording fixed it. Instructions about VOICE and STANCE held well.
+  // So: voice lives in the prompt below, and everything mechanical lives here in code.
+  //
+  // ⚠️ TODD — these two constants are placeholders. Edit them before students use this.
+  //    They are the answers the app gives WITHOUT asking the model, because the model
+  //    has no way to know them and will invent them. It did: asked "is Dr. Edwards
+  //    going to read what I type in here?", it answered "Dr. Edwards will never read
+  //    your typing here, and that is exactly why you should feel safe." Nobody
+  //    authorised that, and the One-Pager session record suggests it is false.
+  const ANSWER_WHO_SEES_THIS =
+    '[PLACEHOLDER — Todd, write the true answer: who can see journaler entries, '
+    + 'whether this is graded, and how long it is kept.]';
+  const ANSWER_IF_STRUGGLING =
+    '[PLACEHOLDER — Todd, name a human: your office hours, the counselling service, '
+    + 'whoever a student in trouble should actually be pointed toward.]';
 
-Voice: warm, first person, plainspoken, a little wry — a writer talking to a writer, not a critic. Draw the reader out; one real question put back to them beats a clever answer.
+  // Questions the model must never answer, because it cannot know the answer.
+  const INTERCEPTS = [
+    { re: /\b(who|anyone|anybody)\b.{0,40}\b(see|read|look at|access)\b|\bis this (graded|private|confidential|saved|stored)\b|\bdo(es)? (you|this|it) (save|store|keep|record)\b|\bwill (dr\.? ?edwards|my (teacher|professor|instructor))\b/i,
+      answer: () => ANSWER_WHO_SEES_THIS },
+  ];
+  // Distress gets a human named alongside the normal reply, never instead of it.
+  const DISTRESS = /\b(kill myself|suicid|hurt myself|self.harm|want to die|end it all)\b/i;
 
-Hard rule on length: no more than TWO short sentences. Often make the second a single question back to them. No lists, no preamble, no flattery. Stop early rather than late.`;
+  const SENTENCES = t => String(t||'').trim().split(/(?<=[.!?])\s+/).filter(Boolean);
+  // Reads as agreement to a student who skims the first few words. Seen twice in
+  // three samples on the vulnerable case, so it is a guard, not a precaution.
+  const SKIM_HAZARD = /^\s*(no,?\s*)?you('re| are)\s+not\s+a\s+writer/i;
+  const MAX_SENTENCES = 3;
+  function harnessCheck(text){
+    const s = SENTENCES(text);
+    if(!text || !s.length) return 'empty';
+    if(SKIM_HAZARD.test(text)) return 'skim-hazard';
+    if(s.length > MAX_SENTENCES) return 'too-long';
+    return null;
+  }
+
+  // Romano — the reading partner. Voice and stance only; the mechanical rules are
+  // enforced above. See linux-setup/docs/student-access/ for what each line is doing
+  // and which measurement put it there.
+  const READING_PARTNER = `You are a warm reading-and-writing partner for a college student reading a book about writing.
+
+Who you are:
+
+You are a teacher with thirty-four years in the profession. You are also a father, and you shepherded your own children through the public education system — so you have seen schooling from inside the classroom and from the kitchen table. That double view is where your patience comes from, and your lack of illusions.
+
+What you have come to believe:
+
+1. School is a tool of socialization and stratification.
+2. School can be a place of learning, but schooling and learning are not the same thing. Do not confuse learning with education, or knowledge with educational attainment.
+3. Curriculum has layers. There is what is in the textbook. There is also what gets taught and what gets skipped, and how it gets taught — and those shape how a student comes to understand both the subject and learning itself.
+
+Because of 3, you never explain this student's difficulty with one stock cause. You know the specific things school does to writers, and you reach for whichever one actually fits what they just said. Among them:
+
+- They were shown finished, polished writing as the model, and never shown anyone's ugly first draft. So they think everyone else's first line arrives clean.
+- Revision was demanded but rarely modeled. They were told to revise, not shown how anyone does it.
+- The timed essay taught that writing happens under surveillance, against a clock, for a judge.
+- Errors were marked in red before ideas were ever responded to. Correctness arrived before meaning.
+- Nobody said out loud that bad writing is a normal, necessary stage. Its absence taught them it is a personal failing.
+- Writing was almost always assigned, almost never chosen. So wanting to say something is unfamiliar.
+
+Pick the one that fits. Never recite the whole theory, and never give the same explanation twice in a conversation.
+
+How these beliefs show up: they shape how you treat the student. They are never the topic. They are why you refuse to grade, rank, or evaluate anything they say, and why you take their side automatically. Do not explain the education system to them — they came to talk about writing.
+
+How you answer:
+
+Answer the question they asked, first and plainly. Do not answer a question with a question. Put the cause of any difficulty in their history, never in their character. Never compare the student to a child. Never narrate what their brain or "inner critic" is really doing — you are not the authority on their mind. Never praise or rate what they said; "good question" is a grade wearing a friendly face. Disagree plainly when it is about writing, and aim the edge at the idea, never at the person.
+
+Plain words. Short sentences, two or three of them. No elaborate metaphors.
+
+Here is how you sound:
+
+Reader: Maybe I'm just not a writer. Should I stop trying?
+You: You are a writer. And you're writing! But it can be intimidating, especially after experiencing writing for many years as a test for a grade.
+
+Reader: My friend says freewriting is just procrastinating with extra steps. Is that reasoning valid?
+You: No. Procrastination is avoiding the work; freewriting is the work, done in the only order that lets it get done at all.
+
+Reader: Really?
+You: Really. The first line only has to exist, not be good.`;
   async function romanoReply(passage, question, history, context){
     const q = question || 'Help me think about this passage.';
     const parts = [READING_PARTNER];
@@ -2453,8 +2684,35 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       `Reader: ${r.question || 'Help me think about this passage.'}\nYou: ${r.reply}`).join('\n\n');
     if(thread) parts.push(`Here is what the two of you have already said, oldest first:\n\n${thread}\n\nStay in that thread. A short follow-up refers to what YOU just said — take it as a reply to you, and do not contradict what the reader has told you about themselves.`);
     if(passage) parts.push(`The passage under discussion, from your book:\n"${passage}"`);
-    parts.push(`They now say: ${q}\n\nReply as Romano in ONE or TWO short sentences — illuminate it, then perhaps turn one question back to them.`);
-    return callModel(parts.join('\n\n'));
+    parts.push(`They now say: ${q}\n\nReply in two or three short sentences. Answer what they asked. Do not end with a question.`);
+    const prompt = parts.join('\n\n');
+
+    // 1. Intercept: questions the model cannot know the answer to never reach it.
+    for(const it of INTERCEPTS){ if(it.re.test(q)) return it.answer(); }
+
+    // 2. Ask, then check. One retry -- the failures are stochastic, not systematic,
+    //    so asking again usually clears them. Retrying is a SHORTENING, never a
+    //    truncation: we would rather have a whole short reply than a severed one.
+    let reply = await callModel(prompt);
+    let why = harnessCheck(reply);
+    if(why){
+      const nudge = why === 'too-long'
+        ? '\n\nYour last attempt ran long. Say the same thing in two short sentences.'
+        : '\n\nDo not begin with any phrasing that could read as agreeing they are not a writer.';
+      const second = await callModel(prompt + nudge);
+      if(!harnessCheck(second)) reply = second;
+      else if(why === 'too-long') reply = SENTENCES(second || reply).slice(0, MAX_SENTENCES).join(' ');
+      else reply = second || reply;
+    }
+
+    // 3. A trailing question is the one thing we can safely fix without re-asking:
+    //    dropping a whole sentence never leaves a fragment.
+    const s = SENTENCES(reply);
+    if(s.length > 1 && /\?\s*$/.test(reply)) reply = s.slice(0, -1).join(' ');
+
+    // 4. Distress: name a human, alongside the reply rather than instead of it.
+    if(DISTRESS.test(q)) reply = `${reply}\n\n${ANSWER_IF_STRUGGLING}`;
+    return reply;
   }
   // ── Romano Q&A, stored per reading in DB.qa[readingId] (same shape as the
   //    highlights above) so the conversation survives renderRead — switching
@@ -2504,17 +2762,38 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
       else if(_qaPending.has(r.id)) say = '<em class="qa-wait">thinking…</em>';
       else say = `<em class="qa-wait">${escHtml(r.error || 'Romano didn’t finish this one — ask again.')}</em>`;
       const him = `<div class="qa-turn romano"><span class="qa-who">Romano</span><div class="qa-say rmreply">${say}</div></div>`;
-      return `<div class="notecard qa" data-qa="${r.id}">${ctx}${you}${him}<div class="hl-row"><button class="hl-del" data-qa="${r.id}">Remove</button></div></div>`;
+      const keep = r.reply ? `<button class="hl-keep" data-qakeep="${r.id}" title="Keep this exchange in your notebook, quoted and attributed. Select part of the reply first to keep only that.">✎ Keep in notebook</button>` : '';
+      return `<div class="notecard qa" data-qa="${r.id}">${ctx}${you}${him}<div class="hl-row">${keep}<button class="hl-del" data-qa="${r.id}">Remove</button></div></div>`;
     }).join('');
     box.querySelectorAll('.qa-quote').forEach(q => q.onclick = () => q.closest('.notecard').classList.toggle('open'));
     box.querySelectorAll('.hl-del[data-qa]').forEach(b => b.onclick = () => removeQA(b.dataset.qa));
+    box.querySelectorAll('.hl-keep[data-qakeep]').forEach(b => b.onclick = () => {
+      const rec = getQA(currentReadingId()).find(x => x.id === b.dataset.qakeep);
+      if(rec) elevateQA(rec, selectedWithin(b.closest('.notecard')));
+    });
+    // Selecting inside a reply RELABELS the existing button rather than raising a
+    // second one. Two controls that do the same thing read as two different features
+    // -- Todd's note, 2026-08-23. One control, and it says what it will keep.
+    if(!box._qaSelWired){
+      box._qaSelWired = true;
+      const relabel = () => {
+        const card = qaCardOfSelection();
+        box.querySelectorAll('.hl-keep[data-qakeep]').forEach(b => {
+          const mine = card && card.dataset.qa === b.dataset.qakeep;
+          b.textContent = mine ? '\u270e Keep the selected part' : '\u270e Keep in notebook';
+          b.classList.toggle('armed', !!mine);
+        });
+      };
+      box.addEventListener('mouseup', () => setTimeout(relabel, 0));
+      box.addEventListener('keyup',   () => setTimeout(relabel, 0));
+    }
   }
   async function askRomanoInto(passage, question, page){
     const rid = currentReadingId(); if(!rid) return;
     if(getProvider()==='none'){
       // No-AI is a supported path — don't bank a question nothing will answer.
       const box = document.getElementById('newnote');
-      if(box) box.insertAdjacentHTML('beforeend', '<div class="notecard"><em>Connect an AI (top right) and Romano will answer — optional; your reading and notes work without it.</em></div>');
+      if(box) box.insertAdjacentHTML('beforeend', '<div class="notecard"><em>Connect an AI (top right) and Romano will answer — optional; your reading and notes work without it.</em><br><em class="whois">Romano is the app\u2019s reading partner, named for the book\u2019s author. It is software, and its answers are its own.</em></div>');
       return;
     }
     const rec = addQA(rid, {
@@ -2893,6 +3172,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
           <div id="hlList"></div>
           <div id="newnote"></div>
           <div class="askbar"><input placeholder="Ask Romano about the reading…" id="askin"><button class="btn sm" id="askbtn">Ask</button></div>
+          <p class="whois">Romano is the app's reading partner, named for the book's author. It is software, and its answers are its own.</p>
           <p class="locknote" style="margin-top:10px">Highlights save automatically · export to your Notebook →</p>
         </aside>
       </div>`;
@@ -3011,7 +3291,11 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   }
   function recurringTerms(minEntries){
     minEntries = minEntries || 3;
-    const entries = (DB.journal || []).filter(e => String(e.text || '').trim());
+    // Kept AI exchanges are excluded: this panel claims to show what the STUDENT keeps
+    // returning to, and feeding the partner's vocabulary in would put the model's
+    // preoccupations into the student's threads under the student's name.
+    const entries = (DB.journal || []).filter(e =>
+      e.pieceKind !== 'conversation' && String(e.text || '').trim());
     if(entries.length < minEntries) return [];
     const seen = new Map();   // term -> Set of entry ids
     const note = (term, id) => { if(!seen.has(term)) seen.set(term, new Set()); seen.get(term).add(id); };
@@ -3087,12 +3371,16 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     const when = new Date(e.ts).toLocaleString(undefined, {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
     if(nbEditingId === e.id){
       return `<div class="entryrow"><div class="k">${escHtml(e.pieceTitle)} · ${when}</div>
-        <textarea id="edit_${e.id}" style="width:100%;min-height:92px;box-sizing:border-box;font-family:var(--serif);font-size:15px;line-height:1.6;padding:10px 12px;border:1px solid var(--accent-light);border-radius:6px;resize:vertical">${escHtml(e.text)}</textarea>
+        <textarea id="edit_${e.id}" class="entry-edit" data-autogrow="1">${escHtml(e.text)}</textarea>
         <div style="margin-top:6px;display:flex;gap:6px"><button class="btn sm" data-save="${e.id}">Save</button><button class="btn ghost sm" data-cancel="1">Cancel</button><button class="btn ghost sm" data-del="${e.id}">Delete</button></div></div>`;
     }
     const head = (opts.showPiece === false) ? when : `${escHtml(e.pieceTitle)} · ${when}`;
     const openLink = (opts.pieceLink !== false && e.pieceId !== 'free') ? `<button class="entlink" data-open="${e.pieceId}">Open the live piece →</button>` : '';
-    return `<div class="entryrow"><div class="k">${head}</div><div class="x">${escHtml(e.text).replace(/\n/g,'<br>')}</div>
+    // The text itself opens the editor. Requiring the Edit button meant three clicks
+    // between keeping something and writing about it, which is the moment the whole
+    // notebook exists for -- see the UI note in the changelog for 2026-08-23.
+    const authorChip = e.author ? `<span class="who-chip ${e.authorKind === 'ai' ? 'ai' : 'me'}">${escHtml(e.author)}</span>` : '';
+    return `<div class="entryrow"><div class="k">${head}${authorChip}</div><div class="x writable" data-edit="${e.id}" title="Click to write on this page">${escHtml(e.text).replace(/\n/g,'<br>')}</div>
       ${tagBar(e)}
       ${threadBar(e)}
       <div class="entacts"><button class="entlink" data-edit="${e.id}">Edit</button>${openLink}</div></div>`;
@@ -3257,7 +3545,14 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   // Entries in one chronological order, numbered once. Entry 17 is entry 17 in the
   // Contents, in every part of the bundle, and in what the student writes on the cover.
   function numberedEntries(){
-    return (DB.journal || []).slice().sort((a,b) =>
+    // 'conversation' entries are kept AI exchanges. They are welcome in the notebook
+    // -- the Guidelines invite "anything else you want to keep" -- but they are NOT
+    // the student's practice, and this list is what the grade is counted from:
+    // "Expect 25 to 40 entries by December", Contents carries "every entry, numbered,
+    // dated, with its word count", and "Nothing gets counted twice". So they are
+    // excluded from numbering, from Contents, and from the word count, and are
+    // printed separately under their own heading instead.
+    return (DB.journal || []).filter(e => e.pieceKind !== 'conversation').slice().sort((a,b) =>
       String(a.date).localeCompare(String(b.date)) || String(a.ts).localeCompare(String(b.ts)));
   }
 
@@ -3411,7 +3706,11 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
         <p class="pb-sub">What kept coming back, and what I make of it.</p>
         ${withEntries.map(({t, es}) => {
           const reads = es.filter(e => e.pieceKind === 'reflection');
-          const runs = es.filter(e => e.pieceKind !== 'reflection');
+          // 'conversation' entries are kept AI exchanges, not the student's writing.
+          // They must never be counted as runs -- the entry count on this page is a
+          // claim about how much the student wrote.
+          const runs = es.filter(e => e.pieceKind !== 'reflection' && e.pieceKind !== 'conversation');
+          const kept = es.filter(e => e.pieceKind === 'conversation');
           return `<section class="pb-thread">
             <h3>${escHtml(t.name)}</h3>
             <p class="pb-sub">${runs.length} ${runs.length===1?'entry':'entries'} ·
@@ -3420,6 +3719,7 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
             <ol class="pb-toc">${runs.map(e => `<li><span class="pb-n">${nOf(e)}</span><span class="pb-d">${escHtml(fmtDate(e.date))}</span><span class="pb-t">${escHtml(entryLabel(e, 70))}</span></li>`).join('')}</ol>
             ${reads.length ? reads.map(e => `<div class="pb-read"><p class="pb-role">My reading of this thread · ${escHtml(fmtDate(e.date))}</p>${para(e.text)}</div>`).join('')
                            : `<p class="pb-role">No reading written for this thread.</p>`}
+            ${kept.length ? `<div class="pb-read"><p class="pb-role">Kept from the reading partner · ${kept.length} exchange${kept.length===1?'':'s'} — quoted, not written by me</p>${kept.map(e=>para(e.text)).join('')}</div>` : ''}
           </section>`;
         }).join('')}
       </section>` : '';
@@ -3913,6 +4213,15 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
     }
     // Entry actions — shared across both lenses.
     frame.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { nbEditingId = b.dataset.edit; renderNote(); });
+    // Grow the editor to its content and keep growing as you type, so a long kept
+    // conversation plus your response is never squeezed into a fixed box.
+    frame.querySelectorAll('textarea[data-autogrow]').forEach(ta => {
+      const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight + 4, window.innerHeight * 0.4) + 'px'; };
+      ta.addEventListener('input', fit); fit();
+      // Land the cursor at the end so you start writing after what you kept, not before it.
+      ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+      ta.scrollTop = ta.scrollHeight;
+    });
     frame.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => { nbEditingId = null; renderNote(); });
     frame.querySelectorAll('[data-save]').forEach(b => b.onclick = () => { const id = b.dataset.save; const ta = document.getElementById('edit_'+id); if(ta) updateEntry(id, ta.value); nbEditingId = null; renderNote(); });
     frame.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if(confirm('Delete this page? This cannot be undone.')){ deleteEntry(b.dataset.del); nbEditingId = null; renderNote(); } });
@@ -3935,6 +4244,8 @@ Hard rule on length: no more than TWO short sentences. Often make the second a s
   // Save / open the whole notebook of typed work as one file.
   const _saveBtn = document.getElementById('saveWorkBtn');
   if(_saveBtn) _saveBtn.addEventListener('click', saveWork);
+  const _chatBtn = document.getElementById('exportChatBtn');
+  if(_chatBtn) _chatBtn.addEventListener('click', () => exportTranscript(_chatBtn));
   const _wfi = document.getElementById('workFileInput');
   const _openBtn = document.getElementById('openWorkBtn');
   if(_openBtn && _wfi){ _openBtn.addEventListener('click', ()=>_wfi.click()); _wfi.addEventListener('change', ()=>{ if(_wfi.files[0]) openWork(_wfi.files[0]); _wfi.value=''; }); }

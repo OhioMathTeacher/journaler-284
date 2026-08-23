@@ -729,7 +729,8 @@ body.focus .iconbtn { display: none !important; }
 .ai-subtab { font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: #9FB0C4;
   background: none; border: 0; border-bottom: 2px solid transparent; padding: 5px 10px; cursor: pointer; }
 .ai-subtab:hover { color: #C9D3DE; }
-.ai-subtab.on { color: #F0E6D2; border-bottom-color: #F0E6D2; }
+.ai-subtab.on { color: #2b2a26; background: var(--cave-glow, #D4A843); border-bottom-color: transparent;
+  border-radius: 5px 5px 0 0; padding-left: 10px; padding-right: 10px; }
 .ai-selected { font-family: var(--sans); font-size: 11.5px; color: #7C8B9C; }
 .ai-selected b { color: #F0E6D2; font-weight: 600; }
 /* "Get a key ↗" inside a provider card. Keys are collected with prompt(), which
@@ -742,7 +743,16 @@ body.focus .iconbtn { display: none !important; }
   text-align: left; background: rgba(255,255,255,.05); border: 1px solid transparent; border-radius: 8px;
   padding: 10px 12px; cursor: pointer; }
 .ai-card:hover { background: rgba(255,255,255,.09); }
-.ai-card.on { border-color: #F0E6D2; background: rgba(255,255,255,.10); }
+/* Selected was rgba(255,255,255,.10) against a .09 hover -- one percent apart, so you
+   could not tell what was in use. It now carries an accent bar, a real background shift,
+   and a tick, none of which hover does. */
+.ai-card.on { border-color: var(--cave-glow, #D4A843); background: rgba(212,168,67,.16);
+  box-shadow: inset 3px 0 0 var(--cave-glow, #D4A843); padding-left: 15px; }
+.ai-card.on .ai-card-main b { color: #FFF3DC; }
+.ai-card.on::after { content: "✓ in use"; flex: 0 0 auto; font-family: var(--sans);
+  font-size: 10.5px; font-weight: 700; color: #2b2a26; background: var(--cave-glow, #D4A843);
+  border-radius: 4px; padding: 2px 7px; }
+.ai-card.on .ai-badge { display: none; }   /* the tick replaces "Local" on the chosen one */
 .ai-card-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ai-card-main b { font-family: var(--sans); font-size: 13.5px; color: #F0E6D2; font-weight: 600; }
 .ai-card-main small { font-family: var(--sans); font-size: 11.5px; color: #7C8B9C; word-break: break-all; }
@@ -899,3 +909,64 @@ h4.thall { font-family: var(--sans); font-size: 13px; margin: 20px 0 4px; paddin
   border-radius: 999px; padding: 0 6px; }
 .cbterm.on .cbn { background: rgba(255,255,255,.25); }
 .cbhits { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--comment-border, #e5e7eb); }
+
+/* Keep-from-chat prompt. Appears inside the exchange you selected in, so it cannot
+   be mistaken for the reading's own capture popup above. */
+.qa-keep-pop { margin-top: .4rem; }
+.qa-keep-pop .popup-btn.primary { width: 100%; flex: none; }
+.hl-keep { background: none; border: 0; color: var(--muted); font: inherit; font-size: .78rem;
+           cursor: pointer; padding: .1rem .3rem; margin-right: .4rem; }
+.hl-keep:hover { color: #c69a5c; text-decoration: underline; }
+/* Kept AI exchanges in the printed bundle -- visually distinct from the student's own
+   entries, because they are quoted material and are excluded from every count. */
+.pb-read .pb-role { font-style: italic; }
+
+/* Notebook entry editor. Was an inline min-height:92px -- a sliver you could not write
+   in, which defeated the point of keeping a page in order to write about it. Sized for
+   writing, and grown to fit its content by autogrowTextareas(). */
+.entry-edit { width: 100%; box-sizing: border-box; min-height: 40vh; padding: 14px 16px;
+  font-family: var(--write, Georgia, serif); font-size: 16px; line-height: 1.7;
+  border: 1px solid var(--accent-light); border-radius: 7px; resize: vertical;
+  background: #fff; color: var(--ink); }
+.entry-edit:focus { outline: none; border-color: #c69a5c; box-shadow: 0 0 0 3px var(--highlight-soft); }
+/* WRITABLE TEXT MUST LOOK WRITABLE.
+   The first attempt was a hover tint, which Todd could not see at all -- and a cue you
+   only discover by accident is not a cue. This borrows the one affordance already read
+   as "writing goes here" in this app: the quick-write box. Paper-white field, soft
+   border, text cursor. Minimal, but unmistakable. */
+.entryrow .x.writable {
+  cursor: text;
+  background: #fff;
+  border: 1px solid var(--comment-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.entryrow .x.writable:hover { border-color: #c69a5c; box-shadow: 0 0 0 3px var(--highlight-soft); }
+.entryrow .x.writable::after {
+  content: "Click to write here";
+  display: block; margin-top: .5rem;
+  font-family: var(--sans); font-size: 11px; letter-spacing: .03em;
+  color: #a89f8f;
+}
+.entryrow .x.writable:hover::after { color: #c69a5c; }
+/* The keep button, when a selection has armed it. */
+.hl-keep.armed { color: #c69a5c; font-weight: 600; text-decoration: underline; }
+
+/* AUTHOR CHIPS -- verbatim-app's treatment: short, uppercase, letter-spaced, colour-coded
+   by who is speaking. Carried as entry metadata, rendered outside the editable text, so
+   attribution is a property of the page and not a sentence a student can delete. */
+.who-chip { display: inline-block; margin-left: .5rem; padding: 2px 8px; border-radius: 999px;
+  font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; vertical-align: middle; }
+.who-chip.ai { color: #6b5836; background: rgba(212,168,67,.22); border: 1px solid rgba(212,168,67,.45); }
+.who-chip.me { color: #3f4a3a; background: rgba(120,150,110,.18); border: 1px solid rgba(120,150,110,.4); }
+/* Same chip in the live conversation, so the reading view and the notebook agree. */
+.qa-who { display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; }
+.qa-turn.romano .qa-who { color: #6b5836; background: rgba(212,168,67,.22); border: 1px solid rgba(212,168,67,.45); }
+
+/* Who Romano is. Shown where the student is about to talk to it, not buried in the
+   manual -- the name is borrowed from a living author and the app should say so. */
+.whois { margin: 8px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--muted, #8a8271); font-style: italic; }
