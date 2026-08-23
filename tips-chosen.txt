@@ -1,0 +1,19 @@
+# Which passages open the app, and in what order.
+#
+# One "Chapter | first few words" per line — enough of the opening to identify it.
+# The builder resolves each to the full verbatim passage from tools/quotes.js, so
+# the text here is a POINTER, never the quote itself: nothing gets retyped, and a
+# passage cannot drift from what the book says.
+#
+# A line starting with "-" is vetoed and will never be used, however well it scores.
+#
+# Sessions past the end of this list are filled from the rest of the pool, in order.
+# tools/curate.html is the fast way to extend it.
+
+Writer's Block Just Happens to People | The hesitation to write
+Only Geniuses can be Writers | Publishers present a polished
+Reading and Writing are not Connected | What is often neglected
+The More Writing Process, the Better | We cannot follow a writing process
+
+# Todd: "I like all of them except the Carr one."
+- Failure is Not an Option | The failed writer

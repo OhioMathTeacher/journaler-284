@@ -465,6 +465,25 @@
 .pmlink.on .pmwhat { color: var(--accent); font-weight: 700; }
 .pmlink.on .pmwhen { color: var(--accent); }
 
+/* ── A tip: the myth, the answer, the credit ─────────────────────────────────
+   The chapter title is a BAD idea stated flat for the chapter to demolish, so it
+   is labelled as one. Printed bare it would read as the app asserting it. */
+.tipmyth { font-family: var(--sans); font-size: 14px; color: var(--muted);
+  margin: 0 0 18px; padding-left: .8rem; border-left: 3px solid var(--comment-border); }
+.tipmyth b { color: var(--ink); font-weight: 600; }
+.tiptext { font-family: var(--write); font-size: 21px; line-height: 1.55; margin: 0 0 12px;
+  padding: 0; border: 0; }
+.tipby { font-family: var(--sans); font-size: 12.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--muted); margin: 0 0 22px; }
+/* Required by the licence and worth having anyway: the book is free, and a student
+   who follows this link gets forty-two more of these. */
+.tipsrc { border-top: 1px solid var(--comment-border); padding-top: 12px; margin: 0 0 18px;
+  font-family: var(--sans); font-size: 13px; line-height: 1.55; color: var(--muted); }
+.tipsrc p { margin: 0 0 6px; }
+.tipsrc p:last-child { margin: 0; }
+.tipsrc a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.tipsrc cite { font-style: italic; }
+
 /* ===== The poem page ========================================================
    Todd: "a little more stylized, a little more poem", pointing at how the Poetry
    Foundation sets one. What that comes down to: a narrow measure, a title with
