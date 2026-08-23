@@ -33,11 +33,12 @@ window.DAILY_TIPS = [
   "week": 2,
   "day": "Mon",
   "session": "Your Writing Place",
-  "text": "What is often neglected in these public debates about the best way to teach literacy at the college level is that reading and writing are connected practices and, as such, the best way to teach them is together. It is a bad idea to continue privileging writing at the expense of reading.",
+  "text": "What is often neglected in these public debates about the best way to teach literacy … is that reading and writing are connected practices and, as such, the best way to teach them is together. It is a bad idea to continue privileging writing at the expense of reading.",
   "author": "Ellen C. Carillo",
   "chapter": "Reading and Writing are not Connected",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
-  "url": "https://textbooks.lib.wvu.edu/badideas/"
+  "url": "https://textbooks.lib.wvu.edu/badideas/",
+  "elided": true
  },
  {
   "date": "2026-09-02",

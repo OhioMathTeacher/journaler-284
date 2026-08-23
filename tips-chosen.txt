@@ -5,14 +5,25 @@
 # the text here is a POINTER, never the quote itself: nothing gets retyped, and a
 # passage cannot drift from what the book says.
 #
-# A line starting with "-" is vetoed and will never be used, however well it scores.
+# A line starting with "-" vetoes the WHOLE CHAPTER — leave the rest empty for that.
+#
+# A THIRD field lists phrases to cut, separated by ";;". Each one is removed from
+# the passage and replaced with an ellipsis, so the reader can see that something
+# was left out:
+#
+#   Reading and Writing are not Connected | What is often | at the college level
+#
+# The builder checks every cut against the real text and STOPS if one no longer
+# matches, so a passage cannot quietly come to say something the book does not.
+# Cutting can only remove; it cannot reword. Quote whole where you can — the
+# licence is CC BY-NC-ND.
 #
 # Sessions past the end of this list are filled from the rest of the pool, in order.
 # tools/curate.html is the fast way to extend it.
 
 Writer's Block Just Happens to People | The hesitation to write
 Only Geniuses can be Writers | Publishers present a polished
-Reading and Writing are not Connected | What is often neglected
+Reading and Writing are not Connected | What is often neglected | at the college level
 The More Writing Process, the Better | We cannot follow a writing process
 
 # A "-" line vetoes the WHOLE CHAPTER — leave the second field empty to mean all

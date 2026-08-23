@@ -42,10 +42,40 @@ def wanted():
         line = line.strip()
         if not line or line.startswith('#') or '|' not in line:
             continue
-        out = veto if line.startswith('-') else keep
-        ch, pre = line.lstrip('-').split('|', 1)
-        out.append((ch.strip(), pre.strip()))
+        bits = [b.strip() for b in line.lstrip('-').split('|')]
+        ch, pre = bits[0], bits[1] if len(bits) > 1 else ''
+        # A third field lists elisions: text to drop, replaced by an ellipsis.
+        cuts = [c.strip() for c in bits[2].split(';;')] if len(bits) > 2 and bits[2] else []
+        (veto if line.startswith('-') else keep).append((ch, pre, cuts))
     return keep, veto
+
+
+def elide(q, cuts):
+    """Drop declared phrases from a passage, marking each with an ellipsis.
+
+    ⚠ This is the ONLY thing in the pipeline that changes a quotation, and it is
+    deliberately dumb: it removes exactly the characters named in tips-chosen.txt
+    and puts "…" where they were. It cannot reword, reorder or paraphrase.
+
+    On the licence: CC BY-NC-ND restricts derivatives, and an elision marked with
+    an ellipsis is ordinary quotation practice rather than an adaptation — the
+    reader is told text was removed and can follow the link to the whole chapter.
+    That is the reasoning; it is not legal advice, and the safe move is always to
+    quote whole.
+
+    ⚠ A cut that no longer matches is a HARD ERROR, not a silent no-op. If the
+    source ever changes under us, the build stops rather than shipping a passage
+    that quietly says something else."""
+    text = q['text']
+    for c in cuts:
+        if c not in text:
+            sys.exit(f'\n  cut not found in “{q["chapter"]}”:\n    {c!r}\n'
+                     f'  the passage reads:\n    {text}\n')
+        text = text.replace(c, '…')
+    # "literacy at the college level is" -> "literacy … is", never "literacy  … is".
+    text = re.sub(r'\s*…\s*', ' … ', text)
+    text = re.sub(r'\s+([,.;:])', r'\1', text).strip()
+    return dict(q, text=text, elided=bool(cuts))
 
 
 def killed(qs, veto):
@@ -56,7 +86,7 @@ def killed(qs, veto):
     passage through on a later date — "Failure in writing betrays dullness of
     mind", which is worse than the one that was rejected. If a chapter is not
     wanted, none of it is wanted."""
-    chapters = {norm(c) for c, _ in veto}
+    chapters = {norm(c) for c, _, _ in veto}
     return {id(q) for q in qs if norm(q['chapter']) in chapters}
 
 
@@ -99,11 +129,11 @@ def main(course):
     keep, veto = wanted()
     dead = killed(qs, veto)
     ordered, used = [], set()
-    for c, p in keep:
+    for c, p, cuts in keep:
         q = find(qs, c, p)
         if q:
-            ordered.append(q)
             used.add(id(q))
+            ordered.append(elide(q, cuts) if cuts else q)
         else:
             print(f'  ! not in the pool: {c} | {p}')
     # ⚠ One passage per chapter before any chapter comes round twice. The pool holds
