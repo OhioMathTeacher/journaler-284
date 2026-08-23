@@ -2118,19 +2118,19 @@ async function runReflection(rf, text, hooks) {
       const pane=k=>curBursts[k]?`<div class="pane">${curBursts[k]}</div>`:`<div class="pane" style="color:var(--muted);font-style:italic">Run this gush first.</div>`;
       st.innerHTML=`<p class="kicker">${m.k}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
         <div class="sbs"><div><h4>Regressive · past</h4>${pane('reg')}</div><div><h4>Progressive · future</h4>${pane('pro')}</div></div>
-        <button class="btn ghost" id="themesBtn">Ask: what themes recur?</button>
-        <div class="aiout" id="tout" style="display:none"><span class="stub">[Stubbed] Reads your own bursts and names threads in both — as questions, never new content.</span></div>
+        <p class="stagenote">Looking for what recurs across everything you have kept, not just these two? The notebook counts it for you.</p>
+        <button class="btn ghost" id="themesBtn">What keeps coming back →</button>
         <p class="stagenote" style="margin-top:16px">What runs through both? Name it here — this is the comparison, and it is your writing, not the app's.</p>
         <textarea class="gush" id="anaNote" placeholder="What comes back in both the past and the future? Name it plainly.">${escHtml((DB.currere||{}).ana||'')}</textarea>
         <div style="margin-top:12px"><button class="btn ghost sm" id="anaAddNb">＋ Add to notebook</button></div>`;
-      document.getElementById('themesBtn').addEventListener('click',()=>document.getElementById('tout').style.display='block');
+      document.getElementById('themesBtn').addEventListener('click',()=>{ noteMode='threads'; show('note'); });
       const anaTa = document.getElementById('anaNote');
       anaTa.addEventListener('input', ()=>{ DB.currere.ana = anaTa.value; saveDB(); });
       document.getElementById('anaAddNb').onclick = ()=>elevate('cur-ana', 'currere', m.k+' · '+m.t, anaTa.value);
     } else {
       st.innerHTML=`<p class="kicker">${m.k}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
         <textarea class="gush" id="gush" placeholder="Write the currere — open parts, or braid it into one. Pull scenes from what you gathered."></textarea>
-        <div class="composer-foot" style="margin-top:14px"><button class="btn ghost" id="synAddNb">＋ Add to notebook</button><button class="btn ghost">Craft consultant</button><button class="btn ghost">Todd-in-a-Can</button><button class="btn">Assemble Conference Packet (PDF)</button></div>`;
+        <div class="composer-foot" style="margin-top:14px"><button class="btn ghost" id="synAddNb">＋ Add to notebook</button></div>`;
       const synTa = document.getElementById('gush');
       if(DB.currere.syn){ synTa.value = DB.currere.syn; }
       synTa.addEventListener('input', ()=>{ DB.currere.syn = synTa.value; saveDB(); });
