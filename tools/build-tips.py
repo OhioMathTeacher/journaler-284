@@ -107,14 +107,54 @@ def norm(t):
 # job for eyes, which is what tools/curate.html is for.
 GRIM = re.compile(r'\b(fail(ed|ure|ing)?|dull(ness)?|stupid|dumb|deficien\w*|remedial|'
                   r'illiterate|inadequa\w*|worthless|hopeless|punitive|punish\w*|'
-                  r'condemn\w*|bankrupt\w*|ruin(s|ed|ing)?|crisis|damaged|weakness)\b', re.I)
-# …unless the passage turns, which is the whole move of this book.
-TURN = re.compile(r'\b(but|instead|in fact|rather|however|the truth|good company|'
-                  r'can learn|all writers|we should|is not a sign)\b', re.I)
+                  r'condemn\w*|bankrupt\w*|ruin(s|ed|ing)?|crisis|damaged|weakness|'
+                  r'discourag\w*|hurts?|harm(s|ful|ed)?|frustrat\w*|dangerous|'
+                  r'needs to die|anxiet\w*)\b', re.I)
+# …unless the passage TURNS, which is the whole move of this book.
+#
+# ⚠ Kept narrow on purpose. This test used to include "can learn" and "all
+# writers", and "The idea that we can all learn to 'write in general' … hurts
+# students and frustrates teachers" sailed through on the strength of "can learn"
+# — a phrase from the myth being demolished, not from the answer to it. A turn is
+# a hinge word at the head of a clause, not a hopeful-sounding one anywhere.
+TURN = re.compile(r'(^|[.;:—-]\s*)(But|Instead|In fact|Rather|However|The truth is)\b'
+                  r'|\bis not a sign\b|\bgood company\b', re.I)
+
+# Passages that are teaching a technical point rather than saying something to a
+# writer. Todd on Cunningham's habitual "be": a paragraph of descriptive
+# linguistics is exactly right inside its chapter and says nothing as a tip.
+LESSON = re.compile(r'\b(construction|conjugat\w*|morphem\w*|syntax of|clause|'
+                    r'known as|means,? in |is used in a sentence|refers to the|'
+                    r'the term|defined as|for example, the word)\b', re.I)
 
 
 def grim(q):
     return bool(GRIM.search(q['text'])) and not TURN.search(q['text'])
+
+
+# ⚠ This book is written for writing teachers, who all know what FYC is. Todd:
+# "no one is going to know that FYC is first year composition". A passage cannot
+# gloss its own acronym once it is lifted out of the chapter that introduced it,
+# and the elision mechanism can only REMOVE text, never expand it — so the answer
+# is to not use that passage. There are 43 chapters and 27 meetings; we can afford
+# to be picky.
+KNOWN = {'SAT', 'ACT', 'GPA', 'AI', 'US', 'USA', 'UK', 'TV', 'PC', 'OK', 'A', 'I'}
+ACRONYM = re.compile(r'\b[A-Z]{2,5}\b')
+
+# Openers that point at a list the reader cannot see. "Second, writing is a
+# curious and ancient technology" is a fine sentence with no first to follow.
+ORPHAN = re.compile(r'^(First|Second|Third|Fourth|Fifth|Finally|Next|Lastly|'
+                    r'One|Another|Again)\b[,:]?\s', re.I)
+
+
+def opaque(q):
+    if any(a not in KNOWN for a in ACRONYM.findall(q['text'])):
+        return 'acronym'
+    if ORPHAN.match(q['text']):
+        return 'orphan opener'
+    if LESSON.search(q['text']):
+        return 'a lesson, not a tip'
+    return '' 
 
 
 def find(qs, ch, pre):
@@ -139,11 +179,16 @@ def main(course):
     # ⚠ One passage per chapter before any chapter comes round twice. The pool holds
     # two per chapter and they sit next to each other, so a straight fill put Paul
     # Cook on the 2nd and the 9th and Elizabeth Wardle on the 14th and the 16th.
-    rest = [q for q in qs if id(q) not in used and id(q) not in dead and not grim(q)]
-    dropped = [q for q in qs if id(q) not in used and id(q) not in dead and grim(q)]
-    if dropped:
-        print(f'  {len(dropped)} passages set aside as discouraging '
-              f'(see GRIM in this script)')
+    live = [q for q in qs if id(q) not in used and id(q) not in dead]
+    rest, why = [], {}
+    for q in live:
+        bad = 'discouraging' if grim(q) else opaque(q)
+        if bad:
+            why.setdefault(bad, []).append(q)
+        else:
+            rest.append(q)
+    for label in sorted(why):
+        print(f'  {len(why[label])} set aside — {label}')
     seen = {norm(q['chapter']) for q in ordered}
     firsts, seconds = [], []
     for q in rest:
