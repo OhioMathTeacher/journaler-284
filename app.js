@@ -5197,6 +5197,18 @@ You: Really. The first line only has to exist, not be good.`;
   // tools/build-poems.py. Do not type a poem in here -- see that script's header.
   // No poem TEXT: the course links out, most of these poets are in copyright, and
   // so the app links out too.
+  // null = whatever today's is. Set by the rail, and deliberately NOT persisted:
+  // opening the app tomorrow should land on tomorrow's poem, not on the one you
+  // happened to be reading last week.
+  let poemSel = null;
+
+  function allPoems(){
+    return (window.DAILY_POEMS || []).slice().sort((a,b) => a.date.localeCompare(b.date));
+  }
+  // What is on the page for a given entry -- the class poem when we may print it,
+  // otherwise the stand-in. One function so the rail and the page cannot disagree.
+  function poemShown(p){ return (p && p.sub && p.sub.text) ? p.sub : p; }
+
   function todaysPoem(){
     const all = (window.DAILY_POEMS || []).slice().sort((a,b) => a.date.localeCompare(b.date));
     if(!all.length) return null;
@@ -5218,11 +5230,17 @@ You: Really. The first line only has to exist, not be good.`;
     const fmt = k => { const [y,m,d] = String(k).split('-').map(Number);
       return new Date(y, (m||1)-1, d||1).toLocaleDateString(undefined,
         { weekday:'long', month:'long', day:'numeric' }); };
-    const p = todaysPoem();
+    const today = todaysPoem();
+    const list = allPoems();
+    // The rail may name a poem; today's is what you get if it does not.
+    const p = (poemSel && list.find(q => q.date === poemSel)) || today;
     if(!p){ frame.innerHTML = `<div class="poempage"><p class="empty">No poem yet.</p></div>`; return; }
-    const when = p.when === 'today' ? fmt(p.date)
-               : p.when === 'ahead' ? `Opening ${fmt(p.date)}`
-                                    : `From ${fmt(p.date)}`;
+    const isToday = !!today && p.date === today.date;
+    // Just the session's date. It used to say "Opening Wednesday, August 26" before
+    // the term and "From Wednesday" after, which composed into "A poem for Opening
+    // Wednesday, August 26" -- and which the rail now answers better anyway, by
+    // splitting the term into what we have read and what is still to come.
+    const when = fmt(p.date);
 
     // ── What is actually on the page.
     //
@@ -5235,7 +5253,7 @@ You: Really. The first line only has to exist, not be good.`;
     const sub = p.sub && p.sub.text ? p.sub : null;
     const shown = sub || p;
     const kicker = sub ? `A poem for ${when}` : `Daily Poem · ${when}`;
-    const inclass = !sub ? '' : `<p class="pmclass">In class${p.when === 'today' ? ' today' : ''}:
+    const inclass = !sub ? '' : `<p class="pmclass">In class${isToday && p.when === 'today' ? ' today' : ` on ${escHtml(fmt(p.date))}`}:
       “${escHtml(p.title)}” by ${escHtml(p.poet)}${p.url
         ? ` — <a href="${escHtml(p.url)}" target="_blank" rel="noopener">read it ↗</a>`
         : (p.where ? ` — on ${escHtml(p.where)}` : '')}</p>`;
@@ -5261,7 +5279,25 @@ You: Really. The first line only has to exist, not be good.`;
       : p.url ? `<a class="pmsrc" href="${escHtml(p.url)}" target="_blank" rel="noopener">Source ↗</a>`
       : p.where ? `<span class="pmsrc">Source: ${escHtml(p.where)}</span>` : '';
 
-    frame.innerHTML = `<div class="poempage">
+    // Every poem of the term, in the order the class meets them, so a student can go
+    // back to one that stayed with them -- or read ahead. One flat list: it was split
+    // into "Poems so far" and "Still to come", and Todd's answer was "I would list all
+    // of them". The date is on every row and the current one is unmistakable, so the
+    // split was doing nothing the list did not already say.
+    const row = q => {
+      const sh = poemShown(q);
+      const stand = sh !== q;
+      return `<button class="moment ${q.date === p.date ? 'on' : ''}" data-poem="${q.date}">
+        <span class="mname"><span class="dot"></span>${escHtml(sh.title)}</span>
+        <span class="mkind">${escHtml(shortDate(q.date))} · ${escHtml(sh.poet)}${
+          stand ? `<br>for “${escHtml(q.title)}”` : ''}</span></button>`;
+    };
+    const rail = `<nav class="spine">
+      <p class="lead">Every poem this term</p>
+      ${list.map(row).join('')}
+    </nav>`;
+
+    const page = `<div class="poempage">
       <p class="pmkick">${escHtml(kicker)}</p>
       <h1 class="pmtitle">${escHtml(shown.title)}</h1>
       <p class="pmby">By ${escHtml(shown.poet)}${shown.note ? ` · ${escHtml(shown.note)}` : ''}</p>
@@ -5274,6 +5310,16 @@ You: Really. The first line only has to exist, not be good.`;
       </div>
       <div id="pmPanel"></div>
     </div>`;
+    frame.innerHTML = `<div class="layout poemlayout">${rail}<main class="stage plain">${page}</main></div>`;
+    frame.querySelectorAll('[data-poem]').forEach(b => b.onclick = () => {
+      poemSel = b.dataset.poem; renderPoem();
+    });
+    // The rail is the same list on every poem and only the highlight moves, so the
+    // highlight has to be on screen for that to mean anything. By November the current
+    // row is the sixteenth and sits below the fold on arrival. 'nearest' does nothing
+    // when it is already visible, which is most days.
+    const here = frame.querySelector('[data-poem].on');
+    if(here && here.scrollIntoView) here.scrollIntoView({ block: 'nearest' });
     wirePoemActions(shown, p);
   }
 
