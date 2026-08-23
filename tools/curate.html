@@ -65,6 +65,7 @@
 <body>
 <header>
   <h1>Curate</h1>
+  <button id="mode">Tips</button>
   <span class="hint" id="tally"></span>
   <span class="grow"></span>
   <button id="copy">Copy picks</button>
@@ -75,8 +76,59 @@
   <main id="stage"></main>
 </div>
 <script src="candidates.js"></script>
+<script src="quotes.js"></script>
 <script>
+// Two lists behind one viewer: the poems (per session) and the tips (one pool,
+// taken in order). Todd: "Give me a list and I select some. Let's do this with the
+// poems, too."
+let MODE = localStorage.getItem('curate-mode') || 'tips';
 const KEY = 'curate-picks-v1';
+const TKEY = 'curate-tips-v1';
+let tips = { use: [], veto: [] }, tAt = 0;
+try { tips = Object.assign(tips, JSON.parse(localStorage.getItem(TKEY) || '{}')); } catch(e) {}
+const Q = window.QUOTES || [];
+const tsave = () => localStorage.setItem(TKEY, JSON.stringify(tips));
+const key = q => q.chapter + ' | ' + q.text.slice(0, 28);
+
+function renderTips(){
+  document.getElementById('tally').textContent =
+    tips.use.length + ' chosen · ' + tips.veto.length + ' chapters vetoed · '
+    + tAt + ' of ' + Q.length + ' seen';
+  document.getElementById('rail').innerHTML = '<p class="lead">Chosen, in order</p>' +
+    (tips.use.length ? tips.use.map((k,n) => `<button data-tdel="${n}">
+      <span class="d">${n+1}</span><span class="t">${esc(k.split(' | ')[0])}</span>
+    </button>`).join('') : '<p style="padding:0 8px;font-size:13px;color:var(--muted)">Nothing yet.</p>');
+  const q = Q[tAt];
+  document.getElementById('stage').innerHTML = !q
+    ? '<p class="done">That is the whole pool. Copy picks when ready.</p>'
+    : `<p class="ses">Passage ${tAt+1} of ${Q.length}</p>
+       <div class="card">
+         <p class="title" style="font-size:19px">Bad idea: “${esc(q.chapter)}”</p>
+         <p class="by">${esc(q.author)}</p>
+         <div class="text" style="font-size:19px">${esc(q.text)}</div>
+       </div>
+       <div class="acts">
+         <button class="use" id="tuse">Use  →</button>
+         <button id="tskip">Pass  ←</button>
+         <button id="tveto">Veto this chapter</button>
+         <span class="hint">→ use · ← pass · V veto the whole chapter</span>
+       </div>`;
+  document.querySelectorAll('[data-tdel]').forEach(b => b.onclick = () => {
+    tips.use.splice(+b.dataset.tdel, 1); tsave(); renderTips(); });
+  const a = document.getElementById('tuse'), b = document.getElementById('tskip'),
+        c = document.getElementById('tveto');
+  if(a) a.onclick = tuse;
+  if(b) b.onclick = () => { tAt++; renderTips(); };
+  if(c) c.onclick = tveto;
+}
+function tuse(){ const q = Q[tAt]; if(!q) return;
+  if(!tips.use.includes(key(q))) tips.use.push(key(q));
+  tAt++; tsave(); renderTips(); }
+function tveto(){ const q = Q[tAt]; if(!q) return;
+  if(!tips.veto.includes(q.chapter)) tips.veto.push(q.chapter);
+  tips.use = tips.use.filter(k => k.split(' | ')[0] !== q.chapter);
+  while(Q[tAt] && Q[tAt].chapter === q.chapter) tAt++;   // skip its other passages
+  tsave(); renderTips(); }
 const S = window.CANDIDATES || [];
 let picks = {};                     // date -> "Author | Title"
 let at = 0;                         // which session
@@ -90,6 +142,8 @@ const shortDate = d => { const [y,m,dd] = d.split('-').map(Number);
   return new Date(y, m-1, dd).toLocaleDateString(undefined,{month:'short',day:'numeric'}); };
 
 function render(){
+  document.getElementById('mode').textContent = MODE === 'tips' ? 'Poems' : 'Tips';
+  if(MODE === 'tips') return renderTips();
   if(!S.length){ document.getElementById('stage').innerHTML =
     '<p class="done">No candidates.js — run <code>python3 tools/build-candidates.py ../tce284-fa26</code> first.</p>'; return; }
   const s = S[at];
@@ -149,8 +203,18 @@ function skip(){
   idx[s.date] = (idx[s.date] || 0) + 1;
   render();
 }
+document.getElementById('mode').onclick = () => {
+  MODE = MODE === 'tips' ? 'poems' : 'tips';
+  localStorage.setItem('curate-mode', MODE); render();
+};
 document.addEventListener('keydown', e => {
   if(e.target.tagName === 'TEXTAREA') return;
+  if(MODE === 'tips'){
+    if(e.key === 'ArrowRight') { tuse(); e.preventDefault(); }
+    else if(e.key === 'ArrowLeft') { tAt++; renderTips(); e.preventDefault(); }
+    else if(e.key.toLowerCase() === 'v') { tveto(); e.preventDefault(); }
+    return;
+  }
   if(e.key === 'ArrowRight' || e.key.toLowerCase() === 'u') { use(); e.preventDefault(); }
   else if(e.key === 'ArrowLeft' || e.key.toLowerCase() === 'x') { skip(); e.preventDefault(); }
   else if(e.key === 'ArrowDown') { at = Math.min(S.length-1, at+1); render(); e.preventDefault(); }
@@ -158,6 +222,18 @@ document.addEventListener('keydown', e => {
 });
 
 document.getElementById('copy').onclick = () => {
+  if(MODE === 'tips'){
+    const body = '# Pasted from tools/curate.html\n'
+      + tips.use.join('\n') + '\n'
+      + tips.veto.map(c => '- ' + c + ' |').join('\n') + '\n';
+    document.getElementById('stage').insertAdjacentHTML('afterbegin',
+      `<p class="count">Paste into <b>tips-chosen.txt</b>, then re-run
+        <code>python3 tools/build-tips.py ../tce284-fa26</code></p>
+       <textarea class="out" id="outbox">${esc(body)}</textarea>`);
+    const bx = document.getElementById('outbox'); bx.focus(); bx.select();
+    try { navigator.clipboard.writeText(body); } catch(e) {}
+    return;
+  }
   const lines = S.filter(s => picks[s.date]).map(s => `${s.date} | ${picks[s.date]}`);
   const body = lines.length
     ? '# Pasted from tools/curate.html\n' + lines.join('\n') + '\n'

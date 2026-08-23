@@ -48,10 +48,43 @@ def wanted():
     return keep, veto
 
 
+def killed(qs, veto):
+    """⚠ A veto kills the whole CHAPTER, not one passage.
+
+    It used to kill exactly the passage it named, and the pool holds two per
+    chapter, so vetoing Carr's "The failed writer…" simply let the other Carr
+    passage through on a later date — "Failure in writing betrays dullness of
+    mind", which is worse than the one that was rejected. If a chapter is not
+    wanted, none of it is wanted."""
+    chapters = {norm(c) for c, _ in veto}
+    return {id(q) for q in qs if norm(q['chapter']) in chapters}
+
+
 def norm(t):
     """⚠ The book sets apostrophes curly — "Writer’s Block" — and anything typed
     into tips-chosen.txt by hand will have straight ones. Match without them."""
     return re.sub(r"[‘’']", "'", (t or '')).strip().lower()
+
+
+# ── Tone ─────────────────────────────────────────────────────────────────────
+# Todd: "They should all be encouraging. Not about failure (unless it's
+# encouraging! lol)". These chapters argue FOR students, but plenty of individual
+# passages do it by first describing at length what students are accused of —
+# dullness of mind, smallness of imagination — and a passage like that, alone on a
+# page with no chapter around it to answer it, is just the accusation.
+#
+# ⚠ A word list cannot read tone. This only drops the obvious ones; the rest is a
+# job for eyes, which is what tools/curate.html is for.
+GRIM = re.compile(r'\b(fail(ed|ure|ing)?|dull(ness)?|stupid|dumb|deficien\w*|remedial|'
+                  r'illiterate|inadequa\w*|worthless|hopeless|punitive|punish\w*|'
+                  r'condemn\w*|bankrupt\w*|ruin(s|ed|ing)?|crisis|damaged|weakness)\b', re.I)
+# …unless the passage turns, which is the whole move of this book.
+TURN = re.compile(r'\b(but|instead|in fact|rather|however|the truth|good company|'
+                  r'can learn|all writers|we should|is not a sign)\b', re.I)
+
+
+def grim(q):
+    return bool(GRIM.search(q['text'])) and not TURN.search(q['text'])
 
 
 def find(qs, ch, pre):
@@ -64,7 +97,7 @@ def find(qs, ch, pre):
 def main(course):
     qs = pool()
     keep, veto = wanted()
-    dead = {id(find(qs, c, p)) for c, p in veto}
+    dead = killed(qs, veto)
     ordered, used = [], set()
     for c, p in keep:
         q = find(qs, c, p)
@@ -76,7 +109,11 @@ def main(course):
     # ⚠ One passage per chapter before any chapter comes round twice. The pool holds
     # two per chapter and they sit next to each other, so a straight fill put Paul
     # Cook on the 2nd and the 9th and Elizabeth Wardle on the 14th and the 16th.
-    rest = [q for q in qs if id(q) not in used and id(q) not in dead]
+    rest = [q for q in qs if id(q) not in used and id(q) not in dead and not grim(q)]
+    dropped = [q for q in qs if id(q) not in used and id(q) not in dead and grim(q)]
+    if dropped:
+        print(f'  {len(dropped)} passages set aside as discouraging '
+              f'(see GRIM in this script)')
     seen = {norm(q['chapter']) for q in ordered}
     firsts, seconds = [], []
     for q in rest:

@@ -15,5 +15,7 @@ Only Geniuses can be Writers | Publishers present a polished
 Reading and Writing are not Connected | What is often neglected
 The More Writing Process, the Better | We cannot follow a writing process
 
-# Todd: "I like all of them except the Carr one."
-- Failure is Not an Option | The failed writer
+# A "-" line vetoes the WHOLE CHAPTER — leave the second field empty to mean all
+# of it. Todd: "I like all of them except the Carr one", then "I dont like the vibe
+# of that one. They should all be encouraging."
+- Failure is Not an Option |

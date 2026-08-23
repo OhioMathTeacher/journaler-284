@@ -5249,9 +5249,6 @@ You: Really. The first line only has to exist, not be good.`;
           About Writing</cite></a>, edited by Cheryl E. Ball and Drew M. Loewe
           (West Virginia University Libraries, 2017). Free to read, and licensed
           CC&nbsp;BY-NC-ND&nbsp;4.0.</p>
-        <p>Forty-three short chapters, each one taking apart a single bad idea about
-          writing. <a href="${escHtml(t.url)}" target="_blank" rel="noopener">Read the
-          whole book →</a> Start with the chapter above; they run three pages.</p>
       </div>
       <div class="pmacts">
         <button class="btn" id="pmKeep">＋ Share with notebook</button>
