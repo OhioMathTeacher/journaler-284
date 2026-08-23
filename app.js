@@ -634,7 +634,7 @@ async function runReflection(rf, text, hooks) {
   // when you open the software should be notebook." Everything else in this app feeds it,
   // and a student who opens to their own kept work sees the term accumulating rather than
   // a blank prompt. The By-day lens is what greets them, not the scoring table.
-  let tab = 'note';
+  let tab = 'today';
 
   // ---------- shared gush engine ----------
   const G = { running: false, tId: null, remain: 0 };
@@ -5176,8 +5176,90 @@ You: Really. The first line only has to exist, not be good.`;
     frame.querySelectorAll('[data-open]').forEach(b => b.onclick = () => goToPiece(b.dataset.open));
   }
 
+  // ── TODAY ────────────────────────────────────────────────────────────────────
+  //
+  // The app used to open on the by-day calendar, which on 24 August is a grid of
+  // thirty empty boxes -- a true picture of the notebook and a cold way to be met
+  // by it. Todd asked whether the About page should open instead. It should not:
+  // a splash you have to dismiss every launch is read once and clicked through
+  // after that, and it puts a door in front of the writing, which is the one thing
+  // this app keeps refusing to do.
+  //
+  // So: a view, not a splash. The Daily Poem that already opens every class
+  // session, one way in to writing, and one honest line about where you stand.
+  // Nothing to dismiss, and the calendar is one click away.
+  //
+  // ⚠ The poems come from poems.js, GENERATED from the course repo by
+  // tools/build-poems.py. Do not type a poem in here -- see that script's header.
+  // No poem TEXT: the course links out, most of these poets are in copyright, and
+  // so the app links out too.
+  function todaysPoem(){
+    const all = (window.DAILY_POEMS || []).slice().sort((a,b) => a.date.localeCompare(b.date));
+    if(!all.length) return null;
+    const today = _todayKey();
+    // The poem of the last session that has met. Between sessions the most recent
+    // one stands -- it is the one the class actually read -- and before the term
+    // starts, the first. Weeks 11-15 have no Daily Poem, so late in the term this
+    // deliberately keeps showing week 10's rather than inventing one.
+    let p = all[0];
+    for(const q of all) if(q.date <= today) p = q;
+    // ⚠ Before the term starts nothing is <= today, so p is still the FIRST poem --
+    // a date in the future. Calling that "from Wednesday" would read as already past.
+    return Object.assign({}, p, {
+      when: p.date === today ? 'today' : (p.date > today ? 'ahead' : 'past') });
+  }
+
+  function renderToday(){
+    body.classList.remove('wide');
+    const fmt = k => { const [y,m,d] = String(k).split('-').map(Number);
+      return new Date(y, (m||1)-1, d||1).toLocaleDateString(undefined,
+        { weekday:'long', month:'long', day:'numeric' }); };
+    const p = todaysPoem();
+    const poem = !p ? '' : `
+      <section class="tdpoem">
+        <p class="lead">Daily Poem${
+          p.when === 'today' ? '' :
+          p.when === 'ahead' ? ` · opening ${escHtml(fmt(p.date))}` :
+                               ` · from ${escHtml(fmt(p.date))}`}</p>
+        <h2>“${escHtml(p.title)}”</h2>
+        <p class="tdby">${escHtml(p.poet)}${p.note ? ` · ${escHtml(p.note)}` : ''}
+          ${p.url ? `<a class="tdread" href="${escHtml(p.url)}" target="_blank" rel="noopener">read it ↗</a>`
+                  : `<span class="tdwhere">on ${escHtml(p.where)}</span>`}</p>
+        ${p.framing.map(f => `<p class="tdask">${f}</p>`).join('')}
+      </section>`;
+
+    // One way in, and it is the one that is actually next: the Week 1 baseline
+    // until it exists, an open page after that. A landing screen offering five
+    // equal choices is the empty calendar again in a different shape.
+    const T = turnin(), ord = numberedEntries();
+    const need = TURNIN_SLOTS.find(([k]) => !T[k]);
+    const start = !T.baseline
+      ? { to:'baseline', label:'Write your Week 1 baseline →' }
+      : { to:'open',     label:'Open a page and write →' };
+    const words = ord.reduce((n,e) => n + wordsIn(e), 0);
+    const days = new Set(ord.map(e => e.date)).size;
+    const where = ord.length
+      ? `<strong>${ord.length}</strong> ${ord.length === 1 ? 'entry' : 'entries'} ·
+         ${days} day${days === 1 ? '' : 's'} · ${words.toLocaleString()} words kept.
+         ${need ? `Still to write: ${escHtml(need[1])}.` : 'Every required entry is tagged.'}`
+      : 'Nothing kept yet. Anything you write can be kept — that is what the notebook counts.';
+
+    frame.innerHTML = `<div class="head"><h1>Today</h1><p>${escHtml(fmt(_todayKey()))}</p></div>
+      <div class="today">
+        ${poem}
+        <section class="tdgo">
+          <button class="btn" data-jump="${start.to}">${start.label}</button>
+          <p class="runline">${where}
+            <button class="pj-link" id="tdProg">Where I stand →</button></p>
+        </section>
+      </div>`;
+    wireProjectLinks();
+    const pr = document.getElementById('tdProg');
+    if(pr) pr.onclick = () => { noteMode = 'tags'; show('note'); };
+  }
+
   // ---------- tabs + focus ----------
-  const R = { free:renderFree, cur:renderCur, read:renderRead, note:renderNote };
+  const R = { today:renderToday, free:renderFree, cur:renderCur, read:renderRead, note:renderNote };
   // body.reading lets CSS tell the reader apart from the writing views. Focus mode
   // clamps .frame to 720px, which is right for a gush and wrong for a PDF.
   // paintInsMarker last: the insertion marker is a fixed overlay on <body>, so leaving
@@ -5464,7 +5546,7 @@ You: Really. The first line only has to exist, not be good.`;
     } catch(e){ readingsDirState = 'missing'; rerenderReadIfVisible(); }
   })();
 
-  show('note');
+  show('today');
 })();
 
 // ===== init =====

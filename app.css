@@ -64,9 +64,14 @@
   .about-links a:hover { text-decoration: underline; }
   .about-build { margin-top: 16px !important; font-family: ui-monospace, monospace; font-size: 12.5px; color: #7C8B9C !important; }
 
-  .topbar { display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; gap: 10px; border-bottom: 2px solid var(--comment-border); padding: 0 clamp(12px,3vw,24px); position: sticky; top: 0; background: var(--parchment); z-index: 5; }
-  .tabbar { display: flex; gap: 2px; flex: 1 1 auto; flex-wrap: nowrap; min-width: 0; }
-  .tabbar button { font-family: var(--sans); font-size: 16px; font-weight: 600; color: var(--muted); background: none; border: none; padding: 12px 12px; white-space: nowrap; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+  .topbar { display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; gap: 7px; border-bottom: 2px solid var(--comment-border); padding: 0 clamp(12px,3vw,24px); position: sticky; top: 0; background: var(--parchment); z-index: 5; }
+  /* Five tabs fit at 390px with a little to spare, but there is no margin left for a
+     sixth or for a larger text size, and an unreachable tab is a tab that does not
+     exist. The row scrolls on its own rather than pushing the page sideways. */
+  .tabbar { display: flex; gap: 2px; flex: 1 1 auto; flex-wrap: nowrap; min-width: 0;
+    overflow-x: auto; scrollbar-width: none; }
+  .tabbar::-webkit-scrollbar { display: none; }
+  .tabbar button { font-family: var(--sans); font-size: 16px; font-weight: 600; color: var(--muted); background: none; border: none; padding: 12px 9px; white-space: nowrap; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
   .tabbar button.on { color: var(--accent); border-bottom-color: var(--accent); }
   .focusbtn { font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: var(--accent); background: none; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 9px; cursor: pointer; white-space: nowrap; }
   .focusbtn:hover { background: var(--comment-bg); }
@@ -429,6 +434,25 @@
    row, where right-anchoring would push a 21rem menu off the side of the screen. */
 @media (max-width: 700px){ .menu { right: auto; left: 0; } }
 
+
+/* ===== Today — the landing view ==============================================
+   Held to the writing measure rather than the full window: this is something to
+   read, and the poem's framing questions are prose. ========================== */
+.today { max-width: var(--writecol); }
+.tdpoem { background: var(--margin-bg); border: 1px solid var(--comment-border);
+  border-radius: 9px; padding: 16px 20px 18px; margin: 0 0 18px; }
+.tdpoem .lead { font-family: var(--sans); font-size: 12.5px; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--muted); margin: 0 0 6px; }
+.tdpoem h2 { font-family: var(--write); font-size: 25px; font-weight: 600; line-height: 1.25;
+  margin: 0 0 3px; }
+.tdby { font-family: var(--sans); font-size: 14px; color: var(--muted); margin: 0 0 12px; }
+.tdread { color: var(--accent); text-decoration: underline; text-underline-offset: 2px;
+  margin-left: .5rem; white-space: nowrap; }
+.tdwhere { margin-left: .5rem; font-style: italic; }
+.tdask { font-family: var(--sans); font-size: 15px; line-height: 1.55; margin: 0 0 8px; }
+.tdask:last-child { margin-bottom: 0; }
+.tdask em { font-style: italic; }
+.tdgo .runline { margin-top: 10px; }
 
 /* ===== Notebook — two lenses (by day / by piece) + entry actions ===== */
 .nbviews { display: inline-flex; gap: 4px; margin-top: 4px; }
