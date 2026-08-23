@@ -1143,7 +1143,8 @@ async function runReflection(rf, text, hooks) {
     } }
     DB._journalMigrated = true; saveDB();
   }
-  const PIECE_ORDER = ['op1','op2','op3','op4','op5','cur-reg','cur-pro','cur-syn','free','reading'];
+  const PIECE_ORDER = ['baseline','op1','op2','op3','op4','op5','cur-reg','cur-pro','cur-ana','cur-syn',
+                       'topicmap','sources','free','reading','letter'];
   // Reading pieces are one-per-chapter, so they share a rank and cluster together
   // after the writing pieces instead of scattering into the unknown bucket.
   function pieceRank(id){
@@ -1550,7 +1551,7 @@ async function runReflection(rf, text, hooks) {
   function updateEntry(id, text){ const e = DB.journal.find(x=>x.id===id); if(e){ e.text = text; e.edited = new Date().toISOString(); saveDB(); } }
   // Jump from a notebook entry to the live writing surface it came from.
   function goToPiece(pieceId){
-    if(/^op[1-5]$/.test(pieceId)){ fwCur = pieceId; show('free'); }
+    if(/^op[1-5]$/.test(pieceId) || NAMED[pieceId]){ fwCur = pieceId; show('free'); }
     else if(pieceId.indexOf('cur-') === 0){ curCur = pieceId.slice(4); show('cur'); }
     else if(pieceId.indexOf('reading') === 0){
       // Open the chapter the notes came from, not just the Readings tab.
@@ -1575,6 +1576,90 @@ async function runReflection(rf, text, hooks) {
   const fwDone = {}, fwGushed = {};
   for (const k of Object.keys(OPS)) { const s = DB.freewrite[k] || {}; fwDone[k] = !!s.done; fwGushed[k] = !!s.gushed; }
 
+  // ── THE REQUIRED ENTRIES GET SOMEWHERE TO BE WRITTEN.
+  //
+  // Todd: "Everything genuinely has to connect." It did not. Of the five things a student
+  // must tag, exactly one -- the currere -- had a surface in this app. The comment two
+  // screens down used to admit it: "the Week 1 baseline is just another freewrite; the
+  // topic map never touches the app." So the tags named work that happened off-screen,
+  // and tagging meant hunting through thirty look-alike entries in December.
+  //
+  // Each of these is a page you can open, write on, and keep -- and keeping TAGS IT, in
+  // the same action. That is the whole idea: the tag is placed when the writing happens,
+  // by the page that knows what it is. December stops being archaeology.
+  const NAMED = {
+    baseline: { slot:'baseline', lead:'Week 1', t:'Why do we write?',
+      f:'Your first answer, before this course argues with you. <span class="hint">Write it fast and leave it alone — in Week 15 you write back to this person.</span>',
+      ph:'Why do we write? Go.' },
+    topicmap: { slot:'topicmap', lead:'Research', t:'Topic map',
+      f:'What you might write about, and everything it touches. <span class="hint">Not an outline. Names, questions, angles, dead ends — the whole spread.</span>',
+      ph:'Put the topic in the middle and write outward. Anything that touches it counts.' },
+    sources:  { slot:'sources',  lead:'Research', t:'Source notes',
+      f:'What a source actually says, and what you make of it. <span class="hint">Where it came from, what it claims, and the line you would quote.</span>',
+      ph:'Source, claim, the line worth quoting — and what it makes you think.' },
+    letter:   { slot:'letter',   lead:'Week 15', t:'Look-Back Letter',
+      f:'A letter to the writer who answered <em>why do we write?</em> on the first day. <span class="hint">Written in our last class, so the notebook is finished the day it is handed in.</span>',
+      ph:'Dear me-in-August…' },
+  };
+
+  // The baseline, shown beside the Letter, because the assignment is to write BACK to it
+  // and an app that made you go and find it first would be making the same mistake again.
+  function baselineBesideLetter(){
+    const id = turnin()['baseline'];
+    const e = id && (DB.journal || []).find(x => x.id === id);
+    if(!e) return `<div class="beside empty"><p class="lead">Your Week 1 baseline</p>
+      <p>Not tagged yet. Open <strong>Why do we write?</strong> above, keep it, and it will
+      appear here when you write the letter.</p></div>`;
+    return `<div class="beside"><p class="lead">Your Week 1 baseline · ${escHtml(shortDate(e.date))}</p>
+      <div class="beside-text">${escHtml(e.text).replace(/\n/g,'<br>')}</div></div>`;
+  }
+
+  function renderNamed(key){
+    const m = NAMED[key];
+    const saved = (DB.freewrite[key] || {}).text || '';
+    document.getElementById('stage').innerHTML = `
+      <p class="kicker">${m.lead}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
+      ${key === 'letter' ? baselineBesideLetter() : ''}
+      <textarea class="gush" id="gush" placeholder="${escHtml(m.ph)}">${escHtml(saved)}</textarea>
+      <div style="max-width:var(--writecol);margin:10px auto 0;display:flex;gap:10px;align-items:baseline">
+        <button class="btn ghost sm" id="namedAdd">＋ Keep in notebook</button>
+        <span class="note" id="namedState"></span></div>`;
+    const ta = document.getElementById('gush');
+    ta.addEventListener('input', () => { DB.freewrite[key] = { text: ta.value }; saveDB(); });
+    paintNamedState(key);
+    document.getElementById('namedAdd').onclick = () => keepNamed(key);
+  }
+
+  // Says, on the page, whether this required entry is already answered -- so the student
+  // never has to go to another lens to find out where they stand on it.
+  function paintNamedState(key){
+    const el = document.getElementById('namedState'); if(!el) return;
+    const m = NAMED[key], id = turnin()[m.slot];
+    const e = id && (DB.journal || []).find(x => x.id === id);
+    el.innerHTML = e
+      ? `✓ kept and tagged <strong>${escHtml(slotLabel(m.slot))}</strong> · ${escHtml(shortDate(e.date))}`
+      : `Keeping this tags it <strong>${escHtml(slotLabel(m.slot))}</strong> — one of the four required entries.`;
+  }
+
+  function keepNamed(key){
+    const m = NAMED[key];
+    const ta = document.getElementById('gush');
+    const txt = (ta && ta.value || '').trim();
+    if(!txt){ toast('Nothing to keep yet — write something first.'); return; }
+    const entry = elevate(key, 'freewrite', m.t, txt);
+    if(!entry) return;
+    // The tag goes on HERE, not in December. A slot holds one entry, so keeping a second
+    // draft of the same piece moves the tag to the newer one -- which is what a student
+    // rewriting their topic map means, and it says so rather than doing it silently.
+    const T = turnin(), prev = T[m.slot];
+    T[m.slot] = entry.id; saveDB();
+    toast(prev && prev !== entry.id
+      ? `Kept — the ${slotLabel(m.slot)} tag moved to this one`
+      : `Kept, and tagged ${slotLabel(m.slot)}`,
+      { label: 'View →', onClick: () => revealEntry(entry) });
+    paintNamedState(key);
+  }
+
   function renderFree(){
     body.classList.remove('wide');
     const spine = `
@@ -1582,11 +1667,18 @@ async function runReflection(rf, text, hooks) {
       ${Object.entries(OPS).map(([k,o])=>`<button class="moment ${k===fwCur?'on':''} ${fwDone[k]?'has':''}" data-op="${k}"><span class="mname"><span class="dot"></span>${o.n} · ${o.t}</span><span class="mkind">gush → one page</span></button>`).join('')}
       <div class="divider"></div><p class="lead">Keep the practice</p>
       <button class="moment ${fwCur==='open'?'on':''}" data-op="open"><span class="mname"><span class="dot"></span>Open page</span><span class="mkind">free-write · stems</span></button>
-      <p class="runline">Each One-Pager is a tiny currere.</p>`;
+      <div class="divider"></div><p class="lead">For the notebook</p>
+      ${Object.entries(NAMED).map(([k,m]) => {
+        const done = !!turnin()[m.slot];
+        return `<button class="moment ${k===fwCur?'on':''} ${done?'has':''}" data-op="${k}"><span class="mname"><span class="dot"></span>${m.t}</span><span class="mkind">${done ? '✓ kept &amp; tagged' : m.lead + ' · required'}</span></button>`;
+      }).join('')}
+      <p class="runline">Keeping one of these tags it. Nothing to do in December.</p>`;
     frame.innerHTML = `<div class="head"><h1>Freewrite</h1><p>Start a timer, trust the gush, then shape it.</p></div>
       <div class="layout"><nav class="spine">${spine}</nav><main class="stage" id="stage"></main></div>`;
     frame.querySelectorAll('[data-op]').forEach(b=>b.addEventListener('click',()=>{ if(G.running) return; fwCur=b.dataset.op; renderFree(); }));
-    fwCur==='open' ? renderOpen() : renderOPStage(OPS[fwCur]);
+    if(NAMED[fwCur]) renderNamed(fwCur);
+    else if(fwCur === 'open') renderOpen();
+    else renderOPStage(OPS[fwCur]);
     paintInsMarker();   // Open page has no One-Pager, so the marker must come down
   }
   // ── The writing session. OP1 says the session record and AI-use log travel with
@@ -1994,12 +2086,23 @@ async function runReflection(rf, text, hooks) {
       document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,onEnd:()=>{curBursts[curCur]=document.getElementById('gush').value||'(gush)';DB.currere[curCur]=curBursts[curCur];saveDB();}}));
       const curAdd = document.getElementById('curAddNb'); if(curAdd) curAdd.onclick = ()=>elevate('cur-'+curCur, 'currere', m.k+' · '+m.t, document.getElementById('gush').value);
     } else if(m.kind==='ana'){
+      // Moment 3 was the one currere moment with no way into the notebook -- and the
+      // reason was worse than a missing button. It asks "What runs through both? Name it."
+      // and gave the student nowhere to name it: two read-only panes and a stubbed AI
+      // button. The comparison the other three moments exist to produce could not be
+      // written down, let alone kept.
       const pane=k=>curBursts[k]?`<div class="pane">${curBursts[k]}</div>`:`<div class="pane" style="color:var(--muted);font-style:italic">Run this gush first.</div>`;
       st.innerHTML=`<p class="kicker">${m.k}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
         <div class="sbs"><div><h4>Regressive · past</h4>${pane('reg')}</div><div><h4>Progressive · future</h4>${pane('pro')}</div></div>
         <button class="btn ghost" id="themesBtn">Ask: what themes recur?</button>
-        <div class="aiout" id="tout" style="display:none"><span class="stub">[Stubbed] Reads your own bursts and names threads in both — as questions, never new content.</span></div>`;
+        <div class="aiout" id="tout" style="display:none"><span class="stub">[Stubbed] Reads your own bursts and names threads in both — as questions, never new content.</span></div>
+        <p class="stagenote" style="margin-top:16px">What runs through both? Name it here — this is the comparison, and it is your writing, not the app's.</p>
+        <textarea class="gush" id="anaNote" placeholder="What comes back in both the past and the future? Name it plainly.">${escHtml((DB.currere||{}).ana||'')}</textarea>
+        <div style="margin-top:12px"><button class="btn ghost sm" id="anaAddNb">＋ Add to notebook</button></div>`;
       document.getElementById('themesBtn').addEventListener('click',()=>document.getElementById('tout').style.display='block');
+      const anaTa = document.getElementById('anaNote');
+      anaTa.addEventListener('input', ()=>{ DB.currere.ana = anaTa.value; saveDB(); });
+      document.getElementById('anaAddNb').onclick = ()=>elevate('cur-ana', 'currere', m.k+' · '+m.t, anaTa.value);
     } else {
       st.innerHTML=`<p class="kicker">${m.k}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
         <textarea class="gush" id="gush" placeholder="Write the currere — open parts, or braid it into one. Pull scenes from what you gathered."></textarea>
@@ -4036,16 +4139,20 @@ You: Really. The first line only has to exist, not be good.`;
         rewrite. What does <em>not</em> belong is a finished draft that already lives somewhere
         else — your timed One-Pager gushes go in on sheet two of their own PDF, and nothing gets
         counted twice.</p>
+      <p class="runline"><strong>Most of these tag themselves.</strong> The four required
+        entries have their own pages under <em>Freewrite → For the notebook</em>: write one,
+        keep it, and it is tagged in the same action. Your Look-Back Letter too. The only
+        thing left for December is flagging the three entries you want read closely.</p>
       <table class="pjtable">
         <tr><th></th><th>Scored on</th><th class="pj-pts">Pts</th><th>Where you are</th></tr>
         ${row(1, 'Kept practice', 20, 'Every entry you keep. Nothing to tag.',
               kept + `<br><span class="pj-aim">${band}</span>`,
               ord.length >= ENTRIES_BANDS.full)}
-        ${row(2, 'Required entries', 5, 'Baseline · Currere · Topic map · Source notes',
+        ${row(2, 'Required entries', 5, 'One kept entry tagged for each: Baseline · Currere · Topic map · Source notes',
               `${req} of 4 tagged`, req === 4)}
-        ${row(3, 'Look-Back Letter', 10, 'Your letter to the writer who answered on day one',
+        ${row(3, 'Look-Back Letter', 10, 'Keep it, then tag it. Written in the last class.',
               letter ? 'tagged' : 'not tagged yet', !!letter)}
-        ${row(4, 'Thinking on the page', 15, 'Your 3 flagged entries, and your reading of a thread',
+        ${row(4, 'Thinking on the page', 15, 'Flag 3 kept entries — one per act — and write your reading of a thread',
               `${flags} of 3 flagged · reading ${ana ? 'kept' : 'not written'}`, flags === 3 && ana)}
       </table>
       <p class="runline pj-warn">Filling all nine boxes earns rows 2–4 — <strong>30 of the ${NB_TOTAL}

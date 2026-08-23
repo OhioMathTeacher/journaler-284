@@ -1062,3 +1062,16 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .wp-note { background: rgba(198,154,92,.16); border-left: 3px solid rgba(198,154,92,.75);
   border-radius: 0 5px 5px 0; padding: .4rem .55rem; margin-bottom: .45rem;
   font-size: .84rem; line-height: 1.4; color: #e7dcc9; }
+
+/* ── The baseline, shown beside the Look-Back Letter ───────────────────────────
+   §5 asks students to write back to the writer who answered on day one. An app that
+   made them go and find that entry first would be repeating the disconnection this
+   whole change exists to remove. */
+.beside { max-width: var(--writecol); margin: 0 auto 14px; background: var(--margin-bg);
+  border-left: 3px solid var(--accent); border-radius: 0 7px 7px 0; padding: 10px 14px; }
+.beside .lead { font-family: var(--sans); font-size: 12.5px; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--muted); margin: 0 0 6px; }
+.beside-text { font-family: var(--write); font-size: 15.5px; line-height: 1.5;
+  max-height: 190px; overflow: auto; }
+.beside.empty { border-left-color: var(--comment-border); color: var(--muted); font-size: 14.5px; }
+.beside.empty p:last-child { margin: 0; }
