@@ -1620,6 +1620,16 @@ async function runReflection(rf, text, hooks) {
 
   // A jump target is either a lens of this view or a piece elsewhere in the app.
   function wireProjectLinks(){
+    frame.querySelectorAll('[data-tagpick]').forEach(b => b.onclick = () => {
+      const slot = b.dataset.tagpick, id = b.dataset.tagent, T = turnin();
+      const prev = T[slot];
+      T[slot] = id; saveDB();
+      toast(prev && prev !== id ? `${slotLabel(slot)} moved to this entry` : `Tagged ${slotLabel(slot)}`);
+      renderNote();
+    });
+    frame.querySelectorAll('[data-untagpick]').forEach(b => b.onclick = () => {
+      delete turnin()[b.dataset.untagpick]; saveDB(); renderNote();
+    });
     frame.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => {
       const to = b.dataset.jump;
       if(to === 'threads'){ noteMode = 'threads'; renderNote(); return; }
@@ -4110,6 +4120,47 @@ You: Really. The first line only has to exist, not be good.`;
   //   If the handout changes, change it HERE -- the panel, the row-1 tick and the
   //   banding all read from this.
   const ENTRIES_BANDS = { full: 25, partial: 15, high: 40, by: 'December' };
+  // ── CHOOSE FROM WHAT YOU ACTUALLY WROTE.
+  //
+  // Todd: "Since there are multiple gushes ... Maybe the tags tab could have linked list
+  // of those with instructions to 'choose from these gushes.'"
+  //
+  // Right, and better than a link. The currere slot holds ONE entry but the docx says
+  // "currere gushes and brainstorms" -- plural -- so the student has several and has to
+  // pick. Sending them to a page does not help with picking. Listing the entries they
+  // already kept does, and clicking one tags it on the spot.
+  //
+  // Every kept entry carries its pieceId, so the app can enumerate candidates without
+  // storing anything new.
+  const SLOT_CANDIDATES = {
+    baseline: e => e.pieceId === 'baseline' || e.pieceKind === 'freewrite',
+    currere:  e => e.pieceKind === 'currere',
+    topicmap: e => e.pieceId === 'topicmap',
+    sources:  e => e.pieceId === 'sources',
+    letter:   e => e.pieceId === 'letter',
+  };
+  // Where to go when there is nothing to choose from yet.
+  const SLOT_MAKE = { baseline:'baseline', currere:'cur-reg', topicmap:'topicmap',
+                      sources:'sources', letter:'letter' };
+
+  function slotPicker(slot, jump){
+    const T = turnin(), ord = numberedEntries();
+    const numOf = new Map(ord.map((e, i) => [e.id, i + 1]));
+    const tagged = T[slot] && ord.find(e => e.id === T[slot]);
+    const cands = ord.filter(SLOT_CANDIDATES[slot] || (() => false));
+    if(tagged){
+      return `<span class="pj-has">✓ entry ${numOf.get(tagged.id)} · ${escHtml(shortDate(tagged.date))}</span>`
+        + `<button class="pj-link" data-untagpick="${slot}">change</button>`;
+    }
+    if(!cands.length) return `<span class="pj-none">none kept yet</span> ${jump('write one →', SLOT_MAKE[slot])}`;
+    // Newest last, capped: a term of currere passes should not become a wall of chips.
+    const show = cands.slice(-5);
+    return `<span class="pj-choose">choose from these:</span> `
+      + show.map(e => `<button class="pj-chip" data-tagpick="${slot}" data-tagent="${e.id}"
+           title="${escHtml(entryLabel(e, 80))}">${numOf.get(e.id)} · ${escHtml(shortDate(e.date))}</button>`).join(' ')
+      + (cands.length > show.length ? `<span class="pj-more">+${cands.length - show.length} older</span>` : '');
+  }
+
   function projectPanel(){
     const ord   = numberedEntries();
     const T     = turnin();
@@ -4167,12 +4218,12 @@ You: Really. The first line only has to exist, not be good.`;
         ${row(1, 'Kept practice', 20, `Every entry you keep, from anywhere. Nothing to tag. ${jump('Open page →','open')}`,
               kept + `<br><span class="pj-aim">${band}</span>`,
               ord.length >= ENTRIES_BANDS.full)}
-        ${row(2, 'Required entries', 5, `Keep one of each and it tags itself:
-              ${jump('Why do we write?','baseline')} ${jump('Currere','cur-reg')}
-              ${jump('Topic map','topicmap')} ${jump('Source notes','sources')}`,
-              `${req} of 4 tagged`, req === 4)}
-        ${row(3, 'Look-Back Letter', 10, `Written in the last class, to your Week 1 answer. ${jump('Look-Back Letter →','letter')}`,
-              letter ? 'tagged' : 'not tagged yet', !!letter)}
+        ${row(2, 'Required entries', 5, 'Keeping one of these tags it. Or choose from what you already kept.',
+              ['baseline','currere','topicmap','sources'].map(k =>
+                `<div class="pj-slot"><span class="pj-slot-n">${escHtml(slotLabel(k))}</span>${slotPicker(k, jump)}</div>`).join(''),
+              req === 4)}
+        ${row(3, 'Look-Back Letter', 10, 'Written in the last class, to your Week 1 answer.',
+              `<div class="pj-slot">${slotPicker('letter', jump)}</div>`, !!letter)}
         ${row(4, 'Thinking on the page', 15, `Flag 3 kept entries — one per act — and write your reading of a thread. ${jump('Threads →','threads')}`,
               `${flags} of 3 flagged · reading ${ana ? 'kept' : 'not written'}`, flags === 3 && ana)}
       </table>
