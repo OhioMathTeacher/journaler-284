@@ -4161,6 +4161,78 @@ You: Really. The first line only has to exist, not be good.`;
       + (cands.length > show.length ? `<span class="pj-more">+${cands.length - show.length} older</span>` : '');
   }
 
+  // ── WHAT THE APP IS HOLDING THAT IS NOT AN ENTRY YET.
+  //
+  // Todd: "I prefer completing the notebook as we go along, with the app collecting
+  // artifacts that students have the option to write about, and as they do, parts of the
+  // notebook get checked off."
+  //
+  // Two of those three already happened. Collection is automatic -- every surface in this
+  // app writes to DB on each keystroke -- and checking off is automatic since keeping a
+  // required page tags it. What was missing is that the collected work was INVISIBLE. The
+  // deliberate rule above ("nothing is auto-logged") is kept: the app still never files
+  // anything for a student. It just stops letting them lose twenty points by forgetting.
+  //
+  // The hazard this closes is real and silent: a student who writes in the Open page every
+  // session and never presses the button has zero entries, and Row 1 -- kept practice,
+  // 20 points -- scores what it sees.
+  //
+  // ⚠ One-Pager gushes are deliberately absent. Guidelines §2: they go in on sheet two of
+  //   their own PDF, and nothing gets counted twice.
+  function draftSources(){
+    const out = [{ id:'free', kind:'freewrite', title:'Free-writes & quick-writes',
+                   label:'Open page', text:((DB.freewrite||{}).open||{}).text }];
+    for(const k in NAMED) out.push({ id:k, kind:'freewrite', title:NAMED[k].t, slot:NAMED[k].slot,
+                                     label:NAMED[k].t, text:((DB.freewrite||{})[k]||{}).text });
+    const cur = DB.currere || {};
+    out.push({ id:'cur-reg', kind:'currere', title:MO.reg.k+' · '+MO.reg.t, label:MO.reg.k, text:cur.reg });
+    out.push({ id:'cur-pro', kind:'currere', title:MO.pro.k+' · '+MO.pro.t, label:MO.pro.k, text:cur.pro });
+    out.push({ id:'cur-ana', kind:'currere', title:MO.ana.k+' · '+MO.ana.t, label:MO.ana.k, text:cur.ana });
+    out.push({ id:'cur-syn', kind:'currere', title:'Moment 4 · Synthetical', label:MO.syn.k, text:cur.syn });
+    return out;
+  }
+
+  // "Waiting" means: there is text, and no entry from this piece already holds exactly it.
+  // Comparing TEXT rather than mere existence is what makes a second pass show up again --
+  // which is the behaviour the manual already promises ("open the same piece weeks later,
+  // write more, and add to notebook again. Both passes stay").
+  function waitingDrafts(){
+    const byPiece = {};
+    for(const e of (DB.journal || [])) (byPiece[e.pieceId] = byPiece[e.pieceId] || []).push(String(e.text||'').trim());
+    return draftSources().filter(d => {
+      const t = String(d.text || '').trim();
+      if(t.length < 20) return false;                    // a stray keystroke is not an artifact
+      return !(byPiece[d.id] || []).includes(t);
+    }).map(d => Object.assign({}, d, { words: wordCount(d.text), kept: (byPiece[d.id] || []).length }));
+  }
+
+  function draftTray(){
+    const w = waitingDrafts();
+    if(!w.length) return '';
+    return `<div class="tray">
+      <p class="tray-head"><strong>Not in your notebook yet</strong>
+        <em>${w.length} piece${w.length === 1 ? '' : 's'} you have written that ${w.length === 1 ? 'is' : 'are'} not counted until you keep ${w.length === 1 ? 'it' : 'them'}.</em></p>
+      ${w.map(d => `<div class="tray-row">
+        <span class="tray-what">${escHtml(d.label)}${d.kept ? ` <em>· new writing since you last kept this</em>` : ''}</span>
+        <span class="tray-n">${d.words} word${d.words === 1 ? '' : 's'}</span>
+        <button class="btn ghost sm" data-keepdraft="${escHtml(d.id)}">Keep →</button>
+        <button class="tray-open" data-jump="${escHtml(d.id === 'free' ? 'open' : d.id)}">open</button>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  function wireTray(){
+    frame.querySelectorAll('[data-keepdraft]').forEach(b => b.onclick = () => {
+      const d = draftSources().find(x => x.id === b.dataset.keepdraft);
+      if(!d) return;
+      const entry = elevate(d.id, d.kind, d.title, d.text);
+      if(!entry) return;
+      // A required page tags itself here exactly as it does on the page itself.
+      if(d.slot){ turnin()[d.slot] = entry.id; saveDB(); toast(`Kept, and tagged ${slotLabel(d.slot)}`); }
+      renderNote();
+    });
+  }
+
   function projectPanel(){
     const ord   = numberedEntries();
     const T     = turnin();
@@ -4922,9 +4994,11 @@ You: Really. The first line only has to exist, not be good.`;
       rightPane = notePieceDetail();
     }
     frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Your kept pages — the writing you elevated with <strong>＋ Add to notebook</strong>. See them <strong>by day</strong>, or watch one piece grow <strong>by piece</strong>. This is the 50-pt Writer’s Notebook.</p>${toggle}</div>
+      ${draftTray()}
       <div class="notewrap">${leftPane}${rightPane}</div>`;
 
     frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+    wireTray(); wireProjectLinks();
     // Only one lens renders at a time, so only one bundle button exists.
     // Tag / untag from the entry itself. Saved on the spot: there is no submit step here,
     // and a student who tags a page then navigates away should not lose it.
