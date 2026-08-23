@@ -60,6 +60,109 @@ def sessions(course):
 # poem that can fail to arrive. It is also why the texts land in git, where they can
 # be read in a diff rather than trusted.
 PDB = 'https://poetrydb.org/author,title/%s;%s'
+PDB_TITLE = 'https://poetrydb.org/title/%s/title,author,linecount'
+PDB_LINES = 'https://poetrydb.org/lines/%s/title,author,linecount'
+PDB_FETCH = 'https://poetrydb.org/author,title/%s;%s'
+
+# A stand-in should be worth reading on its own, so: long enough not to be a scrap,
+# short enough to sit on a landing page without scrolling. Todd: "preferably short?"
+MIN_LINES, MAX_LINES = 8, 40
+
+# Words that match everything and therefore mean nothing.
+STOP = set('''a an the and or but if of to in on at by for with from as is are was were
+be been being it its this that these those you your yours we our us they them their he
+she his her him do does did not no nor so then than there here what which who whom whose
+since while until upon unto whether though although because
+how when where why all any both each few more most other some such only own same too very
+can will just don should now into over under about after before again against between
+during through above below up down out off only read aloud it's what's poem line lines
+first last one two three today day says say said make makes made does doing go goes going
+notice noticing whole never always ever also would could should might must have has had'''.split())
+
+
+def keywords(p):
+    """What this poem is about — from its TITLE, and nothing else.
+
+    ⚠ Todd's framing questions were in here too, and they are why the first working
+    version paired "We Wear the Mask" with a poem sharing the word "student", and
+    "The Gift" with one sharing "pulling". The framing is prose ABOUT a poem, so its
+    rare words are incidental -- "couldn't", "sideways", "knelling" -- and a rare
+    word is exactly what the ranking below reaches for. A title is different: a poem
+    called "We Wear the Mask" IS about masks, every time.
+
+    When a title carries nothing to search on -- "Ethics", "Where I'm From" -- the
+    answer is the curated list in poem-substitutes.txt, not a worse guess."""
+    seen, out = set(), []
+    for w in re.findall(r"[a-z']{4,}", (p['title'] or '').lower()):
+        w = w.strip("'")
+        if w and w not in STOP and w not in seen:
+            seen.add(w)
+            out.append(w)
+    return out
+
+
+def search(url, kw):
+    r = urllib.request.Request(url % urllib.parse.quote(kw),
+                               headers={'User-Agent': 'journaler-284 poem builder'})
+    try:
+        d = json.load(urllib.request.urlopen(r, timeout=25))
+    except Exception:
+        return []
+    if not isinstance(d, list):
+        return []
+    return [p for p in d if MIN_LINES <= int(p.get('linecount') or 0) <= MAX_LINES]
+
+
+_freq = {}
+
+
+def rarity(kw):
+    """How many poems in the corpus use this word at all. Cached; lower is better."""
+    if kw not in _freq:
+        r = urllib.request.Request(PDB_LINES % urllib.parse.quote(kw),
+                                   headers={'User-Agent': 'journaler-284 poem builder'})
+        try:
+            d = json.load(urllib.request.urlopen(r, timeout=25))
+            _freq[kw] = len(d) if isinstance(d, list) else 0
+        except Exception:
+            _freq[kw] = 0
+    return _freq[kw]
+
+
+def echo(p, used, cache):
+    """A public-domain poem that answers this one, or None.
+
+    ⚠ Ranked by how RARE the word is, and each word exhausted before the next.
+
+    The obvious way round -- every title match first, then line matches -- is what
+    this did first, and it paired "We Wear the Mask" with a sonnet that happens to
+    contain the word "wear", and "[since feeling is first]" with Donne on the
+    strength of the word "since". Both are real matches and neither is about
+    anything. A word the corpus uses eighty times is telling you something; a word
+    it uses four hundred times is telling you nothing, and "mask" only loses to
+    "wear" if you rank them by where they sit in the title.
+
+    So: order the words by corpus frequency, then for the rarest one try titles AND
+    lines before giving up on it. A poem with "mask" somewhere in it beats a poem
+    called something with "wear" in it."""
+    kws = [k for k in keywords(p) if rarity(k)]
+    for kw in sorted(kws, key=rarity):
+        for url, how in ((PDB_TITLE, 'title'), (PDB_LINES, 'line')):
+            hits = [h for h in search(url, kw)
+                    if (h['author'], h['title']) not in used]
+            if not hits:
+                continue
+            hit = min(hits, key=lambda h: int(h['linecount']))   # shortest wins
+            text, note = poetrydb(hit['author'], hit['title'], cache)
+            if not text:
+                continue
+            return dict(slug=slugify(hit['title']), poet=hit['author'], title=hit['title'],
+                        text=text, textSource=note,
+                        why=f'{how}: “{kw}” ({rarity(kw)} in corpus)')
+    return None
+
+
+
 
 
 def poetrydb(author, title, cache):
@@ -84,17 +187,26 @@ def poetrydb(author, title, cache):
 
 
 def substitutes(here):
+    """(pool, pinned) from poem-substitutes.txt.
+
+    A line may be "Author | Title", which joins the fallback pool, or
+    "2026-09-16 | Author | Title", which pins that poem to that session and
+    overrides the search entirely. Pinning is how a bad automatic match gets
+    fixed: the search is a default, not a verdict."""
     f = here / 'poem-substitutes.txt'
+    pool, pinned = [], {}
     if not f.exists():
-        return []
-    out = []
+        return pool, pinned
     for line in f.read_text().splitlines():
         line = line.strip()
         if not line or line.startswith('#') or '|' not in line:
             continue
-        a, t = line.split('|', 1)
-        out.append((a.strip(), t.strip()))
-    return out
+        bits = [b.strip() for b in line.split('|')]
+        if len(bits) >= 3 and re.fullmatch(r'\d{4}-\d{2}-\d{2}', bits[0]):
+            pinned[bits[0]] = (bits[1], bits[2])
+        else:
+            pool.append((bits[0], bits[1]))
+    return pool, pinned
 
 
 def slugify(title):
@@ -202,16 +314,35 @@ def main():
     # Every session whose own poem cannot be printed gets the next stand-in, in the
     # order poem-substitutes.txt lists them. Assigned here, in one pass over the term,
     # so the same date always lands on the same poem however often this is re-run.
-    subs, cache = substitutes(here), here / 'poem-texts' / '_pd'
+    (pool, pinned), cache = substitutes(here), here / 'poem-texts' / '_pd'
     need = [r for r in rows if not r['text']]
-    if subs and need:
-        print(f'{len(need)} sessions need a stand-in; {len(subs)} in the list')
+    used = set()
+    if need:
+        print(f'{len(need)} sessions need a stand-in')
         for i, r in enumerate(need):
-            author, title = subs[i % len(subs)]
-            text, note = poetrydb(author, title, cache)
-            if text:
-                r['sub'] = dict(slug=slugify(title), poet=author, title=title,
-                               text=text, textSource=note)
+            got = None
+            # 1. Whatever Todd pinned to this date, no argument.
+            if r['date'] in pinned:
+                author, title = pinned[r['date']]
+                text, note = poetrydb(author, title, cache)
+                if text:
+                    got = dict(slug=slugify(title), poet=author, title=title,
+                               text=text, textSource=note, why='pinned')
+            # 2. A public-domain poem that is about what this one is about. Todd: "the
+            #    dunbar poem is about masks. Can we find one from the DB with 'mask' in
+            #    the title?" -- so the search runs on the class poem's own title.
+            if not got:
+                got = echo(r, used, cache)
+            # 3. Otherwise the curated list, in order.
+            if not got and pool:
+                author, title = pool[i % len(pool)]
+                text, note = poetrydb(author, title, cache)
+                if text:
+                    got = dict(slug=slugify(title), poet=author, title=title,
+                               text=text, textSource=note, why='from the list')
+            if got:
+                used.add((got['poet'], got['title']))
+                r['sub'] = got
 
     body = ',\n'.join('  ' + json.dumps(r, ensure_ascii=False) for r in rows)
     out = pathlib.Path(__file__).resolve().parent.parent / 'poems.js'
@@ -240,7 +371,8 @@ window.DAILY_POEMS = [
           f"{len(skipped)} sessions with no poem")
     for r in rows:
         how = 'class ' if r['text'] else ('sub   ' if r.get('sub') else 'LINK  ')
-        tail = f"  →  {r['sub']['poet']}, {r['sub']['title']}" if r.get('sub') else ''
+        tail = (f"  →  {r['sub']['poet']}, {r['sub']['title']}  [{r['sub'].get('why','')}]"
+                if r.get('sub') else '')
         print(f"  {how}{r['date']}  {r['title']}{tail}")
     for s in skipped:
         print(f'  no poem: {s}')

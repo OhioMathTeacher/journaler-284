@@ -11,6 +11,21 @@
 # lines than sessions and the list wraps around.
 #
 # These are a starting set, not a syllabus. Swap any of them.
+#
+# ── Pinning ──────────────────────────────────────────────────────────────────
+# The builder first tries to find a poem ABOUT what the class poem is about, by
+# searching PoetryDB for the class poem's own title words, rarest first: that is
+# how Dunbar's "We Wear the Mask" gets Spenser's Sonnet 54 ("And mask in myrth
+# lyke to a comedy") and Plath's "Metaphors" gets Drayton's "why these giddy
+# metaphors I use". The list below is only used when a title has nothing to
+# search on — "Ethics", "Where I'm From".
+#
+# The search is a default, not a verdict. To overrule it for one session, give
+# the date:
+#
+#   2026-09-16 | Emily Dickinson | Because I could not stop for Death
+#
+# A dated line wins outright. Undated lines stay in the fallback pool.
 
 William Blake | The Tyger
 Christina Rossetti | A Birthday
