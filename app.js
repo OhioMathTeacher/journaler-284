@@ -703,7 +703,7 @@ async function runReflection(rf, text, hooks) {
         // selected, which is exactly the chalkboard rule.
         ta.removeEventListener('keydown',guard); ta.classList.remove('locked');
         ta.disabled=false; ta.readOnly=true;
-        if(lm) lm.textContent='Time. Your gush is fixed now — select the lines you want and copy them across.';
+        if(lm) lm.textContent='Time. Your gush is fixed now — select the lines you want and copy them across, or send them to your notebook.';
         if(opts.focus) setFocus(false);
         const rf = document.getElementById('reflect'); if(rf){ rf.style.display='block'; runReflection(rf, ta.value, opts.reflect); }
         if(opts.onEnd) opts.onEnd();
@@ -1663,7 +1663,6 @@ async function runReflection(rf, text, hooks) {
           <span class="locknote" id="lockmsg">Set your minutes, then start — the page locks and Focus opens.</span></div>
         <textarea class="gush" id="gush" placeholder="Don’t stop, don’t fix. Stalled? Write that you stalled — and keep going." disabled></textarea>
         <div class="reflect" id="reflect" style="display:none"><span class="lbl">Reflecting with ${AI_NAME}</span><span>How did it go? <em>(About the experience, never your words — stubbed.)</em></span></div>
-        <div style="margin-top:12px"><button class="btn ghost sm" id="opAddGush">＋ Add gush to notebook</button></div>
        </div>
        <div class="op-col shape" id="shapeCol">
         <div class="stagelabel"><span class="n">2</span> Shape — the One-Pager ${M.photos?'(image + text)':''}</div>
@@ -1675,7 +1674,7 @@ async function runReflection(rf, text, hooks) {
           <span class="sep"></span><button id="imgBtn" title="Insert a picture">&#128247;</button><span class="wc" id="wc">0 words</span></div>
         <div class="page" id="page" contenteditable="${fwGushed[fwCur]?'true':'false'}" data-ph="${M.ph}"></div>
         <input type="file" id="imgInput" accept="image/*" hidden ${M.photos?'multiple':''}>
-        <div class="composer-foot"><button class="btn" id="opExport">Export One-Pager (1-page PDF)</button><button class="btn ghost sm" id="opAddPage">＋ Add to notebook</button><span class="note">The PDF you submit: your One-Pager, then your writing session and AI-use log.</span></div>
+        <div class="composer-foot"><button class="btn" id="opExport">Export One-Pager (1-page PDF)</button><span class="note">The PDF you submit: your One-Pager, then your writing session and AI-use log.</span></div>
        </div>
       </div>`;
     wireTimer();
@@ -1701,11 +1700,17 @@ async function runReflection(rf, text, hooks) {
     // surface with no route into the notebook at all. Both halves get one: the raw gush
     // and the shaped page, kept separately, because they are different pieces of work
     // and a student may want either without the other.
-    const opTitle = 'One-Pager ' + M.n + ' · ' + M.t;
-    const opAddG = document.getElementById('opAddGush');
-    if(opAddG) opAddG.onclick = () => { const g = document.getElementById('gush'); elevate(opKey, 'freewrite', opTitle + ' — gush', g ? g.value : ''); };
-    const opAddP = document.getElementById('opAddPage');
-    if(opAddP) opAddP.onclick = () => elevate(opKey, 'onepager', opTitle, shapedPageText(document.getElementById('page')));
+    // The two "＋ Add to notebook" buttons that used to live here are GONE, and the
+    // selection popup is why: highlight any of the gush or the shaped page and choose
+    // "📓 To notebook". ⌘A / Ctrl+A inside either one selects the whole thing first, so
+    // keeping an entire piece still takes one extra keystroke, not a button.
+    //
+    // ⚠ The gush button also BROKE THIS LAYOUT, and the trap is worth naming: the two
+    //   columns are subgrid over exactly five row tracks (see .op-cols.two in app.css).
+    //   Adding a sixth child to either column gives it no track to sit in and it lands
+    //   on top of the fifth -- which is how "＋ Add gush to notebook" ended up printed
+    //   over "Reflecting with Romano". Anything new here either goes INSIDE an existing
+    //   band or the track count has to grow to match.
     document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,reflect:reflectHooks(opKey),onEnd:()=>{fwDone[fwCur]=true;fwGushed[fwCur]=true;const gtxt=document.getElementById('gush').value;
       // The gush is a chalkboard: a new trial wipes the last one, by design. But the
       // RECORD should not be wiped with it, or a student who gushed four times shows up
