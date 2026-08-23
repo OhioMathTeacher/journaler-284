@@ -5219,23 +5219,116 @@ You: Really. The first line only has to exist, not be good.`;
       return new Date(y, (m||1)-1, d||1).toLocaleDateString(undefined,
         { weekday:'long', month:'long', day:'numeric' }); };
     const p = todaysPoem();
-    // The session this poem belongs to, said once, in the head. "Opening" and not
-    // "from" when the term has not started: a future date in the past tense is wrong.
-    const when = !p ? '' :
-      p.when === 'today' ? fmt(p.date) :
-      p.when === 'ahead' ? `Opening ${fmt(p.date)}` :
-                           `From ${fmt(p.date)}`;
-    const poem = !p ? `<p class="empty">No poem for today.</p>` : `
-      <section class="tdpoem">
-        <h2>“${escHtml(p.title)}”</h2>
-        <p class="tdby">${escHtml(p.poet)}${p.note ? ` · ${escHtml(p.note)}` : ''}
-          ${p.url ? `<a class="tdread" href="${escHtml(p.url)}" target="_blank" rel="noopener">read it ↗</a>`
-                  : `<span class="tdwhere">on ${escHtml(p.where)}</span>`}</p>
-        ${p.framing.map(f => `<p class="tdask">${f}</p>`).join('')}
-      </section>`;
+    if(!p){ frame.innerHTML = `<div class="poempage"><p class="empty">No poem yet.</p></div>`; return; }
+    const when = p.when === 'today' ? fmt(p.date)
+               : p.when === 'ahead' ? `Opening ${fmt(p.date)}`
+                                    : `From ${fmt(p.date)}`;
 
-    frame.innerHTML = `<div class="head"><h1>Daily Poem</h1><p>${escHtml(when)}</p></div>
-      <div class="today">${poem}</div>`;
+    // Stanzas are blank-line separated; the lines inside one are the poet's, so they
+    // break where the poet broke them and a line too long for the column hangs
+    // rather than starting a false new line (see .pmline in app.css).
+    const stanzas = String(p.text || '').split(/\n{2,}/).map(st =>
+      `<p class="pmstanza">${st.split('\n').map(l =>
+        `<span class="pmline">${escHtml(l)}</span>`).join('')}</p>`).join('');
+
+    // No text is not a failure: for most of these, linking out is the only lawful
+    // way to show them, and the course pages do the same. Say where it is instead.
+    const bodyHTML = p.text ? `<div class="pmtext">${stanzas}</div>`
+      : `<p class="pmelse">${p.url
+          ? `The text is not reproduced here. <a href="${escHtml(p.url)}" target="_blank" rel="noopener">Read it →</a>`
+          : `The text is not reproduced here — it is on ${escHtml(p.where)}.`}</p>`;
+
+    // Only when the text is here. Without it the "Read it →" above IS the source,
+    // and two links to the same page a line apart is just noise.
+    const src = !p.text ? ''
+      : p.url ? `<a class="pmsrc" href="${escHtml(p.url)}" target="_blank" rel="noopener">Source ↗</a>`
+      : p.where ? `<span class="pmsrc">Source: ${escHtml(p.where)}</span>` : '';
+
+    frame.innerHTML = `<div class="poempage">
+      <p class="pmkick">Daily Poem · ${escHtml(when)}</p>
+      <h1 class="pmtitle">${escHtml(p.title)}</h1>
+      <p class="pmby">By ${escHtml(p.poet)}${p.note ? ` · ${escHtml(p.note)}` : ''}</p>
+      ${bodyHTML}
+      ${src || p.textSource ? `<p class="pmfoot">${src}${p.textSource ? `<span class="pmfrom">${escHtml(p.textSource)}</span>` : ''}</p>` : ''}
+      <div class="pmacts">
+        <button class="btn" id="pmKeep">＋ Share with notebook</button>
+        <button class="btn ghost" id="pmAsk">Discuss with ${AI_NAME}</button>
+      </div>
+      <div id="pmPanel"></div>
+    </div>`;
+    wirePoemActions(p);
+  }
+
+  // ── The two things you can do with a poem.
+  //
+  // Neither one files anything on its own. "＋ Add to notebook" is the only thing in
+  // this app that creates an entry, and a button that quietly logged "read the poem"
+  // would be the first exception -- on the one page that asks nothing of anybody.
+  // So both of these open a place to write, and keeping is still a separate press.
+  function poemRef(p){
+    return `${p.title}\n— ${p.poet}${p.date ? `, read ${p.date}` : ''}`;
+  }
+  function wirePoemActions(p){
+    const panel = document.getElementById('pmPanel');
+    const keep = document.getElementById('pmKeep'), ask = document.getElementById('pmAsk');
+
+    keep.onclick = () => {
+      panel.innerHTML = `<div class="pmwrite">
+        <h4>What do you make of it?</h4>
+        <textarea id="pmText" placeholder="Write about the poem…"></textarea>
+        <div class="composer-foot"><button class="btn sm" id="pmSave">＋ Add to notebook</button>
+          <span class="note">Kept as a dated entry, with the poem named at the top.</span></div>
+      </div>`;
+      const ta = document.getElementById('pmText');
+      ta.focus();
+      document.getElementById('pmSave').onclick = () => {
+        const txt = (ta.value || '').trim();
+        if(!txt){ toast('Write something first.'); return; }
+        elevate('poem:' + p.slug, 'reflection', `On “${p.title}”`,
+                `${poemRef(p)}\n\n${txt}`);
+        panel.innerHTML = '';
+      };
+    };
+
+    ask.onclick = async () => {
+      if(getProvider() === 'none'){
+        panel.innerHTML = `<div class="pmwrite"><p class="note">Connect an AI in Settings (the gear)
+          and ${escHtml(AI_NAME)} will answer. Everything else on this page works without it.</p></div>`;
+        return;
+      }
+      panel.innerHTML = `<div class="pmwrite">
+        <h4>Ask ${escHtml(AI_NAME)} about it</h4>
+        <input id="pmQ" placeholder="What do you want to ask?" maxlength="300">
+        <div class="composer-foot"><button class="btn sm" id="pmGo">Ask</button></div>
+        <div id="pmReply"></div></div>`;
+      const q = document.getElementById('pmQ'), out = document.getElementById('pmReply');
+      q.focus();
+      const send = async () => {
+        const question = (q.value || '').trim();
+        if(!question){ toast('Ask something first.'); return; }
+        out.innerHTML = `<p class="note">${escHtml(AI_NAME)} is reading…</p>`;
+        // ⚠ The poem itself is the passage when we have it. When we do not, the title
+        // and poet are ALL he gets -- he is not told the text and must not be let to
+        // sound as though he has it in front of him.
+        const passage = p.text
+          ? `${p.title}, by ${p.poet}\n\n${p.text}`
+          : `${p.title}, by ${p.poet}. You do not have the text of this poem in front of you — say so if the answer depends on the words themselves.`;
+        try {
+          const reply = await romanoReply(passage, question, [], '');
+          out.innerHTML = `<div class="pmreply"><p>${escHtml(reply)}</p>
+            <div class="composer-foot"><button class="btn sm ghost" id="pmKeepQA">＋ Add to notebook</button></div></div>`;
+          document.getElementById('pmKeepQA').onclick = () => {
+            elevate('poem:' + p.slug, 'conversation', `On “${p.title}”`,
+              `${poemRef(p)}\n\nI asked: ${question}\n\n${AI_NAME} said: “${reply}”`,
+              null, { author: AI_TAG, authorKind: 'ai' });
+          };
+        } catch(e){
+          out.innerHTML = `<p class="note">${escHtml(AI_NAME)} is unavailable right now.</p>`;
+        }
+      };
+      document.getElementById('pmGo').onclick = send;
+      q.onkeydown = e => { if(e.key === 'Enter') send(); };
+    };
   }
 
   // ---------- tabs + focus ----------

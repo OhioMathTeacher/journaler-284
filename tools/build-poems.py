@@ -10,9 +10,11 @@ the only place it is allowed to come from.
 
     python3 tools/build-poems.py ../tce284-fa26
 
-⚠ Poem TEXT is never copied.  The course pages link out -- most of these poets are
-in copyright -- and so does the app.  What travels is what Todd wrote: the poet,
-the title, the link, and his framing questions.
+Poem TEXT is not scraped.  It comes from poem-texts/<slug>.txt, one file per poem,
+added by hand and only where reproducing it is safe -- see poem-texts/README.md.
+A poem with no file there shows its byline and a link out, which is what the course
+pages themselves do.  Everything else -- poet, title, link, framing -- is read from
+the course repo, so it cannot drift from what the class was actually given.
 
 Session dates come from the schedule table in the course index.html ("Week 2 ·
 Aug 31") plus which of Mon/Wed that week actually links a page.  Week 3 has no
@@ -44,6 +46,25 @@ def sessions(course):
                 sys.exit(f'week {wk} {which}: derived {d} is a {d.strftime("%a")}')
             out.append((d, int(wk), which, course / href))
     return out
+
+
+def slugify(title):
+    """The filename a poem's text would live under in poem-texts/."""
+    s = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+    return s or 'untitled'
+
+
+def body(slug, here):
+    """poem-texts/<slug>.txt → (text, source-note), or ('', '') if there is none."""
+    f = here / 'poem-texts' / f'{slug}.txt'
+    if not f.exists():
+        return '', ''
+    lines, src = f.read_text().splitlines(), ''
+    while lines and lines[0].startswith('#'):
+        head = lines.pop(0)
+        if head.lower().startswith('# source:'):
+            src = head.split(':', 1)[1].strip()
+    return '\n'.join(lines).strip('\n'), src
 
 
 def poem(path):
@@ -94,8 +115,16 @@ def poem(path):
     framing = [clean(x) for x in [rest] + lis[1:]]
     if not url and not where:
         sys.exit(f'{path}: "{title.group(1)}" has neither a link nor a [where] tag')
-    return dict(title=title.group(1), poet=clean(poet), url=url, where=where,
-                note=clean(note), framing=[f for f in framing if f])
+    slug = slugify(title.group(1))
+    here = pathlib.Path(__file__).resolve().parent.parent
+    text, text_src = body(slug, here)
+    # ⚠ framing is carried but NOT rendered. Todd: "I don't want questions embedded in
+    # there. That's in our daily outline." Kept in the file because it is what the
+    # session actually says about the poem, and losing it would mean re-deriving it
+    # from the course repo if the page ever wants it back.
+    return dict(slug=slug, title=title.group(1), poet=clean(poet), url=url, where=where,
+                note=clean(note), text=text, textSource=text_src,
+                framing=[f for f in framing if f])
 
 
 def main():
@@ -129,14 +158,21 @@ def main():
 // Source: {course.name} @ {rev}
 // Built:  {datetime.date.today().isoformat()}
 // {len(rows)} poems across {len(rows) + len(skipped)} class sessions.
+// {len([r for r in rows if r["text"]])} carry their text (see poem-texts/README.md);
+// the rest link out, which is what the course pages do.
 // Sessions with no Daily Poem: {', '.join(skipped) or 'none'}.
 //
-// Poem TEXT is deliberately absent. The course links out and so does the app.
+// Poem text, where present, is transcribed by hand into poem-texts/ and is there only
+// when reproducing it is safe. This repo is public; adding a poem here republishes it.
 window.DAILY_POEMS = [
 {body}
 ];
 ''')
-    print(f'{out}: {len(rows)} poems, {len(skipped)} sessions without one')
+    withtext = [r for r in rows if r['text']]
+    print(f'{out}: {len(rows)} poems, {len(withtext)} with text, '
+          f'{len(skipped)} sessions without a poem')
+    for r in rows:
+        print(f"  {'text  ' if r['text'] else 'link  '}{r['date']}  {r['title']}")
     for s in skipped:
         print(f'  no poem: {s}')
 
