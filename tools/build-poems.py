@@ -65,8 +65,10 @@ PDB_LINES = 'https://poetrydb.org/lines/%s/title,author,linecount'
 PDB_FETCH = 'https://poetrydb.org/author,title/%s;%s'
 
 # A stand-in should be worth reading on its own, so: long enough not to be a scrap,
-# short enough to sit on a landing page without scrolling. Todd: "preferably short?"
-MIN_LINES, MAX_LINES = 8, 40
+# short enough to sit on a landing page without scrolling. Todd: "preferably short?",
+# then "Some that you selected are too long" -- 40 let Keats' "To Autumn" (38) and
+# Pope's country parson through, both of which run past the fold.
+MIN_LINES, MAX_LINES = 8, 26
 
 # Words that match everything and therefore mean nothing.
 STOP = set('''a an the and or but if of to in on at by for with from as is are was were
@@ -142,6 +144,33 @@ def rarity(kw):
         except Exception:
             _freq[kw] = 0
     return _freq[kw]
+
+
+def candidates(p, cache, want=6):
+    """Several poems this session could take, best guess first — for the curator.
+
+    Same search as echo(), but it keeps going instead of stopping at the first hit,
+    so Todd has something to choose between. Ordered the way echo() would have
+    picked: rarest keyword first, that keyword's title matches before its line
+    matches, shortest poem first within a group."""
+    out, seen = [], set()
+    kws = [k for k in keywords(p) if rarity(k)]
+    for kw in sorted(kws, key=rarity):
+        for url, how in ((PDB_TITLE, 'title'), (PDB_LINES, 'line')):
+            for hit in sorted(search(url, kw), key=lambda h: int(h['linecount'])):
+                key = (hit['author'], hit['title'])
+                if key in seen:
+                    continue
+                seen.add(key)
+                text, note = poetrydb(hit['author'], hit['title'], cache)
+                if not text:
+                    continue
+                out.append(dict(poet=hit['author'], title=hit['title'], text=text,
+                                lines=int(hit['linecount']), textSource=note,
+                                why=f'{how}: “{kw}”'))
+                if len(out) >= want:
+                    return out
+    return out
 
 
 def echo(p, used, cache):

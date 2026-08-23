@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curate — journaler-284</title>
+<!--
+  Todd: "Could you create a viewer where I quickly move through your recommended
+  pieces and click use or don't use?"
+
+  Local tool, not part of the app. Open it straight off the disk:
+
+      python3 tools/build-candidates.py ../tce284-fa26
+      xdg-open tools/curate.html
+
+  Keyboard: → or U to use, ← or X to skip, ↑/↓ to change session, Enter to copy
+  the picks. Decisions survive a reload (localStorage), so it can be done in
+  several sittings.
+
+  What comes out is lines poem-substitutes.txt already understands. Paste, re-run
+  build-poems.py, done.
+-->
+<style>
+  :root { --bg:#faf7f0; --ink:#2c2416; --muted:#8a8175; --rule:#e2dccc;
+          --accent:#7a4a1e; --go:#2a5a3a; --card:#f2ede1;
+          --write:'Iowan Old Style',Palatino,Georgia,serif;
+          --sans:'DM Sans',system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); }
+  header { position:sticky; top:0; background:var(--bg); border-bottom:2px solid var(--rule);
+    padding:10px clamp(12px,3vw,22px); display:flex; align-items:center; gap:14px; flex-wrap:wrap; z-index:5; }
+  h1 { font-size:16px; margin:0; }
+  .grow { flex:1 1 auto }
+  button { font:inherit; font-weight:600; cursor:pointer; border-radius:6px;
+    border:1px solid var(--rule); background:none; color:var(--accent); padding:6px 11px; }
+  button:hover { background:var(--card) }
+  .use { background:var(--go); border-color:var(--go); color:#fff }
+  .use:hover { filter:brightness(1.1) }
+  .wrap { display:grid; grid-template-columns:250px 1fr; gap:22px; align-items:start;
+    padding:16px clamp(12px,3vw,22px) 60px; }
+  nav { position:sticky; top:66px; display:flex; flex-direction:column; max-height:80vh; overflow:auto }
+  nav button { border:0; border-left:2px solid transparent; border-radius:0; text-align:left;
+    display:flex; gap:.5rem; padding:4px 6px; font-size:13px; font-weight:400; color:var(--ink) }
+  nav button.on { border-left-color:var(--accent); background:var(--card); font-weight:700; color:var(--accent) }
+  nav .d { flex:0 0 3.1rem; color:var(--muted); font-size:12px }
+  nav .t { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+  nav .ok { color:var(--go); font-weight:700 }
+  .lead { font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.09em;
+    color:var(--muted); margin:0 0 8px 8px }
+  main { max-width:40rem }
+  .ses { font-size:12px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin:0 0 4px }
+  .ses b { color:var(--accent) }
+  .count { font-size:13px; color:var(--muted); margin:0 0 14px }
+  .card { background:var(--card); border:1px solid var(--rule); border-radius:10px; padding:18px 20px; }
+  .title { font-family:var(--write); font-size:27px; font-weight:600; line-height:1.15; margin:0 0 4px }
+  .by { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin:0 0 14px }
+  .why { font-size:12.5px; color:var(--muted); font-style:italic; margin:0 0 14px }
+  .text { font-family:var(--write); font-size:18px; line-height:1.6; white-space:pre-wrap }
+  .acts { display:flex; gap:8px; margin-top:16px; align-items:center; flex-wrap:wrap }
+  .hint { font-size:12.5px; color:var(--muted) }
+  .picked { margin-top:14px; padding:10px 12px; border-left:3px solid var(--go);
+    background:#eef3ee; font-size:13.5px; }
+  .out { width:100%; min-height:200px; font-family:ui-monospace,monospace; font-size:13px;
+    border:1px solid var(--rule); border-radius:8px; padding:10px; background:#fff; color:var(--ink) }
+  .done { text-align:center; color:var(--muted); padding:26px 0; font-size:14px }
+</style></head>
+<body>
+<header>
+  <h1>Curate</h1>
+  <span class="hint" id="tally"></span>
+  <span class="grow"></span>
+  <button id="copy">Copy picks</button>
+  <button id="reset">Clear all</button>
+</header>
+<div class="wrap">
+  <nav id="rail"></nav>
+  <main id="stage"></main>
+</div>
+<script src="candidates.js"></script>
+<script>
+const KEY = 'curate-picks-v1';
+const S = window.CANDIDATES || [];
+let picks = {};                     // date -> "Author | Title"
+let at = 0;                         // which session
+let idx = {};                       // date -> which candidate is on screen
+try { picks = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e) {}
+
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const save = () => localStorage.setItem(KEY, JSON.stringify(picks));
+const shortDate = d => { const [y,m,dd] = d.split('-').map(Number);
+  return new Date(y, m-1, dd).toLocaleDateString(undefined,{month:'short',day:'numeric'}); };
+
+function render(){
+  if(!S.length){ document.getElementById('stage').innerHTML =
+    '<p class="done">No candidates.js — run <code>python3 tools/build-candidates.py ../tce284-fa26</code> first.</p>'; return; }
+  const s = S[at];
+  const i = idx[s.date] || 0;
+  const c = s.candidates[i];
+  const chosen = picks[s.date];
+
+  document.getElementById('tally').textContent =
+    Object.keys(picks).length + ' of ' + S.length + ' sessions decided';
+
+  document.getElementById('rail').innerHTML = '<p class="lead">Sessions</p>' +
+    S.map((q, n) => `<button data-go="${n}" class="${n===at?'on':''}">
+      <span class="d">${esc(shortDate(q.date))}</span>
+      <span class="t ${picks[q.date]?'ok':''}">${esc(picks[q.date]
+        ? picks[q.date].split(' | ')[1] : (q.classPoem || q.session || '—'))}</span>
+    </button>`).join('');
+
+  document.getElementById('stage').innerHTML = `
+    <p class="ses">${esc(shortDate(s.date))} · week ${s.week} ${esc(s.day)} —
+      ${s.classPoem ? `in class: <b>${esc(s.classPoem)}</b> by ${esc(s.classPoet)}`
+                    : esc(s.session)}</p>
+    ${chosen ? `<div class="picked"><b>Using:</b> ${esc(chosen)}
+        <button id="undo" style="margin-left:10px">Change</button></div>` : ''}
+    ${!c ? '<p class="done">Nothing left to look at for this session.</p>' : `
+    <p class="count">Candidate ${i+1} of ${s.candidates.length} · ${c.lines} lines</p>
+    <div class="card">
+      <p class="title">${esc(c.title)}</p>
+      <p class="by">By ${esc(c.poet)}</p>
+      <p class="why">${esc(c.why)}${c.textSource ? ' · ' + esc(c.textSource) : ''}</p>
+      <div class="text">${esc(c.text)}</div>
+    </div>
+    <div class="acts">
+      <button class="use" id="use">Use this  →</button>
+      <button id="skip">Not this  ←</button>
+      <span class="hint">→ / U to use · ← / X to skip · ↑ ↓ sessions</span>
+    </div>`}`;
+
+  document.querySelectorAll('[data-go]').forEach(b =>
+    b.onclick = () => { at = +b.dataset.go; render(); });
+  const u = document.getElementById('use'), k = document.getElementById('skip'),
+        z = document.getElementById('undo');
+  if(u) u.onclick = use;
+  if(k) k.onclick = skip;
+  if(z) z.onclick = () => { delete picks[s.date]; save(); render(); };
+}
+
+function use(){
+  const s = S[at], c = s.candidates[idx[s.date] || 0];
+  if(!c) return;
+  picks[s.date] = `${c.poet} | ${c.title}`;
+  save();
+  if(at < S.length - 1) at++;       // straight on to the next session
+  render();
+}
+function skip(){
+  const s = S[at];
+  idx[s.date] = (idx[s.date] || 0) + 1;
+  render();
+}
+document.addEventListener('keydown', e => {
+  if(e.target.tagName === 'TEXTAREA') return;
+  if(e.key === 'ArrowRight' || e.key.toLowerCase() === 'u') { use(); e.preventDefault(); }
+  else if(e.key === 'ArrowLeft' || e.key.toLowerCase() === 'x') { skip(); e.preventDefault(); }
+  else if(e.key === 'ArrowDown') { at = Math.min(S.length-1, at+1); render(); e.preventDefault(); }
+  else if(e.key === 'ArrowUp')   { at = Math.max(0, at-1); render(); e.preventDefault(); }
+});
+
+document.getElementById('copy').onclick = () => {
+  const lines = S.filter(s => picks[s.date]).map(s => `${s.date} | ${picks[s.date]}`);
+  const body = lines.length
+    ? '# Pasted from tools/curate.html\n' + lines.join('\n') + '\n'
+    : '# Nothing picked yet.\n';
+  const stage = document.getElementById('stage');
+  stage.insertAdjacentHTML('afterbegin',
+    `<p class="count">Paste these into <b>poem-substitutes.txt</b>, then re-run
+      <code>python3 tools/build-poems.py ../tce284-fa26</code></p>
+     <textarea class="out" id="outbox">${esc(body)}</textarea>`);
+  const box = document.getElementById('outbox');
+  box.focus(); box.select();
+  try { navigator.clipboard.writeText(body); } catch(e) {}
+};
+document.getElementById('reset').onclick = () => {
+  if(!confirm('Clear every decision?')) return;
+  picks = {}; idx = {}; save(); render();
+};
+render();
+</script>
+</body></html>
