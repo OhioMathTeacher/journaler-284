@@ -1013,3 +1013,12 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .entdel:hover { color: var(--danger); background: var(--highlight-soft); }
 /* Touch and keyboard have no hover, so it must never be invisible there. */
 @media (hover: none) { .entdel { opacity: .55; } }
+
+/* ── The writing-surface selection popup ───────────────────────────────────────
+   Shares .selection-popup with the reading view's capture popup, so a student meets
+   one object in two places rather than two objects that look alike. */
+.popup-chip.nb { border-color: rgba(198,154,92,.5); color: #e8c98f; }
+.wp-answer { background: rgba(255,255,255,.06); border-radius: 6px; padding: .45rem .55rem;
+  margin-bottom: .45rem; font-size: .9rem; line-height: 1.45; max-height: 150px; overflow: auto; }
+.wp-answer .wp-who { display: block; font-size: .74rem; letter-spacing: .04em;
+  text-transform: uppercase; color: rgba(244,239,230,.45); margin-bottom: .2rem; }

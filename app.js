@@ -546,6 +546,25 @@ async function callModel(prompt) {
 const AI_NAME = 'Romano';          // the name students see, everywhere
 const AI_TAG  = AI_NAME + ' \u00b7 AI';   // the attribution chip -- always marks it as AI
 
+// ── Asked about the student's OWN writing, not the book.
+//
+//    READING_PARTNER is grounded in a chapter; REFLECTION_PARTNER is forbidden to touch
+//    the words at all ("never quote or critique"). Neither fits a student who has
+//    selected a line of their own gush and asked what about it. This one engages the
+//    words -- that is the point of it -- under the constraints the persona work landed
+//    on: no praise-as-grade, no verdict, no command, no trailing question, and
+//    difficulty located in the writing rather than in the writer.
+const WRITING_PARTNER = [
+  'You are ' + AI_NAME + ', a writing partner in a college writing course.',
+  'A student has selected a passage of THEIR OWN writing and asked you about it.',
+  'Engage what the passage actually says. You may quote a few of their words back.',
+  'Do NOT grade, score, rank, or praise it as a teacher would. Do not say it is good or bad.',
+  'Do not tell them what to do next unless they asked for that.',
+  'If something is not working, locate it in the WRITING -- this sentence, this image --',
+  'never in the writer. Never imply they are or are not "a writer".',
+  'Reply in two or three short sentences. Answer what they asked. Do NOT end with a question.'
+].join('\n');
+
 // ===== Act I — post-buzzer reflection =====
 // Touches the EXPERIENCE of the timed write, never the words. See next-steps /
 // [[human-first-creedo]]: the gush is the student's; AI reflects on pacing only.
@@ -1203,6 +1222,195 @@ async function runReflection(rf, text, hooks) {
       .replace(/<br\s*\/?>/gi, '\n');
     return (d.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
   }
+  // ═══ Selection popup for the student's OWN writing ════════════════════════
+  //
+  // The reading view has had this since the Marginalia port (capturePopup): highlight a
+  // passage, then Copy / Keep in notebook / Ask Romano. It only ever worked on the book.
+  // Todd: "the real missing feature is being able to highlight any text and copy it to
+  // the clipboard, to the notebook, or ask Romano. This was the old behavior of
+  // Marginalia-app that got lost." This is that behaviour on the writing surfaces.
+  //
+  // ⚠ A <textarea> selection is INVISIBLE to window.getSelection() -- it returns an
+  //   empty string in every browser. The gush is a textarea, and the gush is the case
+  //   Todd wrote the request in. So textareas are read through selectionStart/End and
+  //   everything else through the Selection API.
+  let _selText = '', _selWhere = null, _lastPtr = { x: 0, y: 0 };
+  // Every place a student's OWN words appear as text they can drag over. `.qa-say`
+  // covers BOTH halves of a chat turn -- what they asked and what Romano answered --
+  // because Todd asked for exactly that: "in the chats ... in Romano AI responses in
+  // chat". Any <textarea> is handled by the branch below, which is what picks up the
+  // gushes, the notebook composer and the reflection answer without naming them.
+  //
+  // The PDF text layer is deliberately absent: capturePopup owns it, and two popups
+  // fighting over one selection is worse than either. That is an ALLOWLIST doing the
+  // work -- an earlier version gated on `tab === 'read'`, which also locked out the
+  // chat, and the chat is in the Readings tab.
+  const WRITE_HOSTS = '#page, .entryrow .x, .entry-edit, .qa-say, .qa-quote';
+
+  function readWriteSelection(){
+    const ae = document.activeElement;
+    if(ae && ae.tagName === 'TEXTAREA' && typeof ae.selectionStart === 'number'){
+      const t = String(ae.value || '').slice(ae.selectionStart, ae.selectionEnd).trim();
+      return t ? { text: t, el: ae } : null;
+    }
+    const sel = window.getSelection();
+    if(!sel || sel.isCollapsed) return null;
+    const t = String(sel).trim();
+    if(!t) return null;
+    const n = sel.anchorNode;
+    const el = n && (n.nodeType === 1 ? n : n.parentElement);
+    const host = el && el.closest(WRITE_HOSTS);
+    if(!host) return null;
+    if(el.closest('#docPane')) return null;      // the page image/text layer is capturePopup's
+    return { text: t, el: host };
+  }
+
+  // Where a kept selection files itself. The notebook groups by piece, so a line lifted
+  // out of One-Pager 3 belongs to One-Pager 3, not to a generic bucket.
+  function selectionPiece(){
+    if(tab === 'free' && OPS[fwCur]) return { id: fwCur, kind: 'freewrite', title: 'One-Pager ' + OPS[fwCur].n + ' · ' + OPS[fwCur].t };
+    if(tab === 'cur'  && MO[curCur]) return { id: 'cur-' + curCur, kind: 'currere', title: MO[curCur].k + ' · ' + MO[curCur].t };
+    return { id: 'free', kind: 'freewrite', title: 'Free-writes & quick-writes' };
+  }
+
+  function ensureWritePopup(){
+    let pop = document.getElementById('writePopup');
+    if(pop) return pop;
+    pop = document.createElement('div');
+    pop.className = 'selection-popup'; pop.id = 'writePopup'; pop.style.display = 'none';
+    pop.innerHTML = '<div class="popup-passage" id="wpPassage"></div>'
+      + '<input type="text" id="wpInput" placeholder="Ask ' + AI_NAME + ' about this…" autocomplete="off">'
+      + '<div class="popup-hint" id="wpHint"></div>'
+      + '<div class="wp-answer" id="wpAnswer" style="display:none"></div>'
+      + '<div class="popup-quick">'
+      +   '<button class="popup-chip" id="wpCopy">⧉ Copy</button>'
+      +   '<button class="popup-chip nb" id="wpNb">📓 To notebook</button>'
+      + '</div>'
+      + '<div class="popup-actions">'
+      +   '<button class="popup-btn secondary" id="wpCancel">Cancel</button>'
+      +   '<button class="popup-btn primary" id="wpAsk">Ask ' + AI_NAME + '</button>'
+      + '</div>';
+    document.body.appendChild(pop);
+    pop.querySelector('#wpCancel').onclick = closeWritePopup;
+    pop.querySelector('#wpCopy').onclick   = copyWriteSelection;
+    pop.querySelector('#wpNb').onclick     = keepWriteSelection;
+    pop.querySelector('#wpAsk').onclick    = askWriteSelection;
+    pop.querySelector('#wpInput').addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); askWriteSelection(); }
+      if(e.key === 'Escape'){ e.preventDefault(); closeWritePopup(); }
+      e.stopPropagation();
+    });
+    return pop;
+  }
+
+  function closeWritePopup(){
+    const pop = document.getElementById('writePopup');
+    if(!pop) return;
+    pop.style.display = 'none';
+    const i = pop.querySelector('#wpInput'); if(i) i.value = '';
+    const a = pop.querySelector('#wpAnswer'); if(a){ a.style.display = 'none'; a.textContent = ''; }
+    _selText = ''; _selWhere = null;
+  }
+
+  function openWritePopup(text, el){
+    const pop = ensureWritePopup();
+    _selText = text; _selWhere = el;
+    pop.querySelector('#wpPassage').textContent = text.length > 100 ? text.slice(0, 100) + '…' : text;
+    const a = pop.querySelector('#wpAnswer'); a.style.display = 'none'; a.textContent = '';
+    // With no AI connected, Copy and To notebook still work -- they are why a student
+    // without a key can use this at all. Only the asking disappears.
+    const noAI = getProvider() === 'none';
+    pop.querySelector('#wpInput').style.display = noAI ? 'none' : '';
+    pop.querySelector('#wpAsk').style.display   = noAI ? 'none' : '';
+    pop.querySelector('#wpHint').textContent    = noAI
+      ? 'Connect an AI (top right) to ask ' + AI_NAME + ' about this.'
+      : 'Enter asks ' + AI_NAME;
+    pop.style.display = 'block';
+    // Positioned at the pointer: a textarea selection has no Range, so there is no
+    // rectangle to hang it off, and the pointer is where the eye already is.
+    const w = pop.offsetWidth || 300, h = pop.offsetHeight || 190;
+    let left = _lastPtr.x - w / 2, top = _lastPtr.y + 12;
+    if(left < 10) left = 10;
+    if(left + w > window.innerWidth - 10) left = window.innerWidth - w - 10;
+    if(top + h > window.innerHeight - 10) top = Math.max(10, _lastPtr.y - h - 12);
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+    if(!noAI) setTimeout(function(){ const i = pop.querySelector('#wpInput'); if(i) i.focus(); }, 40);
+  }
+
+  function maybeOpenWritePopup(){
+    // If the reading popup is already up, that selection is its business.
+    const cap = document.getElementById('capturePopup');
+    if(cap && cap.style.display !== 'none') return;
+    const pop = document.getElementById('writePopup');
+    if(pop && pop.style.display !== 'none') return;
+    const hit = readWriteSelection();
+    if(!hit || hit.text.length < 3) return;
+    openWritePopup(hit.text, hit.el);
+  }
+
+  document.addEventListener('mouseup', function(e){
+    if(e.target.closest && e.target.closest('.selection-popup')) return;
+    _lastPtr = { x: e.clientX, y: e.clientY };
+    setTimeout(maybeOpenWritePopup, 10);
+  });
+  document.addEventListener('mousedown', function(e){
+    const pop = document.getElementById('writePopup');
+    if(pop && pop.style.display !== 'none' && !pop.contains(e.target)) closeWritePopup();
+  });
+  document.addEventListener('keydown', function(e){
+    const pop = document.getElementById('writePopup');
+    if(e.key === 'Escape' && pop && pop.style.display !== 'none') closeWritePopup();
+  });
+
+  function copyWriteSelection(){
+    const t = _selText; if(!t) return;
+    const done = function(){ toast('Copied.'); closeWritePopup(); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(done, function(){ fallbackCopy(t); done(); });
+    } else { fallbackCopy(t); done(); }
+  }
+  function fallbackCopy(t){
+    const ta = document.createElement('textarea');
+    ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch(e){ console.warn('copy', e); }
+    ta.remove();
+  }
+
+  function keepWriteSelection(){
+    const t = _selText; if(!t) return;
+    const p = selectionPiece();
+    elevate(p.id, p.kind, p.title, t);
+    closeWritePopup();
+  }
+
+  // Asking about your own words is generative in a way the reflection partner never was,
+  // so it is COUNTED. The AI-use log reports that number instead of asserting the machine
+  // supplied nothing -- see sessionRecordHTML.
+  async function askWriteSelection(){
+    const pop = document.getElementById('writePopup'); if(!pop) return;
+    const passage = _selText; if(!passage) return;
+    if(getProvider() === 'none') return;
+    const q = pop.querySelector('#wpInput').value.trim() || 'Help me think about this.';
+    const a = pop.querySelector('#wpAnswer');
+    a.style.display = 'block'; a.innerHTML = '<em>Thinking…</em>';
+    if(tab === 'free' && OPS[fwCur]){
+      const prev = ((DB.freewrite[fwCur] || {}).session || {}).writeAsks || 0;
+      sessionPatch(fwCur, { writeAsks: prev + 1 });
+    }
+    const DELIM = '“';
+    try {
+      const reply = await callModel(WRITING_PARTNER
+        + '\n\nTheir passage:\n' + DELIM + passage.slice(0, 4000) + '”'
+        + '\n\nThey ask: ' + q);
+      a.innerHTML = '<span class="wp-who">' + escHtml(AI_TAG) + '</span>'
+                  + escHtml(String(reply || '').trim());
+      logEvent('ai', 'asked about own writing', { provider: getProvider(), chars: passage.length });
+    } catch(e){
+      a.innerHTML = '<em>' + escHtml(AI_NAME) + ' is unavailable right now.</em>';
+    }
+  }
+
   function journalByDate(dateKey){ return DB.journal.filter(e=>e.date===dateKey); }
   function journalByPiece(pieceId){ return DB.journal.filter(e=>e.pieceId===pieceId).sort((a,b)=>a.ts.localeCompare(b.ts)); }
   // [group, number] for a reading piece's title — same buckets as readingRank, so
@@ -2416,8 +2624,8 @@ async function runReflection(rf, text, hooks) {
     pop = document.createElement('div'); pop.className='selection-popup'; pop.id='capturePopup'; pop.style.display='none';
     pop.innerHTML = `<img id="captureThumb" alt="captured region" style="display:none;max-width:100%;max-height:130px;border-radius:4px;margin-bottom:.5rem;border:1px solid rgba(0,0,0,.15)">
       <div class="popup-passage" id="capturePassage"></div>
-      <input type="text" id="captureInput" placeholder="Ask Romano a question — or just add a note…" autocomplete="off">
-      <div class="popup-hint">Enter asks Romano · leave blank to highlight only</div>
+      <input type="text" id="captureInput" placeholder="A question, or just a note…" autocomplete="off">
+      <div class="popup-hint">Enter asks · blank just highlights</div>
       <div class="popup-quick"><button class="popup-chip" id="captureCopyBtn" title="Copy this passage (⌘C / Ctrl+C)">⧉ Copy</button><button class="popup-chip" id="captureNbBtn">📓 Keep in notebook</button><button class="popup-chip" id="captureFigBtn" style="display:none">↓ Save figure</button></div>
       <div class="popup-actions">
         <button class="popup-btn secondary" id="captureCancelBtn">Cancel</button>
@@ -3941,6 +4149,22 @@ You: Really. The first line only has to exist, not be good.`;
       facts = `<p class="op-none">No timed gush was recorded in Journaler for this One-Pager.</p>`;
     }
 
+    // ── What the machine actually DID, reported rather than asserted.
+    //
+    // This line used to state flatly that the partner "supplied none of the words in the
+    // One-Pager". That was true while he could only be asked about pacing -- the
+    // reflection prompt forbids him to quote or critique. He can now be asked about a
+    // passage of the student's OWN writing from the selection popup, which is generative,
+    // so a blanket claim would be a promise the app can no longer keep. It reports a
+    // count instead, the same reason the About panel measures its build size rather than
+    // stating it.
+    const asks = s.writeAsks || 0;
+    const aiBits = [];
+    if(s.question) aiBits.push(escHtml(AI_TAG) + ' asked how the writing went \u2014 about the experience, not the content.');
+    if(asks) aiBits.push('I asked ' + escHtml(AI_TAG) + ' about a passage of my own writing '
+      + asks + ' time' + (asks === 1 ? '' : 's') + '. Nothing he said is in the One-Pager unless I typed it there myself.');
+    const aiUse = aiBits.length ? aiBits.join(' ') : 'No AI was used on this One-Pager.';
+
     const exchange = s.question ? `
       <h3>${escHtml(AI_TAG)} asked</h3>
       ${para(s.question)}
@@ -3955,9 +4179,7 @@ You: Really. The first line only has to exist, not be good.`;
         ${gush ? `<h3>The gush, unedited</h3>${para(gush)}` : ''}
         ${exchange}
         <h3>AI use</h3>
-        <p>${s.question
-          ? escHtml(AI_TAG) + ' asked how the writing went, about the experience and not the content. It supplied none of the words in the One-Pager.'
-          : 'No AI was used on this One-Pager.'}</p>
+        <p>${aiUse}</p>
       </section>`;
   }
 
