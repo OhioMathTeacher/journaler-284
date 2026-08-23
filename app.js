@@ -4691,7 +4691,7 @@ You: Really. The first line only has to exist, not be good.`;
         <span class="ti-pips">${pips}</span></summary>
       <p class="runline">Every column needs at least one filled box.
         Only the three you flag get read closely; everything else stays unread.</p>
-      ${noteMode === 'tags' ? '' : `<p class="runline"><button class="btn sm" id="goTags">Open the Tags view →</button></p>`}
+      ${noteMode === 'tags' ? '' : `<p class="runline"><button class="btn sm" id="goTags">Open Turn in →</button></p>`}
       ${TURNIN_SLOTS.map(([k,label,hint]) => {
         const id = T[k], e = id && ordered.find(x => x.id === id);
         // Rows are LIVE. Todd: "these aren't linked. difficult to edit after the fact."
@@ -4725,12 +4725,16 @@ You: Really. The first line only has to exist, not be good.`;
   // Every lens ends the same way — the turn-in panel and the button that prints the
   // report. The Tags lens returns early from renderNote with its own markup, so this
   // wiring has to be callable from either branch rather than living in one of them.
-  const noteFoot = () => `${turnInPanel()}
+  // ⚠ In the Turn in lens the project panel already carries the rows, the points, the
+  //   pickers and the links, so the older checklist would be the SAME nine checks a
+  //   second time, in a second collapsible, on one screen. It is rendered everywhere
+  //   else, where it is the summary and the way in.
+  const noteFoot = () => `${noteMode === 'tags' ? '' : turnInPanel()}
     <div class="composer-foot" style="margin-top:14px"><button class="btn" id="bundleBtn">Bundle notebook → PDF</button></div>`;
   function wireNoteFoot(){
     const goT = document.getElementById('goTags');
     if(goT) goT.onclick = () => { noteMode = 'tags'; renderNote(); };
-    // Caught at the moment it matters. A student who never found the Tags view would
+    // Caught at the moment it matters. A student who never found the Turn in lens would
     // otherwise print a report with empty parts and no idea anything was missing —
     // silent and wrong, which is the failure mode this app is built to avoid.
     const bBtn = document.getElementById('bundleBtn');
@@ -4787,7 +4791,7 @@ You: Really. The first line only has to exist, not be good.`;
     const _R = readiness(); const tagDone = _R.done, tagAll = _R.all;
     const tagBadge = (DB.journal||[]).length
       ? `<span class="nbcount ${tagDone<tagAll?'todo':'ready'}">${tagDone}/${tagAll}</span>` : '';
-    const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button><button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">Tags ${tagBadge}</button><button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads">Threads</button></div>`;
+    const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button><button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">Turn in ${tagBadge}</button><button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads">Threads</button></div>`;
     // ── The Tags lens: every entry against every tag, on one screen.
     //
     // Tagging lived only on the individual entry, so finding which page held which tag
@@ -4925,8 +4929,9 @@ You: Really. The first line only has to exist, not be good.`;
           ${TURNIN_SLOTS.map(([k]) => `<td class="tg-c"><button class="tgbox ${T[k]===e.id?'on':''}" data-tg="${k}" data-tge="${e.id}" title="${escHtml(slotLabel(k))}" aria-pressed="${T[k]===e.id}"></button></td>`).join('')}
         </tr>`;
       }).join('');
-      frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Every entry against every tag. Click a box to tag a page — clicking a tag another page holds moves it here.</p>${toggle}</div>
+      frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>What you are handing in, and where you stand on it. Below, every entry against every slot — click a box to mark a page; clicking one another page holds moves it here.</p>${toggle}</div>
         <div class="tagsgrid">
+          ${draftTray()}
           ${projectPanel()}
           <p class="runline"><strong>Every column needs at least one filled box.</strong>
             A tagged page is printed in full in your report; everything else appears in the
@@ -4936,7 +4941,7 @@ You: Really. The first line only has to exist, not be good.`;
           ${noteFoot()}
         </div>`;
       frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
-      wireProjectLinks();
+      wireTray(); wireProjectLinks();
       wireTurninLinks(); wireNoteFoot();
       if(tagFocus){
         const row = frame.querySelector(`tr[data-row="${tagFocus}"]`);
