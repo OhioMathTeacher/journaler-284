@@ -626,6 +626,49 @@ const REFLECTION_PARTNER = [
   'One sentence each. No preamble, no praise. Just the questions.'
 ].join(' ');
 
+// ===== The two things Romano must never improvise =====
+//
+// These are answered by the APP, without asking the model, because the model has no
+// way to know them and will invent them. It did: asked "is Dr. Edwards going to read
+// what I type in here?", it answered "Dr. Edwards will never read your typing here,
+// and that is exactly why you should feel safe." Nobody authorised that, and it is
+// false -- the unedited gush prints on sheet two of every One-Pager PDF.
+//
+// TOP LEVEL on purpose. The reading-partner path lives inside the shell IIFE below,
+// but the post-buzzer reflection does not, and the reflection is the likelier place
+// for real distress to land -- a student pours out a hard thing in a timed gush and
+// is never asked a question at all. Both scopes need these, so they live out here.
+//
+// Rendered as plain text (escHtml, or .textContent), so no markdown and no links --
+// a URL has to be readable aloud. Keep them to a few short sentences.
+
+const ANSWER_WHO_SEES_THIS =
+  'Dr. Edwards sees what you turn in, and nothing else. Be aware that your One-Pager '
+  + 'PDF carries your unedited gush on its second page, so he reads that too, and the '
+  + 'notebook is graded — 50 of the 200 points, due the last class — against the '
+  + "Writer's Notebook Guidelines on the course site. In the notebook, only the entries "
+  + 'you flag for turn-in get read closely. Everything else stays in this browser on '
+  + 'this computer: there is no account and no server, and it stays here until you '
+  + 'clear it. One exception worth knowing — when you ask me something, your words go '
+  + 'to whichever AI is connected in Settings, and the free option sends them to a '
+  + 'company outside the university.';
+
+const ANSWER_IF_STRUGGLING =
+  'Please talk to a person about this, not to me. Miami\u2019s Student Counseling '
+  + 'Service is 513-529-4634, weekdays 8 to 5; after hours, call the university police '
+  + 'dispatcher at 513-529-2222 and ask for the counselor on call. You can also call or '
+  + 'text 988 any hour of any day, or reach Women Helping Women at 513-381-5610. '
+  + 'Dr. Edwards holds office hours Monday, Tuesday, Thursday and Friday from 1 to 3 by '
+  + 'appointment. I am software, and this is further than I can go with you.';
+
+// Matched against whatever the student wrote -- a typed question in the reading
+// partner, the gush itself after the buzzer.
+const DISTRESS = /\b(kill myself|suicid|hurt myself|self.harm|want to die|end it all)\b/i;
+
+// Returns the human to name, or '' if there is nothing to flag. Shared so the two
+// paths cannot drift: the reflection used to have no safety net at all.
+function distressNote(text){ return DISTRESS.test(String(text || '')) ? ANSWER_IF_STRUGGLING : ''; }
+
 // Paint the exchange: Romano's question, then a box to answer it in. The OP1
 // handout tells students to "answer the app's questions about how the writing went,"
 // so the question on its own is half a conversation. The answer is saved and prints
@@ -644,7 +687,31 @@ function paintReflection(rf, question, hooks) {
   rf.appendChild(ta);
 }
 
+// Name the human, ALONGSIDE whatever else this pane is saying. Never instead of it:
+// Todd, 23 Aug 2026 -- "don't skip the gush work for students who may be experiencing
+// serious mental health struggles." A student in a bad place still did the writing, and
+// having the app respond to the crisis and ignore the work would tell them the writing
+// stopped counting the moment they said something true.
+//
+// Appended to the DOM and deliberately NOT persisted. hooks.onQuestion() feeds
+// session.question, which prints on sheet two of the One-Pager PDF -- so folding this
+// in would print a student's crisis onto the document they hand to their professor.
+// It belongs on their screen, in the moment, and nowhere else.
+function appendDistressNote(rf, note) {
+  if (!note) return;
+  const el = document.createElement('p');
+  el.className = 'reflect-distress';
+  el.textContent = note;
+  rf.appendChild(el);
+}
+
 async function runReflection(rf, text, hooks) {
+  // FIRST, and before every early return below. Both of them used to swallow this:
+  // a gush under ten words skips the reflection entirely -- and "i want to die" is
+  // four words -- while a missing API key skipped it too, though matching a pattern
+  // needs no model at all. The safety net cannot depend on a word count or a provider.
+  const note = distressNote(text);
+
   rf.innerHTML = '<span class="lbl">Reflecting with ' + AI_NAME + '</span>'
     + '<span id="reflectBody"><em>Reading your pace…</em></span>';
   const bodyEl = rf.querySelector('#reflectBody');
@@ -654,11 +721,13 @@ async function runReflection(rf, text, hooks) {
   if ((String(text || '').trim().match(/\S+/g) || []).length < 10) {
     bodyEl.innerHTML = '<em>Nothing came down on the page this time. Reset the clock and '
       + 'gush again — there is nothing to reflect on yet.</em>';
+    appendDistressNote(rf, note);
     return;
   }
   if (getProvider() === 'none') {
     bodyEl.innerHTML = '<em>Connect an AI (top right) and ' + AI_NAME + ' will ask you '
       + 'a couple of questions about how the gush went. Optional — the gush is what matters.</em>';
+    appendDistressNote(rf, note);
     return;
   }
   try {
@@ -666,9 +735,11 @@ async function runReflection(rf, text, hooks) {
       + '\n\n(For pacing context only — never quote or critique this:)\n"""\n'
       + String(text || '').slice(0, 4000) + '\n"""');
     if (hooks) hooks.onQuestion(reply);
-    paintReflection(rf, reply, hooks);
+    paintReflection(rf, reply, hooks);   // resets rf, so the note goes on after
+    appendDistressNote(rf, note);
   } catch (e) {
     bodyEl.innerHTML = '<em>' + AI_NAME + ' is unavailable right now.</em>';
+    appendDistressNote(rf, note);
   }
 }
 
@@ -3227,26 +3298,11 @@ async function runReflection(rf, text, hooks) {
   // time, and no rewording fixed it. Instructions about VOICE and STANCE held well.
   // So: voice lives in the prompt below, and everything mechanical lives here in code.
   //
-  // ⚠️ TODD — these two constants are placeholders. Edit them before students use this.
-  //    They are the answers the app gives WITHOUT asking the model, because the model
-  //    has no way to know them and will invent them. It did: asked "is Dr. Edwards
-  //    going to read what I type in here?", it answered "Dr. Edwards will never read
-  //    your typing here, and that is exactly why you should feel safe." Nobody
-  //    authorised that, and the One-Pager session record suggests it is false.
-  const ANSWER_WHO_SEES_THIS =
-    '[PLACEHOLDER — Todd, write the true answer: who can see journaler entries, '
-    + 'whether this is graded, and how long it is kept.]';
-  const ANSWER_IF_STRUGGLING =
-    '[PLACEHOLDER — Todd, name a human: your office hours, the counselling service, '
-    + 'whoever a student in trouble should actually be pointed toward.]';
-
   // Questions the model must never answer, because it cannot know the answer.
   const INTERCEPTS = [
     { re: /\b(who|anyone|anybody)\b.{0,40}\b(see|read|look at|access)\b|\bis this (graded|private|confidential|saved|stored)\b|\bdo(es)? (you|this|it) (save|store|keep|record)\b|\bwill (dr\.? ?edwards|my (teacher|professor|instructor))\b/i,
       answer: () => ANSWER_WHO_SEES_THIS },
   ];
-  // Distress gets a human named alongside the normal reply, never instead of it.
-  const DISTRESS = /\b(kill myself|suicid|hurt myself|self.harm|want to die|end it all)\b/i;
 
   const SENTENCES = t => String(t||'').trim().split(/(?<=[.!?])\s+/).filter(Boolean);
   // Reads as agreement to a student who skims the first few words. Seen twice in
@@ -3342,7 +3398,8 @@ You: Really. The first line only has to exist, not be good.`;
     if(s.length > 1 && /\?\s*$/.test(reply)) reply = s.slice(0, -1).join(' ');
 
     // 4. Distress: name a human, alongside the reply rather than instead of it.
-    if(DISTRESS.test(q)) reply = `${reply}\n\n${ANSWER_IF_STRUGGLING}`;
+    const note = distressNote(q);
+    if(note) reply = `${reply}\n\n${note}`;
     return reply;
   }
   // ── Romano Q&A, stored per reading in DB.qa[readingId] (same shape as the

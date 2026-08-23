@@ -175,6 +175,13 @@
   .reflect { margin-top: 14px; background: var(--margin-bg); border-radius: 7px; padding: 13px 15px; font-size: 16px; } .reflect .lbl { font-weight: 700; font-size: 14.5px; color: var(--accent); display: block; margin-bottom: 4px; } .reflect em { color: var(--muted); }
   /* Where the student answers the partner's question. Saved, and printed on the
      session record that ships with the One-Pager PDF. */
+  /* The human named after a hard gush. Present without being an alarm: a student who
+     wrote something true should not feel the app flinched at them. Uses the theme
+     variables so it follows whichever palette is active, and carries no link --
+     the pane is plain text and a phone number has to be readable aloud. */
+  .reflect-distress { margin: 12px 0 0; padding: 10px 12px; border-left: 3px solid var(--accent);
+    border-radius: 4px; background: var(--margin-bg); color: var(--ink);
+    font-size: 15px; line-height: 1.55; }
   .reflect-answer { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; min-height: 76px; resize: vertical; font-family: var(--write); font-size: 16px; line-height: 1.5; color: var(--ink, #2b2a26); background: var(--parchment); border: 1px solid var(--comment-border); border-radius: 6px; padding: 9px 11px; }
   .reflect-answer:focus { outline: none; border-color: var(--accent); }
 
