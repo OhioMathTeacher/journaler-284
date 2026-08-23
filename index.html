@@ -12,7 +12,7 @@
      every deploy: GitHub Pages will otherwise serve the cached files after a push.
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-23-116">
+<link rel="stylesheet" href="app.css?v=2026-08-23-117">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -45,7 +45,10 @@
     </svg>
   </button>
   <div class="tabbar" id="tabbar">
-    <button data-t="today" class="on">Today</button>
+    <!-- "Poem", not "Daily Poem": measured, the longer label wraps the topbar onto a
+         second row at 1100px where this one still fits. The page's own h1 says it
+         in full. -->
+    <button data-t="poem" class="on">Poem</button>
     <button data-t="note">Notebook</button>
     <button data-t="read">Readings</button>
     <button data-t="free">Freewrite</button>
@@ -212,7 +215,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="poems.js?v=2026-08-23-116"></script>
-<script src="app.js?v=2026-08-23-116"></script>
+<script src="poems.js?v=2026-08-23-117"></script>
+<script src="app.js?v=2026-08-23-117"></script>
 </body>
 </html>
