@@ -5250,10 +5250,14 @@ You: Really. The first line only has to exist, not be good.`;
     // named and linked directly under the byline, where it cannot be mistaken for the
     // one being read. The kicker says "A poem for" rather than "Daily Poem" for the
     // same reason: the page must never imply the class read this.
+    // ⚠ p.title is EMPTY for the eleven meetings that have no Daily Poem of their own.
+    // Those still get a poem, they just have no class poem to name above it -- without
+    // this the page printed «In class on Monday, November 2: “” by ».
     const sub = p.sub && p.sub.text ? p.sub : null;
     const shown = sub || p;
+    const hasClass = !!p.title;
     const kicker = sub ? `A poem for ${when}` : `Daily Poem · ${when}`;
-    const inclass = !sub ? '' : `<p class="pmclass">In class${isToday && p.when === 'today' ? ' today' : ` on ${escHtml(fmt(p.date))}`}:
+    const inclass = !sub || !hasClass ? '' : `<p class="pmclass">In class${isToday && p.when === 'today' ? ' today' : ` on ${escHtml(fmt(p.date))}`}:
       “${escHtml(p.title)}” by ${escHtml(p.poet)}${p.url
         ? ` — <a href="${escHtml(p.url)}" target="_blank" rel="noopener">read it ↗</a>`
         : (p.where ? ` — on ${escHtml(p.where)}` : '')}</p>`;
@@ -5293,7 +5297,9 @@ You: Really. The first line only has to exist, not be good.`;
     // clipped, with the poet and the class poem in the tooltip.
     const row = q => {
       const sh = poemShown(q);
-      const full = `${sh.title} — ${sh.poet}` + (sh !== q ? `  ·  for “${q.title}”` : '');
+      const full = `${sh.title} — ${sh.poet}`
+        + (sh !== q && q.title ? `  ·  for “${q.title}”` : '')
+        + (!q.title && q.session ? `  ·  ${q.session}` : '');
       return `<button class="pmlink ${q.date === p.date ? 'on' : ''}" data-poem="${q.date}"
         title="${escHtml(full)}"><span class="pmwhen">${escHtml(shortDate(q.date))}</span
         ><span class="pmwhat">${escHtml(sh.title)}</span></button>`;

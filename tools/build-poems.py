@@ -21,7 +21,7 @@ Aug 31") plus which of Mon/Wed that week actually links a page.  Week 3 has no
 Monday (Labor Day) and its row is dated to the Wednesday, which is why the day is
 read from the links rather than assumed.
 """
-import re, sys, json, subprocess, datetime, pathlib, urllib.parse, urllib.request
+import re, sys, json, subprocess, datetime, pathlib, html, urllib.parse, urllib.request
 
 MONTHS = {m: i + 1 for i, m in enumerate(
     'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split())}
@@ -80,6 +80,16 @@ first last one two three today day says say said make makes made does doing go g
 notice noticing whole never always ever also would could should might must have has had'''.split())
 
 
+def session_name(page):
+    """"Week 7 · Monday — Currere Topic Conferences" -> "Currere Topic Conferences".
+
+    ⚠ Not named `html`: that shadows the stdlib module this function needs."""
+    m = re.search(r'<h1>([^<]*)</h1>', page)
+    if not m:
+        return ''
+    return html.unescape(re.sub(r'^.*?—\s*', '', m.group(1))).strip()
+
+
 def keywords(p):
     """What this poem is about — from its TITLE, and nothing else.
 
@@ -91,9 +101,14 @@ def keywords(p):
     called "We Wear the Mask" IS about masks, every time.
 
     When a title carries nothing to search on -- "Ethics", "Where I'm From" -- the
-    answer is the curated list in poem-substitutes.txt, not a worse guess."""
+    answer is the curated list in poem-substitutes.txt, not a worse guess.
+
+    Eleven of the twenty-seven class meetings have no Daily Poem at all. Those fall
+    back to the session's own name -- "Revise for the Particular", "Launching the
+    Research Project" -- which is a weaker signal than a poem title and misses more
+    often, and missing is fine: the list is there."""
     seen, out = set(), []
-    for w in re.findall(r"[a-z']{4,}", (p['title'] or '').lower()):
+    for w in re.findall(r"[a-z']{4,}", (p['title'] or p.get('session') or '').lower()):
         w = w.strip("'")
         if w and w not in STOP and w not in seen:
             seen.add(w)
@@ -304,11 +319,16 @@ def main():
     here = pathlib.Path(__file__).resolve().parent.parent
     rows, skipped = [], []
     for date, wk, which, path in sessions(course):
-        p = poem(path)
-        if not p:
+        # ⚠ EVERY class meeting gets a row, not only the ones with a Daily Poem.
+        # Todd: "this doesn't cover all of our class meetings. Let's have a poem a
+        # day." A session with no poem of its own still gets one that stands in; it
+        # just has no class poem to name above it.
+        p = poem(path) or dict(slug='', title='', poet='', url='', where='', note='',
+                               text='', textSource='', framing=[])
+        if not p['title']:
             skipped.append(f'week {wk} {which}')
-            continue
         rows.append(dict(date=date.isoformat(), week=wk, day=which,
+                         session=session_name(path.read_text()),
                          src=str(path.relative_to(course)), **p))
 
     # Every session whose own poem cannot be printed gets the next stand-in, in the
@@ -333,13 +353,17 @@ def main():
             #    the title?" -- so the search runs on the class poem's own title.
             if not got:
                 got = echo(r, used, cache)
-            # 3. Otherwise the curated list, in order.
-            if not got and pool:
-                author, title = pool[i % len(pool)]
-                text, note = poetrydb(author, title, cache)
-                if text:
-                    got = dict(slug=slugify(title), poet=author, title=title,
-                               text=text, textSource=note, why='from the list')
+            # 3. Otherwise the curated list — first entry not already spoken for.
+            if not got:
+                for k in range(len(pool)):
+                    author, title = pool[(i + k) % len(pool)]
+                    if (author, title) in used:
+                        continue
+                    text, note = poetrydb(author, title, cache)
+                    if text:
+                        got = dict(slug=slugify(title), poet=author, title=title,
+                                   text=text, textSource=note, why='from the list')
+                        break
             if got:
                 used.add((got['poet'], got['title']))
                 r['sub'] = got
@@ -352,7 +376,7 @@ def main():
 //
 // Source: {course.name} @ {rev}
 // Built:  {datetime.date.today().isoformat()}
-// {len(rows)} poems across {len(rows) + len(skipped)} class sessions.
+// {len(rows)} class meetings, every one with a poem.
 // {len([r for r in rows if r["text"]])} carry their own text (see poem-texts/README.md);
 // {len([r for r in rows if r.get("sub")])} show a public-domain stand-in instead, named in
 // poem-substitutes.txt, with the class poem still linked above it.
@@ -366,16 +390,14 @@ window.DAILY_POEMS = [
 ''')
     withtext = [r for r in rows if r['text']]
     withsub = [r for r in rows if r.get('sub')]
-    print(f"{out}: {len(rows)} poems — {len(withtext)} printed in full, "
-          f"{len(withsub)} standing in, {len(rows) - len(withtext) - len(withsub)} link only; "
-          f"{len(skipped)} sessions with no poem")
+    print(f"{out}: {len(rows)} class meetings — {len(withtext)} showing the class poem, "
+          f"{len(withsub)} a stand-in, {len(rows) - len(withtext) - len(withsub)} EMPTY; "
+          f"{len(skipped)} of them have no Daily Poem of their own")
     for r in rows:
-        how = 'class ' if r['text'] else ('sub   ' if r.get('sub') else 'LINK  ')
+        how = 'class ' if r['text'] else ('sub   ' if r.get('sub') else 'NONE  ')
         tail = (f"  →  {r['sub']['poet']}, {r['sub']['title']}  [{r['sub'].get('why','')}]"
                 if r.get('sub') else '')
-        print(f"  {how}{r['date']}  {r['title']}{tail}")
-    for s in skipped:
-        print(f'  no poem: {s}')
+        print(f"  {how}{r['date']}  {r['title'] or '(' + r['session'] + ')'}{tail}")
 
 
 main()
