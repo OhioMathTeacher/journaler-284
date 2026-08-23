@@ -1075,3 +1075,10 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
   max-height: 190px; overflow: auto; }
 .beside.empty { border-left-color: var(--comment-border); color: var(--muted); font-size: 14.5px; }
 .beside.empty p:last-child { margin: 0; }
+
+/* Links out of the scoring table, to the page that makes each thing. */
+.pj-link { background: none; border: 0; padding: 0; margin: 0 .1rem 0 0; font: inherit;
+  color: var(--accent); text-decoration: underline; text-underline-offset: 2px;
+  cursor: pointer; white-space: nowrap; }
+.pj-link:hover, .pj-link:focus-visible { color: var(--ink); }
+.pjtable .pj-name em .pj-link { font-size: 13px; }

@@ -628,7 +628,11 @@ async function runReflection(rf, text, hooks) {
 (function () {
   const frame = document.getElementById('frame');
   const body = document.body;
-  let tab = 'free';
+  // The notebook is the home, not the fourth thing. Todd, 23 Aug 2026: "Default landing
+  // when you open the software should be notebook." Everything else in this app feeds it,
+  // and a student who opens to their own kept work sees the term accumulating rather than
+  // a blank prompt. The By-day lens is what greets them, not the scoring table.
+  let tab = 'note';
 
   // ---------- shared gush engine ----------
   const G = { running: false, tId: null, remain: 0 };
@@ -1612,6 +1616,16 @@ async function runReflection(rf, text, hooks) {
       appear here when you write the letter.</p></div>`;
     return `<div class="beside"><p class="lead">Your Week 1 baseline · ${escHtml(shortDate(e.date))}</p>
       <div class="beside-text">${escHtml(e.text).replace(/\n/g,'<br>')}</div></div>`;
+  }
+
+  // A jump target is either a lens of this view or a piece elsewhere in the app.
+  function wireProjectLinks(){
+    frame.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => {
+      const to = b.dataset.jump;
+      if(to === 'threads'){ noteMode = 'threads'; renderNote(); return; }
+      if(to === 'open'){ fwCur = 'open'; show('free'); return; }
+      goToPiece(to);
+    });
   }
 
   function renderNamed(key){
@@ -4107,6 +4121,11 @@ You: Really. The first line only has to exist, not be good.`;
     const ana   = analysisDone() ? 1 : 0;
     const tagged = req + letter + flags + ana;
 
+    // Todd: "would be nice to link back to pages that have submit to notebook buttons."
+    // Every named thing in this table is now a way to get to the page that makes it --
+    // which is the whole point: a row that names work you cannot reach from it is the
+    // disconnection all over again.
+    const jump = (label, to) => `<button class="pj-link" data-jump="${to}">${label}</button>`;
     const row = (n, name, pts, feeds, state, ok) => `
       <tr class="${ok ? 'pj-ok' : ''}">
         <td class="pj-n">${n}</td>
@@ -4127,7 +4146,7 @@ You: Really. The first line only has to exist, not be good.`;
     const kept = ord.length
       ? `<strong>${ord.length}</strong> ${ord.length === 1 ? 'entry' : 'entries'} ·
          ${days} day${days === 1 ? '' : 's'} · ${words.toLocaleString()} words`
-      : 'nothing kept yet';
+      : `nothing kept yet — ${jump('start with Why do we write? →','baseline')}`;
 
     return `<details class="project" ${tagged === 0 ? 'open' : ''}>
       <summary><span class="pj-ico">📓</span><span class="pj-txt">What you are building
@@ -4145,14 +4164,16 @@ You: Really. The first line only has to exist, not be good.`;
         thing left for December is flagging the three entries you want read closely.</p>
       <table class="pjtable">
         <tr><th></th><th>Scored on</th><th class="pj-pts">Pts</th><th>Where you are</th></tr>
-        ${row(1, 'Kept practice', 20, 'Every entry you keep. Nothing to tag.',
+        ${row(1, 'Kept practice', 20, `Every entry you keep, from anywhere. Nothing to tag. ${jump('Open page →','open')}`,
               kept + `<br><span class="pj-aim">${band}</span>`,
               ord.length >= ENTRIES_BANDS.full)}
-        ${row(2, 'Required entries', 5, 'One kept entry tagged for each: Baseline · Currere · Topic map · Source notes',
+        ${row(2, 'Required entries', 5, `Keep one of each and it tags itself:
+              ${jump('Why do we write?','baseline')} ${jump('Currere','cur-reg')}
+              ${jump('Topic map','topicmap')} ${jump('Source notes','sources')}`,
               `${req} of 4 tagged`, req === 4)}
-        ${row(3, 'Look-Back Letter', 10, 'Keep it, then tag it. Written in the last class.',
+        ${row(3, 'Look-Back Letter', 10, `Written in the last class, to your Week 1 answer. ${jump('Look-Back Letter →','letter')}`,
               letter ? 'tagged' : 'not tagged yet', !!letter)}
-        ${row(4, 'Thinking on the page', 15, 'Flag 3 kept entries — one per act — and write your reading of a thread',
+        ${row(4, 'Thinking on the page', 15, `Flag 3 kept entries — one per act — and write your reading of a thread. ${jump('Threads →','threads')}`,
               `${flags} of 3 flagged · reading ${ana ? 'kept' : 'not written'}`, flags === 3 && ana)}
       </table>
       <p class="runline pj-warn">Filling all nine boxes earns rows 2–4 — <strong>30 of the ${NB_TOTAL}
@@ -4792,6 +4813,7 @@ You: Really. The first line only has to exist, not be good.`;
           ${noteFoot()}
         </div>`;
       frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+      wireProjectLinks();
       wireTurninLinks(); wireNoteFoot();
       if(tagFocus){
         const row = frame.querySelector(`tr[data-row="${tagFocus}"]`);
@@ -5178,7 +5200,7 @@ You: Really. The first line only has to exist, not be good.`;
     } catch(e){ readingsDirState = 'missing'; rerenderReadIfVisible(); }
   })();
 
-  show('free');
+  show('note');
 })();
 
 // ===== init =====
