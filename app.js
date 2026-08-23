@@ -1620,6 +1620,12 @@ async function runReflection(rf, text, hooks) {
 
   // A jump target is either a lens of this view or a piece elsewhere in the app.
   function wireProjectLinks(){
+    const th = document.getElementById('thAbout'), thb = document.getElementById('thAboutBtn');
+    if(th && thb){
+      th.style.display = 'none';
+      thb.onclick = () => { const on = th.style.display !== 'none';
+        th.style.display = on ? 'none' : 'block'; thb.textContent = on ? 'How this is graded →' : 'Hide'; };
+    }
     const ab = document.getElementById('aboutProj'), btn = document.getElementById('pjAbout');
     if(ab && btn){
       ab.style.display = 'none';
@@ -4274,6 +4280,40 @@ You: Really. The first line only has to exist, not be good.`;
     </div>`;
   }
 
+  function threadsAbout(){
+    const ok = analysisDone();
+    return `<div class="project">
+      <p class="pj-txt">Threads${ok ? ' <span class="pj-has">✓ your reading is kept</span>' : ''}
+        <button class="pj-about" id="thAboutBtn">How this is graded →</button></p>
+      <p class="runline">A <strong>thread</strong> is anything that keeps coming back — your
+        grandmother, the blank page, a room you keep describing, a question you cannot leave
+        alone. Name it, and put that name on every entry it turns up in: three entries, ten,
+        however many it takes.</p>
+      <p class="runline"><strong>Before you turn the notebook in, pick one thread and write your
+        reading of it.</strong> Two questions: <em>what runs through these?</em> and <em>what is
+        in the last one that is not in the first?</em> That second one is the whole reason the
+        dates matter. It is not a summary of what you wrote — it is what you now see that you
+        could not see while writing any single entry.</p>
+      <div class="about-proj" id="thAbout">
+        <p class="ap-h">Thinking on the page — 15 points</p>
+        <p>Scored from your three flagged entries <em>and</em> this reading. Straight from the
+          assignment:</p>
+        <table class="ap-rows">
+          <tr><td>Full marks</td><td></td><td>“the thinking moves. Entries turn — you arrive
+            somewhere you were not heading. Your reading names something real that changed
+            between the first entry and the last, and points at the evidence.”</td></tr>
+          <tr><td>Partial</td><td></td><td>“Real thinking is visible… the thread reading sees
+            something, even if it stays general.”</td></tr>
+          <tr><td>None</td><td></td><td>“The entries report rather than think… <strong>No thread
+            reading</strong>, or one that only lists what the entries were about.”</td></tr>
+        </table>
+        <p class="ap-warn">It is also Part 5 of what you hand in: your threads, and your reading
+          of one. Without it the notebook is not finished, whatever else is tagged.</p>
+        <p><a href="${GUIDELINES_URL}" target="_blank" rel="noopener">Read the full assignment →</a></p>
+      </div>
+    </div>`;
+  }
+
   function projectPanel(){
     const ord   = numberedEntries();
     const T     = turnin();
@@ -4904,8 +4944,10 @@ You: Really. The first line only has to exist, not be good.`;
         }
       }
       frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Hold one preoccupation still and watch it change across the term.</p>${toggle}</div>
+        ${threadsAbout()}
         <div class="notewrap">${leftT}${rightT}</div>`;
       frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+      wireProjectLinks();
       frame.querySelectorAll('[data-thread]').forEach(b => b.onclick = () => { threadSel = b.dataset.thread; renderNote(); });
       frame.querySelectorAll('.cbterm').forEach(b => b.onclick = () => {
         cbSel = (cbSel === b.dataset.term) ? null : b.dataset.term; renderNote();
