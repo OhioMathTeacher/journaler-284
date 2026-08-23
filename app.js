@@ -4015,7 +4015,7 @@ You: Really. The first line only has to exist, not be good.`;
     const d = new Date(noteSel + 'T00:00:00');
     const label = d.toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
     const list = journalByDate(noteSel).sort((a,b)=>a.ts.localeCompare(b.ts));
-    const entries = list.length ? list.map(e=>entryCard(e, {})).join('') : `<p class="empty">Nothing kept this day yet.</p>`;
+    const entries = list.length ? list.map(e=>entryCard(e, {})).join('') : `<p class="empty">Nothing kept on this day. Whatever you write in any tab lands here on the day you keep it — a free-write, a currere gush, notes from a reading. Days you kept something carry a green dot on the calendar.</p>`;
     return `<div class="notedetail"><h3>${label}</h3>${entries}
       <div class="entryrow"><div class="k">Quick-write for this day</div><textarea id="noteCompose" placeholder="Jot a note or free-write, then keep it…" style="width:100%;min-height:88px;box-sizing:border-box;font-family:var(--serif);font-size:17px;line-height:1.65;padding:10px 12px;border:1px solid var(--comment-border);border-radius:6px;resize:vertical"></textarea>
       <button class="btn sm" id="noteSaveBtn" style="margin-top:8px">Keep this page</button></div></div>`;
@@ -4024,7 +4024,7 @@ You: Really. The first line only has to exist, not be good.`;
   function notePieceDetail(){
     if(!notePieceSel) return `<div class="notedetail"><h3>Pick a piece</h3><p class="empty">Choose a piece on the left to watch it grow across the term — every pass you kept, earliest first.</p></div>`;
     const list = journalByPiece(notePieceSel);
-    if(!list.length) return `<div class="notedetail"><h3>—</h3><p class="empty">No passes kept for this piece.</p></div>`;
+    if(!list.length) return `<div class="notedetail"><h3>—</h3><p class="empty">Nothing kept from this piece yet. Each time you keep writing from it, that pass stacks here with its date, so you can read the versions in order and see what changed.</p></div>`;
     const title = list[0].pieceTitle;
     const openLink = list[0].pieceId !== 'free' ? `<button class="entlink" data-open="${list[0].pieceId}">Open the live piece →</button>` : '';
     return `<div class="notedetail"><h3>${escHtml(title)}</h3>
@@ -4831,7 +4831,7 @@ You: Really. The first line only has to exist, not be good.`;
         return `<button class="moment has ${threadSel===t.id?'on':''}" data-thread="${t.id}">
           <span class="mname"><span class="dot"></span>${escHtml(t.name)}</span>
           <span class="mkind">${es.length} ${es.length===1?'entry':'entries'}${quiet>21?` · quiet ${quiet} days`:''}</span></button>`;
-      }).join('') : `<p class="empty" style="font-family:var(--sans)">No threads yet. Open any entry and use <strong>＋ Add to a thread</strong> to start one.</p>`;
+      }).join('') : `<p class="empty" style="font-family:var(--sans)">No threads yet. A thread is anything that keeps coming back — a person, a room, a question you cannot leave alone. Name it, put that name on every entry it turns up in, and before you turn the notebook in, write what you see across them. That reading is part of <strong>Thinking on the page</strong>. Open any entry and use <strong>＋ Add to a thread</strong> to start one.</p>`;
       const leftT = `<div class="piecelist"><p class="lead">Your threads</p>${list}
         <div class="newthread"><input id="ntName" placeholder="Name a new thread…" maxlength="48">
           <button class="btn ghost sm" id="ntAdd">Start it</button></div>
@@ -4937,7 +4937,7 @@ You: Really. The first line only has to exist, not be good.`;
             A tagged page is printed in full in your report; everything else appears in the
             Contents as one line, which is what keeps the report short.</p>
           ${ordered.length ? `<table class="tgtable"><thead><tr><th></th><th>Date</th><th></th><th>Entry</th>${head}</tr></thead><tbody>${rows}</tbody></table>`
-            : `<p class="empty">No kept pages yet.</p>`}
+            : `<p class="empty">Nothing kept yet, so there is nothing to mark. Once you keep entries they appear here as rows, and you tick the box that says which required entry each one answers — or which three you want read closely.</p>`}
           ${noteFoot()}
         </div>`;
       frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
@@ -4993,7 +4993,7 @@ You: Really. The first line only has to exist, not be good.`;
       const pieces = journalPieces();
       const listHtml = pieces.length
         ? pieces.map(p=>`<button class="moment has ${notePieceSel===p.id?'on':''}" data-piece="${p.id}"><span class="mname"><span class="dot"></span>${escHtml(p.title)}</span><span class="mkind">${p.entries.length} kept pass${p.entries.length>1?'es':''}</span></button>`).join('')
-        : `<p class="empty" style="font-family:var(--sans)">No kept pages yet. In any tab, write, then hit <strong>＋ Add to notebook</strong>.</p>`;
+        : `<p class="empty" style="font-family:var(--sans)">Nothing kept yet. This fills with everything you decide to keep — free-writes, currere gushes, reading notes, the four required entries — each one dated, numbered, and counted toward <strong>Kept practice</strong>, the largest row on the rubric. Write in any tab, then press <strong>＋ Add to notebook</strong>.</p>`;
       leftPane = `<div class="piecelist"><p class="lead">Your pieces</p>${listHtml}
         ${noteFoot()}</div>`;
       rightPane = notePieceDetail();
