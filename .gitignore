@@ -1,3 +1,8 @@
-node_modules/
-.DS_Store
-src-tauri/target/
+# Throwaway pages used to drive the app in a headless browser while testing.
+# One of these (_probe.html) got committed in 045694f; this is so it cannot happen again.
+_probe.html
+_p_*.html
+_q_*.html
+
+# Python bytecode from the tools/ scripts.
+tools/__pycache__/
