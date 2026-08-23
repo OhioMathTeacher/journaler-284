@@ -167,7 +167,13 @@ drafted and compared (`/tmp/reflect.py` on ToddGPT). Engaging content is generat
 **ToddGPT**
 - [ ] Re-run the 30-student sim at `NUM_PARALLEL=10` and record it in 06-model-sizing.md
 - [ ] Reconcile the 4B/9B split across 00, 02, 03, 05
-- [ ] `ollama rm gemma3:12b gemma3:4b mistral:7b` frees 15.8 GB (bake-off losers)
+- [x] `ollama rm gemma3:12b gemma3:4b mistral:7b` — done 23 Aug 2026, 84.6 GB → 68.8 GB.
+      Ten models remain, and only three of them are journaler's business: qwen3.5:9b
+      (chosen), qwen3.5:4b (fallback), qwen3.8:27b (Todd's, co-resident). The other
+      seven — gemma3:27b, gemma3:27b-fast, llama3.2:3b, gemma2:2b, llama3.2:1b,
+      qwen2.5:1.5b, nomic-embed-text — total 41 GB and were left alone: they predate
+      this work and may belong to another app. nomic-embed-text especially, which is
+      an embedding model something may be retrieving with.
 - [ ] Retention: **65 of 67 chats are past the stated 105-day policy** and
       `purge_student_chats.sh` has run once, in February, with no timer. 03 calls this
       "the one an IT reviewer would find."
