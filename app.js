@@ -1661,10 +1661,12 @@ async function runReflection(rf, text, hooks) {
       <textarea class="gush" id="gush" placeholder="${escHtml(m.ph)}">${escHtml(saved)}</textarea>
       <div style="max-width:var(--writecol);margin:10px auto 0;display:flex;gap:10px;align-items:baseline">
         <button class="btn ghost sm" id="namedAdd">＋ Keep in notebook</button>
-        <span class="note" id="namedState"></span></div>`;
+        <span class="note" id="namedState"></span></div>
+      ${assignmentNote(m.slot, 'asnNamed')}`;
     const ta = document.getElementById('gush');
     ta.addEventListener('input', () => { DB.freewrite[key] = { text: ta.value }; saveDB(); });
     paintNamedState(key);
+    wireAssignmentNote('asnNamed');
     document.getElementById('namedAdd').onclick = () => keepNamed(key);
   }
 
@@ -2113,6 +2115,10 @@ async function runReflection(rf, text, hooks) {
       <div class="layout"><nav class="spine"><p class="lead">The four moments</p>${spine}<p class="runline">Gushes → comparison → open page.</p></nav><main class="stage" id="stage"></main></div>`;
     frame.querySelectorAll('[data-mo]').forEach(b=>b.addEventListener('click',()=>{if(G.running)return;curCur=b.dataset.mo;renderCur();}));
     const m=MO[curCur],st=document.getElementById('stage');
+    setTimeout(()=>{ const host=document.getElementById('stage');
+      if(host && !document.getElementById('asnCur')){
+        host.insertAdjacentHTML('beforeend', assignmentNote('currere','asnCur'));
+        wireAssignmentNote('asnCur'); } }, 0);
     if(m.kind==='gush'){
       st.innerHTML=`<p class="kicker">${m.k}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
         <div class="gushbar"><div class="timerset" id="timerset"><button class="tadj" id="tminus">−</button><span class="timer editable" id="timer">8:00</span><button class="tadj" id="tplus">+</button></div><button class="btn go" id="startBtn">Start the gush</button><span class="locknote" id="lockmsg">Set your minutes, then start → locks + Focus.</span></div>
@@ -4278,6 +4284,50 @@ You: Really. The first line only has to exist, not be good.`;
         (Writer's Notebook Guidelines) →</a></p>
       <p><button class="btn ghost sm" id="apClose">Close</button></p>
     </div>`;
+  }
+
+  const SLOT_RUBRIC = {
+    baseline: { row:'Required entries', pts:5,
+      full:'“All four present: the Week 1 baseline, currere gushes and brainstorms, the topic map, and source notes.”',
+      part:'“One missing.”', none:'“Two or more missing.”',
+      note:'Graded on presence only — “a required entry that is present but thin is never counted against you twice.” You also write back to this one in Week 15.' },
+    topicmap: { row:'Required entries', pts:5,
+      full:'“All four present: the Week 1 baseline, currere gushes and brainstorms, the topic map, and source notes.”',
+      part:'“One missing.”', none:'“Two or more missing.”',
+      note:'Graded on presence only. Not an outline — the whole spread of what your topic touches.' },
+    sources: { row:'Required entries', pts:5,
+      full:'“All four present: the Week 1 baseline, currere gushes and brainstorms, the topic map, and source notes.”',
+      part:'“One missing.”', none:'“Two or more missing.”',
+      note:'Graded on presence only. Notes on a source you gathered.' },
+    currere: { row:'Required entries', pts:5,
+      full:'“All four present: the Week 1 baseline, currere gushes and brainstorms, the topic map, and source notes.”',
+      part:'“One missing.”', none:'“Two or more missing.”',
+      note:'Keep every moment you write — mark one as the required entry. Moment 3 counts too.' },
+    letter: { row:'Look-Back Letter', pts:10,
+      full:'“Written in our last class, to the writer who answered why do we write? on day one.”',
+      part:'“Present but perfunctory.”', none:'“Missing.”',
+      note:'Written in the last class, Wednesday 2 December, so the notebook is complete the day it is handed in.' },
+  };
+  function assignmentNote(slot, id){
+    const r = SLOT_RUBRIC[slot]; if(!r) return '';
+    return `<div class="asn" style="max-width:var(--writecol);margin:12px auto 0">
+      <button class="pj-about" id="${id}">How this is graded →</button>
+      <div class="about-proj" id="${id}Body" style="display:none">
+        <p class="ap-h">${escHtml(r.row)} — ${r.pts} points</p>
+        <table class="ap-rows">
+          <tr><td>Full marks</td><td></td><td>${r.full}</td></tr>
+          <tr><td>Partial</td><td></td><td>${r.part}</td></tr>
+          <tr><td>None</td><td></td><td>${r.none}</td></tr>
+        </table>
+        <p>${r.note}</p>
+        <p><a href="${GUIDELINES_URL}" target="_blank" rel="noopener">Read the full assignment →</a></p>
+      </div></div>`;
+  }
+  function wireAssignmentNote(id){
+    const b = document.getElementById(id), body = document.getElementById(id + 'Body');
+    if(!b || !body) return;
+    b.onclick = () => { const on = body.style.display !== 'none';
+      body.style.display = on ? 'none' : 'block'; b.textContent = on ? 'How this is graded →' : 'Hide'; };
   }
 
   function threadsAbout(){
