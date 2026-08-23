@@ -1045,7 +1045,7 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .project .pj-txt { font-family: var(--sans); font-weight: 700; font-size: 15.5px; }
 .project .pj-txt em { display: block; font-weight: 400; font-style: normal;
   font-size: 13.5px; color: var(--muted); margin-top: 1px; }
-.pjtable { width: 100%; border-collapse: collapse; margin: 10px 0 8px; font-family: var(--sans); font-size: 14px; }
+.pjtable { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 10px 0 8px; font-family: var(--sans); font-size: 14px; }
 .pjtable th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
   color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--comment-border); padding: 0 8px 4px 0; }
 .pjtable td { padding: 7px 8px 7px 0; border-bottom: 1px solid var(--comment-border); vertical-align: top; }
@@ -1055,7 +1055,13 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .pjtable .pj-name em { display: block; font-weight: 400; font-style: normal;
   font-size: 13px; color: var(--muted); margin-top: 2px; }
 .pjtable .pj-pts { text-align: right; width: 2.6rem; font-variant-numeric: tabular-nums; color: var(--muted); }
-.pjtable .pj-state { width: 40%; }
+/* The label column is the only sized one; status takes the rest. Under auto
+   layout a table this wide hands the SLACK to the label column, which is how
+   "Kept practice" ended up alone in an 1,100px cell with its own status pushed
+   to the far side of the screen. Hence table-layout: fixed above, and auto here
+   rather than a percentage -- a percentage swings it the other way and squeezes
+   the label to its narrowest word ("Look-Back Letter", three lines tall). */
+.pjtable .pj-state { width: auto; }
 .pjtable .pj-aim { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 .pjtable tr.pj-ok .pj-state { color: var(--go, #3f7a4d); }
 .project .pj-warn { border-left: 3px solid var(--accent); padding-left: .7rem; }
@@ -1125,7 +1131,16 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
   font-size: 13.5px; color: var(--accent); text-decoration: underline;
   text-underline-offset: 2px; cursor: pointer; margin-left: auto; }
 .pj-about:hover { color: var(--ink); }
-.pjtable .pj-name { width: 12rem; }
+.pjtable .pj-name { width: 12rem; padding-right: 14px; }
+/* On a phone a 12rem label column leaves the status too narrow to hold a line:
+   every slot became three. Below this width the pair stacks instead. */
+@media (max-width: 560px){
+  .pjtable, .pjtable tbody, .pjtable tr, .pjtable td { display: block; }
+  .pjtable tr { border-bottom: 1px solid var(--comment-border); padding: 4px 0; }
+  .pjtable tr:last-child { border-bottom: 0; }
+  .pjtable td { border-bottom: 0; padding: 1px 0; }
+  .pjtable .pj-name { width: auto; padding-right: 0; }
+}
 .about-proj { border-top: 1px solid var(--comment-border); margin-top: 10px; padding-top: 10px;
   font-family: var(--sans); font-size: 14px; line-height: 1.5; }
 .about-proj p { margin: 0 0 8px; }
