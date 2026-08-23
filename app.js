@@ -924,8 +924,11 @@ async function runReflection(rf, text, hooks) {
   //    self-contained page -- no viewer needed, opens anywhere, prints.
   // wordCount() takes a STRING; wordsIn() near the notebook code takes an ENTRY. They
   // were both called wordsIn, in the same IIFE scope, so the later declaration silently
-  // won and this one never ran -- handed a string it read `.text` off it and returned 0,
-  // which is what the AI-use log printed for every turn and both totals.
+  // won and this one never ran -- handed a string it read `.text` off it and returned 0.
+  // Nothing was ever stored wrong: these counts are computed at export time, so fixing
+  // the name fixed every past conversation too. It now feeds ONE place, the header's
+  // "N mine · N Romano's" split, which is the only quantified backing for the claim
+  // that the partner's words are not the student's.
   function wordCount(s){ const t = String(s||'').trim(); return t ? t.split(/\s+/).length : 0; }
   function buildTranscriptHTML(){
     const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -961,8 +964,8 @@ async function runReflection(rf, text, hooks) {
         const cite = x.page ? `${readingLabel(r)}, p. ${x.page}` : readingLabel(r);
         h += `<section class="ex">`;
         if(x.passage || x.quote) h += `<blockquote class="passage">${esc(x.passage || x.quote)}<cite>— ${esc(cite)}</cite></blockquote>`;
-        h += `<div class="turn me"><p class="who">I asked</p><div class="text">${esc(x.question || 'Help me think about this passage.')}</div><p class="meta">${wordCount(x.question)} words</p></div>`;
-        h += `<div class="turn ai"><p class="who">Romano</p><div class="text">${esc(x.reply)}</div><p class="meta">${wordCount(x.reply)} words · not my writing</p></div>`;
+        h += `<div class="turn me"><p class="who">I asked</p><div class="text">${esc(x.question || 'Help me think about this passage.')}</div></div>`;
+        h += `<div class="turn ai"><p class="who">Romano</p><div class="text">${esc(x.reply)}</div><p class="meta">not my writing</p></div>`;
         h += `</section>`;
       }
     }
