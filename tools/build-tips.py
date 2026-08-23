@@ -35,19 +35,27 @@ def pool():
 
 def wanted():
     f = ROOT / 'tips-chosen.txt'
-    keep, veto = [], []
+    keep, veto, fave = [], [], []
     if not f.exists():
-        return keep, veto
+        return keep, veto, fave
     for line in f.read_text().splitlines():
         line = line.strip()
-        if not line or line.startswith('#') or '|' not in line:
+        if not line or line.startswith('#'):
+            continue
+        # ⚠ Before the '|' test: a favour line has no pipe, and this check used to
+        # sit after it, so "+ Elizabeth Wardle" was skipped as malformed and the
+        # favour list stayed silently empty.
+        if line.startswith('+'):
+            fave.append(line[1:].strip())
+            continue
+        if '|' not in line:
             continue
         bits = [b.strip() for b in line.lstrip('-').split('|')]
         ch, pre = bits[0], bits[1] if len(bits) > 1 else ''
         # A third field lists elisions: text to drop, replaced by an ellipsis.
         cuts = [c.strip() for c in bits[2].split(';;')] if len(bits) > 2 and bits[2] else []
         (veto if line.startswith('-') else keep).append((ch, pre, cuts))
-    return keep, veto
+    return keep, veto, fave
 
 
 def elide(q, cuts):
@@ -166,7 +174,7 @@ def find(qs, ch, pre):
 
 def main(course):
     qs = pool()
-    keep, veto = wanted()
+    keep, veto, fave = wanted()
     dead = killed(qs, veto)
     ordered, used = [], set()
     for c, p, cuts in keep:
@@ -189,11 +197,22 @@ def main(course):
             rest.append(q)
     for label in sorted(why):
         print(f'  {len(why[label])} set aside — {label}')
+    def loved(q):
+        return any(f.lower() in q['author'].lower() for f in fave)
+
+    # ⚠ A favoured author is EXEMPT from the one-chapter-before-repeats rule.
+    # Wardle has a single chapter, so under that rule her second passage went to
+    # the back of the queue and 27 slots never reached it — "more quotes from her"
+    # produced exactly one. Everyone else still waits their turn.
     seen = {norm(q['chapter']) for q in ordered}
     firsts, seconds = [], []
     for q in rest:
-        (seconds if norm(q['chapter']) in seen else firsts).append(q)
+        (firsts if loved(q) or norm(q['chapter']) not in seen else seconds).append(q)
         seen.add(norm(q['chapter']))
+    # Favoured authors first among the leftovers. Todd: "Wardle works at Miami
+    # University, where I teach, so more quotes from her are fine by me." Only a
+    # reordering — nothing that fails a screen gets in on the strength of a name.
+    firsts = [q for q in firsts if loved(q)] + [q for q in firsts if not loved(q)]
     ordered += firsts + seconds
 
     rows = []

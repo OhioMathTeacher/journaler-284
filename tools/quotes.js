@@ -17,6 +17,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Even that which we perceive as cold, hard facts are ultimately filtered through the words and symbols we use to make sense of…well, everything. Thus, the process of learning to write is a matter of broader intellectual development and survival-gear-for-living.",
+  "author": "Paul G. Cook",
+  "chapter": "First-Year Composition Should be Skipped",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Second, writing is a curious and ancient technology. Our familiarity with writing and with the many important tasks it performs— from texting to Twitter—leads people to assume that writing is a basic skill they’ve already learned if not mastered. Most of us don’t have the same misplaced confidence when it comes to college algebra.",
+  "author": "Paul G. Cook",
+  "chapter": "First-Year Composition Should be Skipped",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "The idea that we can all learn to “write in general” is not just a harmless myth. It’s a dangerous idea that needs to die because it hurts students and frustrates teachers and employers. And writers who believe it are easily discouraged because they don’t know how to learn what they need to learn in new writing situations.",
   "author": "Elizabeth Wardle",
   "chapter": "You Can Learn to Write in General",
@@ -25,6 +39,20 @@ window.QUOTES = [
  },
  {
   "text": "Writing fan fiction in Wattpad requires understanding what other fans expect, what fan fiction writers and readers think good fan fiction is, and what the technological medium supports and allows. The same is true for any other kind of writing—we write in our journals and think of our future selves or anyone who might find the journal.",
+  "author": "Elizabeth Wardle",
+  "chapter": "You Can Learn to Write in General",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "In other words, they are things researchers have learned, and things that will help writers be more effective, if only they can accept them in place of the common cultural assumptions about writing that are not always accurate. There is no writing inoculation, because there is no such thing as writing in general.",
+  "author": "Elizabeth Wardle",
+  "chapter": "You Can Learn to Write in General",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "A better notion of how writing works is one that recognizes that after learning scribal skills (letters, basic grammatical constructions), everything a writer does is impacted by the situation in which she is writing. And thus she is going to have to learn again in each new situation.",
   "author": "Elizabeth Wardle",
   "chapter": "You Can Learn to Write in General",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -45,6 +73,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Most recently, Kathleen Yancey and her colleagues tested the benefits of deliberately teaching for transfer. They found that students in courses with instructors who taught for transfer did transfer their writing skills and knowledge more regularly than students who were in other types of writing courses.",
+  "author": "Ellen C. Carillo",
+  "chapter": "Writing Knowledge Transfers Easily",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Any number of variables might account for the experiences these anecdotes describe, but research corroborates that students don’t automatically transfer what they have learned about writing from one class into the next. The key word here is “automatically.” Transfer is not impossible, but it shouldn’t be taken for granted.",
+  "author": "Ellen C. Carillo",
+  "chapter": "Writing Knowledge Transfers Easily",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "What is often neglected in these public debates about the best way to teach literacy at the college level is that reading and writing are connected practices and, as such, the best way to teach them is together. It is a bad idea to continue privileging writing at the expense of reading.",
   "author": "Ellen C. Carillo",
   "chapter": "Reading and Writing are not Connected",
@@ -53,6 +95,20 @@ window.QUOTES = [
  },
  {
   "text": "A better understanding of this as a reader can also support students’ writing as they develop their own arguments. Instructors might also provide a strategy such as reading like a writer, wherein readers notice the choices a writer has made and understands the relevance of those choices to their own writing.",
+  "author": "Ellen C. Carillo",
+  "chapter": "Reading and Writing are not Connected",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Although writing is more often thought of as a creative act, reading is just as creative. When one writes, one is creating meaning by putting words and ideas together. When one reads, the same thing is happening.",
+  "author": "Ellen C. Carillo",
+  "chapter": "Reading and Writing are not Connected",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Teaching reading and writing together will help students become more proficient in both. If we have, we must ask ourselves: how might we better integrate attention to both reading and writing in order to enrich the literacy education we are providing?",
   "author": "Ellen C. Carillo",
   "chapter": "Reading and Writing are not Connected",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -73,6 +129,13 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Both Carillo and Sharon Crowley characterize this debate as a product of tensions surrounding the uneasy relationship between FYC and literature. Distancing the composition classroom from literature left reading out in the cold, resulting in less attention to reading instruction in the FYC classroom.",
+  "author": "Julie Myatt Barger",
+  "chapter": "Reading is Not Essential to Writing Instruction",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "The belief that writing emerges, Athena-like, fully developed from the writer’s head minimizes both the labor involved and the expectation that writing is a skill that can be improved. But the insidious invisibility of the work of writing perpetuates myths that damage both current and possible writers.",
   "author": "Teri Holbrook and Melanie Hundley",
   "chapter": "Writers are Mythical, Magical, and Damaged",
@@ -81,6 +144,20 @@ window.QUOTES = [
  },
  {
   "text": "After all, given these kinds of on-the-job hazards, who would ever aspire to the writing life? Popular Portrait #1: Writers Possess Magical Gifts This view of writers supports the idea that since writing is magical, it isn’t work.",
+  "author": "Teri Holbrook and Melanie Hundley",
+  "chapter": "Writers are Mythical, Magical, and Damaged",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "If authors can lead the writing life in their spare time (when not solving crimes, for example), then how valuable in terms of labor can writing be? The invisibility of all that writing support undercuts the levels of labor needed to produce a manuscript ready for publication.",
+  "author": "Teri Holbrook and Melanie Hundley",
+  "chapter": "Writers are Mythical, Magical, and Damaged",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "His writing is effortless and over in the first few minutes of the film. The rest of the story is devoted to the extraordinary power his words have over his biggest fan.",
   "author": "Teri Holbrook and Melanie Hundley",
   "chapter": "Writers are Mythical, Magical, and Damaged",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -101,6 +178,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Is this an anxiety one sees from the practitioners of all underappreciated arts? The most important belief that a writing teacher can have about writing is, as Peter Elbow (a well-known teacher of writing) put it, that everyone can write.",
+  "author": "Ronald Clark Brooks",
+  "chapter": "You Need My Credentials to be a Writer",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "If this belief is essential for teachers of writing, it is even more so for the writers themselves. At some level, when we sit down to write we must believe it can be done, regardless of our previous experiences, or nothing gets written.",
+  "author": "Ronald Clark Brooks",
+  "chapter": "You Need My Credentials to be a Writer",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "Publishers present a polished and finalized copy of writing and thereby dilute the messiness of the writing process. The idea that authors derive their writing abilities from their natural intellect is difficult to shake because it is inscribed in the very word author itself.",
   "author": "Dustin Edwards and Enrique Paz",
   "chapter": "Only Geniuses can be Writers",
@@ -109,6 +200,20 @@ window.QUOTES = [
  },
  {
   "text": "In other words, instead of the reclusive genius, we aim to be social writers. Instead of inspiration from within, we seek influence from without. Writing requires talking to friends, asking help from colleagues, finding answers and ideas in others’ writings, and indulging in those practices.",
+  "author": "Dustin Edwards and Enrique Paz",
+  "chapter": "Only Geniuses can be Writers",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Writing requires talking to friends, asking help from colleagues, finding answers and ideas in others’ writings, and indulging in those practices. We embrace collaboration over isolation, and it is precisely this model of writing that we argue education should promote to writers and students everywhere.",
+  "author": "Dustin Edwards and Enrique Paz",
+  "chapter": "Only Geniuses can be Writers",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Publishers present a polished and finalized copy of writing and thereby dilute the messiness of the writing process. The idea that authors derive their writing abilities from their natural intellect is difficult to shake because it is inscribed in the very word author itself. But such was not always the case.",
   "author": "Dustin Edwards and Enrique Paz",
   "chapter": "Only Geniuses can be Writers",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -129,6 +234,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Good writers build these habits of mind. To alleviate this disconnect between what culture believes writing is and what the activity of writing involves, many writing studies professionals agree that we should emphasize the contextual aspects that shape writing.",
+  "author": "Jill Parrott",
+  "chapter": "Some People are Just Born Good Writers",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Likewise, it is with writing. We are all authors, and all authors can become better authors. Indeed, research in writing studies shows that improved writing can be taught to writers at all levels, but we must first debunk the deeply held idea in the collective psyche that only some lucky people are good writers.",
+  "author": "Jill Parrott",
+  "chapter": "Some People are Just Born Good Writers",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "Failure in writing betrays dullness of mind, smallness of imagination. The failed writer—the one who cannot learn to write well (which is to say, according to accepted conventions of good writing)—is discounted as dim, unprepared, non-serious, wacky, or weird, distracted, behind. Or, failure is acceptable if we learn from it.",
   "author": "Allison D. Carr",
   "chapter": "Failure is Not an Option",
@@ -137,6 +256,20 @@ window.QUOTES = [
  },
  {
   "text": "The failed writer—the one who cannot learn to write well (which is to say, according to accepted conventions of good writing)—is discounted as dim, unprepared, non-serious, wacky, or weird, distracted, behind. Or, failure is acceptable if we learn from it.",
+  "author": "Allison D. Carr",
+  "chapter": "Failure is Not an Option",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Failure in writing betrays dullness of mind, smallness of imagination. The failed writer—the one who cannot learn to write well (which is to say, according to accepted conventions of good writing)—is discounted as dim, unprepared, non-serious, wacky, or weird, distracted, behind.",
+  "author": "Allison D. Carr",
+  "chapter": "Failure is Not an Option",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Scholars and teachers don’t use this word, but we should—it is the most honest thing we have to say about writing. Making Failure an Option What should be clear is that failure is a significant part of the entire scene of learning, an assertion that, again, is borne out by widely respected research.",
   "author": "Allison D. Carr",
   "chapter": "Failure is Not an Option",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -157,6 +290,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "In other words, the rules for writing shift with the people and the community involved as well as the purpose and type of writing. Most people implicitly understand that the way they communicate changes with different groups of people, from bosses to work colleagues to peers to relatives.",
+  "author": "Anjali Pattanayak",
+  "chapter": "There is One Correct Way of Writing and Speaking",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "The notion of one correct way of writing is also troubling because it operates under the assumption that linguistic differences are the result of error. The reality is that, for many speakers, what we might perceive as a mistake is actually a system of difference.",
+  "author": "Anjali Pattanayak",
+  "chapter": "There is One Correct Way of Writing and Speaking",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "There is also a construction that includes the word be known as habitual be, meaning that if the word be is used in a sentence, an action is consistent or regular. Therefore, She be reading means, in Standard American English, She reads all of the time.",
   "author": "Jennifer M. Cunningham",
   "chapter": "African American Language is not Good English",
@@ -165,6 +312,20 @@ window.QUOTES = [
  },
  {
   "text": "Both are correct linguistically. There is also a construction that includes the word be known as habitual be, meaning that if the word be is used in a sentence, an action is consistent or regular. Therefore, She be reading means, in Standard American English, She reads all of the time.",
+  "author": "Jennifer M. Cunningham",
+  "chapter": "African American Language is not Good English",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Both are correct linguistically. There is also a construction that includes the word be known as habitual be, meaning that if the word be is used in a sentence, an action is consistent or regular.",
+  "author": "Jennifer M. Cunningham",
+  "chapter": "African American Language is not Good English",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Contrary to what some believe, language does not work like math, so including two negatives in a sentence does not make the sentence positive. In fact, many languages (e.g., French, Spanish, and Portuguese) include multiple negatives within a sentence for emphasis.",
   "author": "Jennifer M. Cunningham",
   "chapter": "African American Language is not Good English",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -185,6 +346,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Decades of research into bilingual learning strongly advocates for all students’ plurilingual learning. Plurilingual writers have extensive vocabularies beyond English and excellent abilities to translate and interpret across and between languages.",
+  "author": "Steven Alvarez",
+  "chapter": "Official American English is Best",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Generally speaking, arguments for English as the national language boil down to assimilating immigrants to the United States. English-only supporters reason that if immigrants come to the United States, they must learn to speak, read, and write English.",
+  "author": "Steven Alvarez",
+  "chapter": "Official American English is Best",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "The hesitation to write, after all, has been around since we’ve been trying to write. Whenever we stare at a blank page, we’re in good company.",
   "author": "Geoffrey V. Carter",
   "chapter": "Writer’s Block Just Happens to People",
@@ -193,6 +368,20 @@ window.QUOTES = [
  },
  {
   "text": "Upper’s failure.” Who knew that it would be serious business to publish a blank page in an academic journal that, at the time, had been publishing for over half a century? The humor of this article often causes people to smile.",
+  "author": "Geoffrey V. Carter",
+  "chapter": "Writer’s Block Just Happens to People",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Upper’s failure.” Who knew that it would be serious business to publish a blank page in an academic journal that, at the time, had been publishing for over half a century? The humor of this article often causes people to smile. Curiously, however, just as many people scoff at the idea of a non-article.",
+  "author": "Geoffrey V. Carter",
+  "chapter": "Writer’s Block Just Happens to People",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "As he waits, we hear him in the background expounding on ideas for what he hopes will be the next Great American Novel. When his friend approaches his table, our aspiring writer forgoes the usual, friendly salutations and, instead, immediately enlists his friend into the fever of his writing brainstorm.",
   "author": "Geoffrey V. Carter",
   "chapter": "Writer’s Block Just Happens to People",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -213,6 +402,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Because writing and revision are impossible to untangle, revision is just as situational and interpretive as writing. In other words, writers interact with readers—writing and revision are social, responsive, and communal.",
+  "author": "Laura Giovanelli",
+  "chapter": "Strong Writing and Writers Don’t Need Revision",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "In Stephen King’s memoir On Writing, he calls this instinct the ideal reader: an imagined person a writer knows and trusts but rewrites in response to, a kind of collaborative dance between writer and reader. To writers, the act of writing is an act of thinking.",
+  "author": "Laura Giovanelli",
+  "chapter": "Strong Writing and Writers Don’t Need Revision",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "We cannot follow a writing process, because writing is messier than that. Instead, then, revision and process become excuses on the part of writers who have taken a bit too long to finish writing projects, never ending or completing compositional tasks.",
   "author": "Jimmy Butts",
   "chapter": "The More Writing Process, the Better",
@@ -221,6 +424,20 @@ window.QUOTES = [
  },
  {
   "text": "Most post-process critiques of the process formula suggest that a process view is invalid by merely embracing more complex, unknowable processes. Of course, the idea of following a formula to write a perfect draft is a false construction. We write for specific situations, each unique.",
+  "author": "Jimmy Butts",
+  "chapter": "The More Writing Process, the Better",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Most post-process critiques of the process formula suggest that a process view is invalid by merely embracing more complex, unknowable processes. Of course, the idea of following a formula to write a perfect draft is a false construction.",
+  "author": "Jimmy Butts",
+  "chapter": "The More Writing Process, the Better",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Is there a process to composing a tweet? But is there much editing, revision, recursive work? It is finally time to explore an alternative to our obsession over the writing process in favor of a return to a healthy appreciation of finished drafts—of writing itself.",
   "author": "Jimmy Butts",
   "chapter": "The More Writing Process, the Better",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -241,6 +458,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Many other literacies that could never conform to a Strunk and White standard continue to enrich ideas of what counts as good writing. With the unfolding of new media language practices, digital literacies are emerging to enable writers to compose discourse beyond anything Strunk and White could have imagined.",
+  "author": "Laura Lisabeth",
+  "chapter": "Strunk and White Set the Standard",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Literacy is always attached to the deep ways of knowing embedded in language practices that are localized to different cultures. An individual’s cultural or racial identity is often closely linked to specific language practices that are not recognized in school where anything outside of Standard English is framed as error.",
+  "author": "Laura Lisabeth",
+  "chapter": "Strunk and White Set the Standard",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "By treating the linear model of the writing process as a rule, teachers can create writers who don’t want to and don’t know how to revise as a powerful part of thinking and writing. Think of good writing as the thoughtful use of an evolving repertoire, rather than adherence to a static list of commandments.",
   "author": "Monique Dufour and Jennifer Ahern-Dodson",
   "chapter": "Good Writers Always Follow My Rules",
@@ -249,6 +480,20 @@ window.QUOTES = [
  },
  {
   "text": "For example, that linear model of the writing process can be very effective—it might work for a writer for virtually every email, report, and research project she writes, year after year. Perhaps she’s writing a long, complex project such as a dissertation or a book.",
+  "author": "Monique Dufour and Jennifer Ahern-Dodson",
+  "chapter": "Good Writers Always Follow My Rules",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "As writing consultants for faculty instructors, we have witnessed many smart, capable teachers who were undermined rather than helped by their own staunch rules about the writing process. They believed unequivocally that they could only write when they had big blocks of uninterrupted time.",
+  "author": "Monique Dufour and Jennifer Ahern-Dodson",
+  "chapter": "Good Writers Always Follow My Rules",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "We have seen faculty members end up feeling like bad writers in the midst of personal failure, when in fact they are simply making the mistake of treating a technique as a rule. Rule-driven writing instruction may intend to make writing easier, but it often undermines the very skills it is designed to foster.",
   "author": "Monique Dufour and Jennifer Ahern-Dodson",
   "chapter": "Good Writers Always Follow My Rules",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -269,6 +514,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Writing, as a communicative activity, is made for an audience of readers. In practice, how readers interpret writing has far less to do with passive decoding or reception of a message developed by someone else. Reading is itself a constructive act—quite literally, reading is meaning making.",
+  "author": "Patrick Thomas",
+  "chapter": "Writers Must Develop a Strong, Original Voice",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "No writing happens in a vacuum. Writing, as a communicative activity, is made for an audience of readers. In practice, how readers interpret writing has far less to do with passive decoding or reception of a message developed by someone else.",
+  "author": "Patrick Thomas",
+  "chapter": "Writers Must Develop a Strong, Original Voice",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "The new rule to adopt is as follows: Speak up and be present and known in your writing! In sum, reliance upon oneself and one’s writing are essential in developing a writing life and an audience. Make your writing and thinking audible on the print and digital page for two: the writer and reader.",
   "author": "Rodrigo Joseph Rodríguez",
   "chapter": "Leave Yourself Out of Your Writing",
@@ -277,6 +536,20 @@ window.QUOTES = [
  },
  {
   "text": "In sum, reliance upon oneself and one’s writing are essential in developing a writing life and an audience. Make your writing and thinking audible on the print and digital page for two: the writer and reader.",
+  "author": "Rodrigo Joseph Rodríguez",
+  "chapter": "Leave Yourself Out of Your Writing",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "By being present in one’s writing as one writes, the writer is creating conditions for the reader to better understand a topic as well as the concepts that drive learning and understanding. Klinkenborg describes the reader and writer, who are in a kind of union, as a “tremendous asset” that comes to fruition through language and form.",
+  "author": "Rodrigo Joseph Rodríguez",
+  "chapter": "Leave Yourself Out of Your Writing",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "The opposite is true for writing: The writer needs to be present and breathing on the print or digital page. To make meaning through language, the writer must be present to the audience and mindful of beliefs to produce coherent, meaningful, and engaging writing for the reader.",
   "author": "Rodrigo Joseph Rodríguez",
   "chapter": "Leave Yourself Out of Your Writing",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -297,6 +570,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Furthermore, why read something that disconnects the writer with hardly any care or concern? Again, young writers can be skeptical of this pushback, since they’ve perfected being disconnected from their own writing and human voice.",
+  "author": "Kimberly N. Parker",
+  "chapter": "Response: Never Use “I”",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "There are accompanying head nods from classmates that lead to the ideal invitation to discuss why the self matters in everything we write, and why writers bring themselves to the page and screen in their writing. Otherwise, why write at all?",
+  "author": "Kimberly N. Parker",
+  "chapter": "Response: Never Use “I”",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "The passive voice is appropriate in some contexts and less so in others, but this is a matter for a writer’s judgment rather than a rule to be (dis)obeyed. We should be teaching writers the skilled application of the passive voice, rather than teaching them to avoid it altogether.",
   "author": "Collin Gifford Brooke",
   "chapter": "The Passive Voice Should be Avoided",
@@ -305,6 +592,20 @@ window.QUOTES = [
  },
  {
   "text": "Outside of Twitter, though, we do not write in single sentences. Our prose is much more likely to happen in paragraphs and pages, and the passive voice plays an important role here as well. Williams argues in Style: Lessons in Clarity and Grace that readable prose is more than simply finding the best sentence in each case.",
+  "author": "Collin Gifford Brooke",
+  "chapter": "The Passive Voice Should be Avoided",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Whether conceived as historical agents or characters in a story, the passive voice minimizes or obscures their participation in the activity described by the sentence. To say that “mistakes happened” is no less evasive than “mistakes were made,” but only the latter employs a passive verb.",
+  "author": "Collin Gifford Brooke",
+  "chapter": "The Passive Voice Should be Avoided",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "When we consider a single sentence, more often than not, the most direct version will appear to be the better option. Outside of Twitter, though, we do not write in single sentences. Our prose is much more likely to happen in paragraphs and pages, and the passive voice plays an important role here as well.",
   "author": "Collin Gifford Brooke",
   "chapter": "The Passive Voice Should be Avoided",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -325,6 +626,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Better Ways to Teach Writing Setting aside for a moment the conclusions of future studies, which will no doubt also be ignored, what can teachers do right now to help students improve their writing? They can teach writing in context.",
+  "author": "Patricia A. Dunn",
+  "chapter": "Teaching Grammar Improves Writing",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "After those, students’ writing got worse. But no one believes this research—other than those who conduct or study writing as a career. Even some teachers continue to think that if only grammar could be drilled into students in a fun, engaging way, students would write correctly ever after.",
+  "author": "Patricia A. Dunn",
+  "chapter": "Teaching Grammar Improves Writing",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "Perhaps what has ultimately kept grammar names alive in spite of the research about formal instruction is that writing teachers haven’t much articulated the ways this particular kind of grammar knowledge doesn’t matter. But writing teachers do a disservice, too, if we think we can or should avoid grammar altogether.",
   "author": "Hannah J. Rule",
   "chapter": "Good Writers Must Know Grammatical Terminology",
@@ -333,6 +648,20 @@ window.QUOTES = [
  },
  {
   "text": "A better idea about writing is rather that good writers know how to do grammar to myriad effects. Dunn puts it, students must develop their grammar and sentence chops through engagement in writing they care about, not through the estrangement of decontextualized drills and memorization.",
+  "author": "Hannah J. Rule",
+  "chapter": "Good Writers Must Know Grammatical Terminology",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Research has shown that complex grammar knowledge is already in us, in every one of us, in both shared and idiosyncratic ways. Grammarians or sticklers might need the names, but writers don’t. A better idea about writing is rather that good writers know how to do grammar to myriad effects.",
+  "author": "Hannah J. Rule",
+  "chapter": "Good Writers Must Know Grammatical Terminology",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Grammarians or sticklers might need the names, but writers don’t. A better idea about writing is rather that good writers know how to do grammar to myriad effects.",
   "author": "Hannah J. Rule",
   "chapter": "Good Writers Must Know Grammatical Terminology",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -353,6 +682,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Applying COIK definitions to concepts of grammar might be a better way to understand the problem of a COIK definition to those trying to learn grammar concepts in isolation. One COIK definition is the deceptively simple one for a sentence: A sentence expresses a complete thought.",
+  "author": "Muriel Harris",
+  "chapter": "Grammar Should be Taught Separately as Rules to Learn",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Instructors who choose not to teach rules of grammar have other approaches, such as identifying grammatical errors in students’ own writing. But there are COIK problems here too. Some teachers, hoping to encourage students to learn how to find their own answers, are likely to indicate errors by naming them.",
+  "author": "Muriel Harris",
+  "chapter": "Grammar Should be Taught Separately as Rules to Learn",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "Requiring students to create an outline as the first step of the writing process teaches them that writing is a linear movement, when in reality, it’s actually recursive. There’s an age-old argument among those in the composition field. Should teachers and writers be focused on the product or the process of writing?",
   "author": "Kristin Milligan",
   "chapter": "Formal Outlines are Always Useful",
@@ -361,6 +704,20 @@ window.QUOTES = [
  },
  {
   "text": "Should teachers and writers be focused on the product or the process of writing? Writing can be understood in a variety of ways, but one consistent factor is the idea of planning before actually writing the intended piece.",
+  "author": "Kristin Milligan",
+  "chapter": "Formal Outlines are Always Useful",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "There’s an age-old argument among those in the composition field. Should teachers and writers be focused on the product or the process of writing? Writing can be understood in a variety of ways, but one consistent factor is the idea of planning before actually writing the intended piece.",
+  "author": "Kristin Milligan",
+  "chapter": "Formal Outlines are Always Useful",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Even more likely, students write the mandated outline after the piece has been revised and edited, as a means of meeting the assignment requirements. Requiring students to create an outline as the first step of the writing process teaches them that writing is a linear movement, when in reality, it’s actually recursive.",
   "author": "Kristin Milligan",
   "chapter": "Formal Outlines are Always Useful",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -402,6 +759,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "In comedy, it’s not word choice, but the hunt for the choicest word. And sentences must be tightly woven to serve as the fuse that carries the spark right to an ending that blows readers away. And maybe even enlightens them.",
+  "author": "Michael Theune",
+  "chapter": "Excellent Academic Writing Must be Serious",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Alas, unless you’ve taught or supported the teaching of writing using comedy, the kicker is: very likely they is you. And it’s a shame: there’s much to recommend the endorsement and teaching of humorous academic writing, the conveyance of the big schtick.",
+  "author": "Michael Theune",
+  "chapter": "Excellent Academic Writing Must be Serious",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "Even more troubling was that when asked if they considered themselves writers, they resoundingly answered no. Even for people who write daily for their trade, writing has become synonymous with poetry and fiction writing, which has become synonymous with creative writing.",
   "author": "Cydney Alexis",
   "chapter": "Creative Writing is a Unique Category",
@@ -410,6 +781,20 @@ window.QUOTES = [
  },
  {
   "text": "How did the field of creative writing, and the public’s idea about this type of writing, emerge? In The Elephants Teach, D.G. Mearns developed and popularized what’s considered to be the first creative writing workshop for junior high school students.",
+  "author": "Cydney Alexis",
+  "chapter": "Creative Writing is a Unique Category",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Indeed, if creative writing is about world creation, as many argue it is (though this, too, is debatable), what is closer to this than the creation of a new experience? How did the field of creative writing, and the public’s idea about this type of writing, emerge? In The Elephants Teach, D.G.",
+  "author": "Cydney Alexis",
+  "chapter": "Creative Writing is a Unique Category",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Ideas are spilling madly from his cerebral cortex to the page. He probably has a cup of coffee next to him. And he is writing a story—perhaps about a road trip.",
   "author": "Cydney Alexis",
   "chapter": "Creative Writing is a Unique Category",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -430,6 +815,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Literacy rates continue to increase in the U.S., as do the number of words people read and write every year, thanks to the rise in online writing. Clearly, popular culture has not led to a generation of illiterate people.",
+  "author": "Bronwyn T. Williams",
+  "chapter": "Popular Culture is Killing Writing",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Learning how to navigate any genre takes time and practice to figure out how it works. Think about the first time you tried to figure out something in a genre with which you had little practice, whether it was a legal contract, poem, opera, or heavy metal.",
+  "author": "Bronwyn T. Williams",
+  "chapter": "Popular Culture is Killing Writing",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "Students can write ethnographic research reports on face-to-face or digital communities that chart the movement of writing practices within a network of fan activity. Fan fiction can be analyzed (and even compared to the original work) as an exercise in learning style and voice.",
   "author": "Mark D. Pepper",
   "chapter": "Popular Culture is Only Useful as a Text for Criticism",
@@ -438,6 +837,20 @@ window.QUOTES = [
  },
  {
   "text": "Fandom writing also brings a myriad of possibilities to the classroom. Students can write ethnographic research reports on face-to-face or digital communities that chart the movement of writing practices within a network of fan activity.",
+  "author": "Mark D. Pepper",
+  "chapter": "Popular Culture is Only Useful as a Text for Criticism",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Students writing in this vein hit all the checkboxes currently heralded by educational goals and outcomes statements: critical thinking, inquiry, close reading, and working with diverse texts. However, saying this type of writing works means something very specific and potentially limiting.",
+  "author": "Mark D. Pepper",
+  "chapter": "Popular Culture is Only Useful as a Text for Criticism",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Students often balk at these writing assignments because they recognize that something is missing (or murdered, in the words of William Wordsworth). The Unique Place of Popular Culture in Daily Life When popular culture is brought into a classroom as analytical fodder for student papers, the results are often smart and well written.",
   "author": "Mark D. Pepper",
   "chapter": "Popular Culture is Only Useful as a Text for Criticism",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -458,6 +871,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Defenders of the 5PE can sometimes be found in high schools or two-year colleges, where they might work with students who struggle with writing or are learning English as a second language. One such teacher, David Gugin, writes about how the five-paragraph model benefits students learning English as a second language.",
+  "author": "Quentin Vieregge",
+  "chapter": "The Five-Paragraph Essay is Rhetorically Sound",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Each of the body paragraphs has a topic sentence that makes a claim that can be backed up with evidence and that refers back to the thesis. Each topic sentence is followed by sentences that provide evidence and reinforce the thesis. The body paragraphs end with a wrap-up sentence.",
+  "author": "Quentin Vieregge",
+  "chapter": "The Five-Paragraph Essay is Rhetorically Sound",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "When students are challenged to write beyond memorized formulas, to travel beyond the how of writing to the why of writing, they learn skills of academic resiliency that will transfer to college and beyond. Freire also addresses this.",
   "author": "Susan Naomi Bernstein and Elizabeth Lowry",
   "chapter": "The Five-Paragraph Essay Transmits Knowledge",
@@ -466,6 +893,20 @@ window.QUOTES = [
  },
  {
   "text": "Anyone who interrogated this standard method for writing, whether teacher or student, need not apply. After the essay-writing test ended, the applicants met for a short break and discussed with one another the essays they had just written.",
+  "author": "Susan Naomi Bernstein and Elizabeth Lowry",
+  "chapter": "The Five-Paragraph Essay Transmits Knowledge",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Anyone who interrogated this standard method for writing, whether teacher or student, need not apply. After the essay-writing test ended, the applicants met for a short break and discussed with one another the essays they had just written. Somehow everyone had automatically done what Susan had done.",
+  "author": "Susan Naomi Bernstein and Elizabeth Lowry",
+  "chapter": "The Five-Paragraph Essay Transmits Knowledge",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Susan recounts the story of a time when the five-paragraph formula seemed helpful—at least at first. She had applied to teach in an emergency teaching-certification program in a large Northeastern city. She met with other applicants in a school cafeteria to complete a series of tests including an essay-writing test.",
   "author": "Susan Naomi Bernstein and Elizabeth Lowry",
   "chapter": "The Five-Paragraph Essay Transmits Knowledge",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -486,6 +927,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "How can a standardized writing assessment be an accurate reflection of students’ writing ability if the people scoring the students’ writing disagree wildly as to the quality of it? Thus, it is necessary for these testing companies to produce consistency amongst scores.",
+  "author": "Bruce Bowles, Jr.",
+  "chapter": "The Five-Paragraph Theme Teaches “Beyond the Test”",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Essentially, the supposedly biased and poorly trained local educators are the most apt at assessing students’ growth, learning, and future performance. Transitioning to localized writing assessments would not only take advantage of educators’ local knowledge and expertise, it would enable more authentic, valid forms of writing assessment.",
+  "author": "Bruce Bowles, Jr.",
+  "chapter": "The Five-Paragraph Theme Teaches “Beyond the Test”",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "The use of the research paper proliferated until it became the primary genre students write—a genre less about creating knowledge and more about compiling it. Subsequently, the research paper became a tool for teaching students how to use the library, find the right words, and skillfully search through the words of others.",
   "author": "Alison C. Witte",
   "chapter": "Research Starts with Answers",
@@ -494,6 +949,20 @@ window.QUOTES = [
  },
  {
   "text": "Perhaps some of the confusion over the role of research in writing, and the writing process, comes from the structure of classical argument that is often included as part of the organizational pattern for the research paper. When argument is taught, it’s frequently connected to the historical practices of Greek and Roman rhetoric.",
+  "author": "Alison C. Witte",
+  "chapter": "Research Starts with Answers",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Nonetheless, this claim becomes the thesis statement of the paper and is to be the foundation of the work that follows. Teaching students the purpose of doing research is supporting an idea or belief one already holds is not teaching students about research.",
+  "author": "Alison C. Witte",
+  "chapter": "Research Starts with Answers",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Teaching students the purpose of doing research is supporting an idea or belief one already holds is not teaching students about research. Researching isn’t meant to be a narrow task of looking up information, but of creating and discovering new information in response to problems.",
   "author": "Alison C. Witte",
   "chapter": "Research Starts with Answers",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -514,6 +983,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Evidence of this widespread assumption is easy to find. A simple search for the research process on Google will yield multiple hits hosted by academic institutions that suggest a researcher needs a thesis early in the research process.",
+  "author": "Emily A. Wierszewski",
+  "chapter": "Research Starts with a Thesis Statement",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Why doesn’t the data quite add up? How could something be changed for the better? When we understand research as a process of discovery rather than a process of proof, we open ourselves up to be changed by our research—to better our lives, our decisions, and our world.",
+  "author": "Emily A. Wierszewski",
+  "chapter": "Research Starts with a Thesis Statement",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "Too often this simplistic approach is mistaken for laziness. But, most people cannot handle the chore of deciphering the data deluge. Plagiarism, then, becomes a major effect of the Internet’s causal effect on teaching and learning the research paper.",
   "author": "Alexandria Lockett",
   "chapter": "The Traditional Research Paper is Best",
@@ -522,6 +1005,20 @@ window.QUOTES = [
  },
  {
   "text": "At best, research papers 2.0 will encourage students and instructors to reflect on how the Internet and its complex networked features mediate their research and writing process. Specifically, research 2.0 might include a much stronger emphasis on collaborative and professional writing.",
+  "author": "Alexandria Lockett",
+  "chapter": "The Traditional Research Paper is Best",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Most students’ experience with Wikipedia and academic writing is that its use is strictly forbidden. When it is cited as a source in a research paper, teachers are annoyed or infuriated because they can’t understand why students don’t know better.",
+  "author": "Alexandria Lockett",
+  "chapter": "The Traditional Research Paper is Best",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Their teachers will obediently, and sometimes zealously, police plagiarism with the assistance of Google’s robust search engines and Turnitin. Both the student and teacher will use social media to talk about their frustrations and joys in real-time.",
   "author": "Alexandria Lockett",
   "chapter": "The Traditional Research Paper is Best",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -542,6 +1039,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "One reason often emphasized in school is accountability. Citing sources in very particular and detailed ways allows readers to find any source material the writer used, and allows readers to evaluate the quality of the source material the writer used.",
+  "author": "Susanmarie Harrington",
+  "chapter": "Citing Sources is a Basic Skill Learned Early On",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "The CCSS emphasize the kind of close reading that is likely more common in the humanities. Students arrive in college prepared not only by high school curriculum standards but also by their experience of reading and writing in the world.",
+  "author": "Susanmarie Harrington",
+  "chapter": "Citing Sources is a Basic Skill Learned Early On",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "Second, writers who are learning a new field often try out ideas and phrases from other writers in order to master the field. This process allows them to learn, and is a far cry from stealing.",
   "author": "Jennifer A. Mott-Smith",
   "chapter": "Plagiarism Deserves to be Punished",
@@ -550,6 +1061,20 @@ window.QUOTES = [
  },
  {
   "text": "When we read, we always bring our own knowledge to what we’re reading. Writers cannot say everything; they have to rely on the readers to supply their side of the meaning making. One difficulty arises when you read an argument with missing steps.",
+  "author": "Jennifer A. Mott-Smith",
+  "chapter": "Plagiarism Deserves to be Punished",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "The latter understanding is held by writers who recognize that originality is not about divine inspiration. Today, many writers and writing teachers reject the image of the writer as working alone, using (God-given) talent to produce an original piece of work.",
+  "author": "Jennifer A. Mott-Smith",
+  "chapter": "Plagiarism Deserves to be Punished",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Today, many writers and writing teachers reject the image of the writer as working alone, using (God-given) talent to produce an original piece of work. Interestingly, the image of the lone, divinely inspired writer is only a few hundred years old—a European construct from the Romantic era.",
   "author": "Jennifer A. Mott-Smith",
   "chapter": "Plagiarism Deserves to be Punished",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -570,6 +1095,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "In Schools Without Failure, William Glasser notes that grading tends to be perceived by students as various levels of failure. These mindsets are especially troubling for students in writing classes, where errors must be made in order for students to grow and develop.",
+  "author": "Mitchell R. James",
+  "chapter": "Grading Has Always Made Writing Better",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "When using formative evaluation, teachers and students speak with one another often. In addition, formative evaluation creates safe spaces for student learning because students are not focused on trying to avoid failure but, instead, are searching for insight and growth.",
+  "author": "Mitchell R. James",
+  "chapter": "Grading Has Always Made Writing Better",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "Patricia Cross, the top teaching goals for English are writing skills, think[ing] for oneself, and analytic skills. The arts, humanities, and English share think for oneself as a high-priority goal. In other words, the most important goals for writing teachers are among the most difficult to evaluate.",
   "author": "Anne Leahy",
   "chapter": "Rubrics Save Time and Make Grading Criteria Visible",
@@ -578,6 +1117,20 @@ window.QUOTES = [
  },
  {
   "text": "Students know that, on some level, they are writing to the rubric, instead of writing to think. Another contemporary definition of the word is as a heading or category. That definition suggests that using a rubric to evaluate writing is a way to label a piece of writing (and, perhaps unintentionally, label the writer as well).",
+  "author": "Anne Leahy",
+  "chapter": "Rubrics Save Time and Make Grading Criteria Visible",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Even writers as different as Flannery O’Connor and Joan Didion have said that they don’t know what they think until they write it. So, writing is a way of thinking, of inventing one’s thoughts through language and inventing sentences that represent thoughts.",
+  "author": "Anne Leahy",
+  "chapter": "Rubrics Save Time and Make Grading Criteria Visible",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "The arts, humanities, and English share think for oneself as a high-priority goal. In other words, the most important goals for writing teachers are among the most difficult to evaluate. The standard rubric is better suited for measuring the most important aspects of learning in other fields than in writing.",
   "author": "Anne Leahy",
   "chapter": "Rubrics Save Time and Make Grading Criteria Visible",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -598,6 +1151,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "As Bob Broad noted in What We Really Value: Beyond Rubrics in Teaching and Assessing Writing, while good rubrics effectively capture some of the important elements in assessing writing, they do not capture all of them. Does using a rubric send the message that we are only evaluating the elements of the rubric?",
+  "author": "Crystal Sands",
+  "chapter": "Rubrics Oversimplify the Writing Process",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Because rubrics provide clear expectations and assessment criteria, students also improve self-assessment and critical thinking skills when they are used. As students engage in conversations about the rubrics and then work with course rubrics to self-evaluate, they are engaging in the writing process in a more confident manner.",
+  "author": "Crystal Sands",
+  "chapter": "Rubrics Oversimplify the Writing Process",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "Although extensive commenting on student writing is not a universal practice, it is widespread, widely accepted, and widely practiced. Moreover, if writing comments and questions on the paper has educational value, then for many teachers, even more written response results in even more learning.",
   "author": "Muriel Harris",
   "chapter": "When Responding to Student Writing, More is Better",
@@ -606,6 +1173,20 @@ window.QUOTES = [
  },
  {
   "text": "Teachers who spend extensive time writing on student papers are apparently convinced that students learn from their responses. Parents and administrators are happy because they too assume that more teacher verbiage results in more learning—with a corollary that an exceptional teacher therefore offers extensive feedback.",
+  "author": "Muriel Harris",
+  "chapter": "When Responding to Student Writing, More is Better",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Multiple factors contribute to students’ problems with reading fulsome teacher responses and learning from them. One of the most obvious student problems in decoding all that teacher commentary is that students’ critical reading abilities have steadily declined.",
+  "author": "Muriel Harris",
+  "chapter": "When Responding to Student Writing, More is Better",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Papers requiring revision tend to be especially overgraded, perhaps because the teacher envisions how much better the next draft will be when the writer works on all the aspects of the paper that need to be rewritten. But writing center tutors hear, instead, students’ views on all the comments.",
   "author": "Muriel Harris",
   "chapter": "When Responding to Student Writing, More is Better",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -626,6 +1207,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Learning to write means learning to write with the support of peers, in an authentic situation, and with a genuine purpose. Writing should not be done for a grade. Teachers should not grade writing; instead, they should empower their students to meaningfully assess the effectiveness of writing.",
+  "author": "Christopher R. Friend",
+  "chapter": "Student Writing Must be Graded by the Teacher",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Because writing allows us to coordinate and collaborate, it serves as an essential element in the effort to get things done. In other words, situations, not teachers, define the importance of writing. Learning about situations and the effects of writing comes from reading and writing, not from being graded.",
+  "author": "Christopher R. Friend",
+  "chapter": "Student Writing Must be Graded by the Teacher",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "When we speak or write, large amounts of information are left out and inferred by the listener or reader. When we read, “Fred realized he couldn’t pay for his daughter’s tuition. He looked up his uncle’s email address,” the space between the two sentences is filled with information that we infer.",
   "author": "Chris M. Anson and Les Perelman",
   "chapter": "Machines can Evaluate Writing Well",
@@ -634,6 +1229,20 @@ window.QUOTES = [
  },
  {
   "text": "Writing is far more complex than a missing comma. The testing agencies that fail to understand fully what writing is and how the ability to produce it is best measured are at fault. Taking the Machine Out of Writing Assessment When it comes to testing and evaluating our kids’ writing, machines alone aren’t really the problem.",
+  "author": "Chris M. Anson and Les Perelman",
+  "chapter": "Machines can Evaluate Writing Well",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "The computer would read the two statements above exactly the same as it would read, “Fred realized he couldn’t pay for his daughter’s tuition. He looked up his pet elephant’s email address.” • Most computer scoring programs judge logical devel opment and effective organization by the number of sentences or words in a paragraph.",
+  "author": "Chris M. Anson and Les Perelman",
+  "chapter": "Machines can Evaluate Writing Well",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "When we speak or write, large amounts of information are left out and inferred by the listener or reader. When we read, “Fred realized he couldn’t pay for his daughter’s tuition.",
   "author": "Chris M. Anson and Les Perelman",
   "chapter": "Machines can Evaluate Writing Well",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -668,6 +1277,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "A clear-cut case such as this is easy to understand. Less clear are cases where different tests adopt a similar format, such as the SAT writing component and a college writing placement test.",
+  "author": "Kristen di Gennaro",
+  "chapter": "SAT Scores are Useful for Placing Students in Writing Courses",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "A clear-cut case such as this is easy to understand. Less clear are cases where different tests adopt a similar format, such as the SAT writing component and a college writing placement test. The SAT is a norm-referenced test.",
+  "author": "Kristen di Gennaro",
+  "chapter": "SAT Scores are Useful for Placing Students in Writing Courses",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "We need to put to rest the idea that digital forms of writing pose a threat to overall writing ability. In particular, we must address claims of specific cause-and-effect between digital writing and bad grammar.",
   "author": "Scott Warnock",
   "chapter": "Texting Ruins Students’ Grammar Skills",
@@ -676,6 +1299,20 @@ window.QUOTES = [
  },
  {
   "text": "An unstated implication of these beliefs might be that digital writing is harming the next generation’s ability to think clearly. We need to put to rest the idea that digital forms of writing pose a threat to overall writing ability.",
+  "author": "Scott Warnock",
+  "chapter": "Texting Ruins Students’ Grammar Skills",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Numerous studies have found this not to be the case. Questions Not Just about Grammar The idea that digital technology is destroying grammar is founded in new misunderstandings about digital writing and age-old, generationally tinged misunderstandings about language and grammar.",
+  "author": "Scott Warnock",
+  "chapter": "Texting Ruins Students’ Grammar Skills",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Questions Not Just about Grammar The idea that digital technology is destroying grammar is founded in new misunderstandings about digital writing and age-old, generationally tinged misunderstandings about language and grammar. Children today are creating texts at a greater rate than any other generation in history.",
   "author": "Scott Warnock",
   "chapter": "Texting Ruins Students’ Grammar Skills",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -696,6 +1333,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "McWhorter argues that when people think of language, they usually are referring to speech, not writing. Because writing and speech are radically different, the two should be distinguished.",
+  "author": "Christopher Justice",
+  "chapter": "Texting Ruins Literacy Skills",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "We should consider texting as not replacing formal writing, but instead, as a complex complement to formal writing that allows people to augment their existing writing skills in fresh, complex ways. Instead of perceiving texting as a threat to literacy, we should start understanding texting as an ally.",
+  "author": "Christopher Justice",
+  "chapter": "Texting Ruins Literacy Skills",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "To embrace the paradox buried in that interplay is to make writing fun. Writing can and will be fun when it invites and makes possible opportunities for play. Because writing situations provide writers with familiar rules and conventions, writers have the opportunity to move within and through those forms to create and strategize.",
   "author": "Joshua Daniel-Wariya",
   "chapter": "Gamification Makes Writing Fun",
@@ -704,6 +1355,20 @@ window.QUOTES = [
  },
  {
   "text": "Writing can and will be fun when it invites and makes possible opportunities for play. Because writing situations provide writers with familiar rules and conventions, writers have the opportunity to move within and through those forms to create and strategize.",
+  "author": "Joshua Daniel-Wariya",
+  "chapter": "Gamification Makes Writing Fun",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "We simply cannot write without the world around us, and yet as we write, we create our own little world. To embrace the paradox buried in that interplay is to make writing fun. Writing can and will be fun when it invites and makes possible opportunities for play.",
+  "author": "Joshua Daniel-Wariya",
+  "chapter": "Gamification Makes Writing Fun",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Writing can and will be fun when it invites and makes possible opportunities for play. Because writing situations provide writers with familiar rules and conventions, writers have the opportunity to move within and through those forms to create and strategize. Certainly, gamification does have its potential upsides.",
   "author": "Joshua Daniel-Wariya",
   "chapter": "Gamification Makes Writing Fun",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -724,6 +1389,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "Educators, parents, and tech enthusiasts are eager to strategize how technology might help support student learning—including the writing classroom. Beliefs about technologies have changed the way we think about and understand the entire enterprise of writing education.",
+  "author": "Genesea M. Carter and Aurora Matzke",
+  "chapter": "The More Digital Technology, the Better",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Good technology use in the writing classroom happens when teachers figure out what they want their students to learn first and then determine what technology might help. There are ongoing professional development opportunities for teachers regarding media and technology use in the classroom.",
+  "author": "Genesea M. Carter and Aurora Matzke",
+  "chapter": "The More Digital Technology, the Better",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "We have to understand that as technology changes, culture also changes, and as writers we have to think about how audiences change and how composing practices change across time. This is a difficult and nuanced, an always changing and complex practice. We must always think about the words we use to speak about important concepts.",
   "author": "Phill Michael Alexander",
   "chapter": "Digital Natives and Digital Immigrants",
@@ -732,6 +1411,20 @@ window.QUOTES = [
  },
  {
   "text": "We have to understand that as technology changes, culture also changes, and as writers we have to think about how audiences change and how composing practices change across time. This is a difficult and nuanced, an always changing and complex practice.",
+  "author": "Phill Michael Alexander",
+  "chapter": "Digital Natives and Digital Immigrants",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "The presence of digital technology has changed the way we think about writing. There are new tools at our disposal, and those digital tools are at times quite intimidating to those who learned to write before computers were an available or viable technology.",
+  "author": "Phill Michael Alexander",
+  "chapter": "Digital Natives and Digital Immigrants",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "We have always written, and we will always write. To assert that whole generations either own or are alienated from the technologies used for writing is a needless limiter that attributes false mastery and fosters a sense of futility.",
   "author": "Phill Michael Alexander",
   "chapter": "Digital Natives and Digital Immigrants",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -752,6 +1445,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "All systems are interested in developing self-sustaining processes. What is problematic is to suggest that anyone not participating in the system is less for doing so. What we teach, however, does have larger implications.",
+  "author": "Andrew Hollinger",
+  "chapter": "You’re Going to Need This for College",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "We learn because it’s fulfilling, because we are meant to grow. In fact, it’s not that telling students the learning they are doing now will make more sense later or have a bigger payoff later (possibly, even, in college) that is bad.",
+  "author": "Andrew Hollinger",
+  "chapter": "You’re Going to Need This for College",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "College composition courses usually focus on writing as a process so that a student will go through the actions of drafting and revising one or more texts throughout the semester. This drafting and revision process functions well in the college environment, where class times can be flexible.",
   "author": "Caroline Wilkinson",
   "chapter": "Dual-Enrollment Writing Classes Should Always be Pursued",
@@ -760,6 +1467,20 @@ window.QUOTES = [
  },
  {
   "text": "A college instructor or high-school instructor will teach it. The constant is that high-school students will be involved. College composition courses usually focus on writing as a process so that a student will go through the actions of drafting and revising one or more texts throughout the semester.",
+  "author": "Caroline Wilkinson",
+  "chapter": "Dual-Enrollment Writing Classes Should Always be Pursued",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "The constant is that high-school students will be involved. College composition courses usually focus on writing as a process so that a student will go through the actions of drafting and revising one or more texts throughout the semester.",
+  "author": "Caroline Wilkinson",
+  "chapter": "Dual-Enrollment Writing Classes Should Always be Pursued",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "There will be cultural issues in dual-enrollment courses because of the varied factors unique to these kinds of courses that impact the teaching of writing. In order to save money, most universities and high schools enter a partnership in a dual-enrollment program so that a high-school instructor teaches the course.",
   "author": "Caroline Wilkinson",
   "chapter": "Dual-Enrollment Writing Classes Should Always be Pursued",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
@@ -780,6 +1501,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "In terms of simple word count, online students write a lot more than f2f students. Thus, numerous elements of the course encourage writing and thoughtful peer-to-peer and peer-to-teacher interaction.",
+  "author": "Tiffany Bourelle and Andy Bourelle",
+  "chapter": "Face-to-Face Courses are Superior to Online Courses",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "In terms of simple word count, online students write a lot more than f2f students. Thus, numerous elements of the course encourage writing and thoughtful peer-to-peer and peer-to-teacher interaction. Those interactions are different than f2f but certainly not inferior.",
+  "author": "Tiffany Bourelle and Andy Bourelle",
+  "chapter": "Face-to-Face Courses are Superior to Online Courses",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "Students learn to write by having opportunities to read, think, write, reflect, receive feedback, and write again. Someone who teaches writing in any discipline should be a good writing teacher with abundant knowledge and what might be called a full toolbox of literacy skills and abilities.",
   "author": "Beth L. Hewett",
   "chapter": "Anyone Can Teach an Online Writing Course",
@@ -794,6 +1529,20 @@ window.QUOTES = [
   "url": "https://textbooks.lib.wvu.edu/badideas/"
  },
  {
+  "text": "The first critical skill set is especially important to all teachers who address literacy. Students learn to write by having opportunities to read, think, write, reflect, receive feedback, and write again.",
+  "author": "Beth L. Hewett",
+  "chapter": "Anyone Can Teach an Online Writing Course",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Online writing courses also enable students to write much more than in traditional on-site courses. They write their essays, respond to discussions in writing rather than through talking, write comments about each other’s essays, and write to teachers and peers to communicate.",
+  "author": "Beth L. Hewett",
+  "chapter": "Anyone Can Teach an Online Writing Course",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
   "text": "The key word is professional. The people teaching college writing courses have graduate degrees, often more than one— many have spent years on the job. Many conduct research into effective teaching or do other kinds of research that help them teach writing.",
   "author": "Seth Kahn",
   "chapter": "Anyone Can Teach Writing",
@@ -802,6 +1551,20 @@ window.QUOTES = [
  },
  {
   "text": "The people teaching college writing courses have graduate degrees, often more than one— many have spent years on the job. Many conduct research into effective teaching or do other kinds of research that help them teach writing.",
+  "author": "Seth Kahn",
+  "chapter": "Anyone Can Teach Writing",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Their training, experience, and expertise have earned them the support they need in order to do their work well. All too often “Anybody can teach writing” translates to “It doesn’t matter who teaches writing,” and as a result, nobody needs to pay attention to writing instructors at all.",
+  "author": "Seth Kahn",
+  "chapter": "Anyone Can Teach Writing",
+  "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",
+  "url": "https://textbooks.lib.wvu.edu/badideas/"
+ },
+ {
+  "text": "Exploring Alternatives In its simplest form: Anybody who is trained and supported well and treated like a professional can teach writing. The key word is professional. The people teaching college writing courses have graduate degrees, often more than one— many have spent years on the job.",
   "author": "Seth Kahn",
   "chapter": "Anyone Can Teach Writing",
   "book": "Bad Ideas About Writing, ed. Ball & Loewe (WVU Libraries, 2017), CC BY-NC-ND 4.0",

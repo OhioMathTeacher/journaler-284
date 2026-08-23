@@ -24,9 +24,18 @@
 Writer's Block Just Happens to People | The hesitation to write
 Only Geniuses can be Writers | Publishers present a polished
 Reading and Writing are not Connected | What is often neglected | at the college level
+
+# A "+" line favours an author: their passages come first among everything not
+# chosen by hand. Todd: "Wardle works at Miami University, where I teach, so more
+# quotes from her are fine by me." It only reorders — nothing that fails a screen
+# gets in on the strength of a name.
++ Elizabeth Wardle
 The More Writing Process, the Better | We cannot follow a writing process
 
 # A "-" line vetoes the WHOLE CHAPTER — leave the second field empty to mean all
 # of it. Todd: "I like all of them except the Carr one", then "I dont like the vibe
 # of that one. They should all be encouraging."
+# Todd: "I also don't like the last two."
+- Writing Knowledge Transfers Easily |
+- Reading is Not Essential to Writing Instruction |
 - Failure is Not an Option |

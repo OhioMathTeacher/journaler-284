@@ -93,7 +93,11 @@ def main(pdf):
                           capture_output=True, text=True, check=True).stdout
     out = []
     for body, title, author in bodies(text, toc(text)):
-        best = sorted(passages(body), reverse=True)[:2]
+        # Four per chapter, not two. Todd wants more from Elizabeth Wardle — she
+        # teaches at Miami, where this course runs — and a favoured author is only
+        # as deep as the pool. More candidates also means more for the curator to
+        # choose between, which is the point of it.
+        best = sorted(passages(body), reverse=True)[:4]
         for score, t in best:
             out.append(dict(text=t, author=author, chapter=title,
                             book='Bad Ideas About Writing, ed. Ball & Loewe '
