@@ -12,7 +12,7 @@
      every deploy: GitHub Pages will otherwise serve the cached files after a push.
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-23-114">
+<link rel="stylesheet" href="app.css?v=2026-08-23-115">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -54,16 +54,30 @@
     <span>Name</span>
     <input type="text" id="nameField" class="namefield" placeholder="your name" autocomplete="name" spellcheck="false">
   </label>
-  <button class="focusbtn" id="saveWorkBtn" title="A backup of everything — your writing, your readings, your highlights and conversations — as one file to reopen on another computer. Not meant for reading; use ⎙ Conversations → page or Bundle notebook → PDF for that.">⤓ Save my work</button>
-  <button class="focusbtn" id="openWorkBtn" title="Open a saved Journaler file or zip to pick up where you left off (on any computer)">⤒ Open my file</button>
-  <button class="focusbtn" id="exportChatBtn" title="A readable page of every exchange with Romano — the passage, your question, his answer, with your words and his counted separately. Already inside ⤓ Save my work; this is the version you can actually read, print or hand in.">⎙ Conversations → page</button>
+  <!-- Where you stand on the notebook. It was a lens inside Notebook and nothing else
+       pointed at it; a student who never found that row never saw their own progress. -->
+  <button class="focusbtn" id="myProgressBtn" title="Where you stand on the Writer's Notebook — the four scored rows, what is tagged, and the bundle">▤ My Progress</button>
+  <!-- ⤓ Save · ⤒ Open · ⎙ Conversations were three labelled buttons in a bar that had
+       run out of room. They are the once-a-term actions, so they go behind one opener
+       and the frequent things (My Progress, Focus) keep their words. Same ids, same
+       handlers -- only the packaging moved. -->
+  <div class="menuwrap" id="myWorkWrap">
+    <button class="focusbtn" id="myWorkBtn" aria-haspopup="true" aria-expanded="false" title="Your writing as a file — save it, reopen it elsewhere, or print your conversations">⤓ My work ▾</button>
+    <div class="menu" id="myWorkMenu" hidden role="menu" aria-labelledby="myWorkBtn">
+      <button role="menuitem" id="saveWorkBtn">⤓ Save my work
+        <em>Everything — writing, readings, highlights, conversations — as one file to reopen on another computer.</em></button>
+      <button role="menuitem" id="openWorkBtn">⤒ Open my file
+        <em>Pick up where you left off, on any computer.</em></button>
+      <button role="menuitem" id="exportChatBtn">⎙ Conversations → page
+        <em>Every exchange with Romano as a readable page, your words and his counted separately.</em></button>
+    </div>
+  </div>
   <input type="file" id="workFileInput" accept=".json,.zip,application/json,application/zip" hidden>
-  <!-- Opens the chooser (Settings → AI), not the custom-endpoint editor. -->
-  <button class="ai-btn" id="aiBtn" onclick="openSettingsAI()"><span class="ai-dot"></span><span id="aiBtnLabel">AI · off</span></button>
-  <button class="focusbtn" id="focusToggle">◱ Focus mode</button>
+  <button class="focusbtn" id="focusToggle">◱ Focus</button>
   <!-- Settings. Things you touch once a term — the AI, the readings folder, the
        theme — plus diagnostics, kept off the writing surface. -->
   <button class="iconbtn" id="settingsBtn" title="Settings" aria-label="Settings">
+    <span class="ai-dot" id="aiDot" aria-hidden="true"></span>
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="3.2"/>
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -197,6 +211,6 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="app.js?v=2026-08-23-114"></script>
+<script src="app.js?v=2026-08-23-115"></script>
 </body>
 </html>

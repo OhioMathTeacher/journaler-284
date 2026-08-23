@@ -398,14 +398,36 @@
   .ai-preset{background:rgba(255,255,255,.08);color:#e8dcc8;border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:.32rem .62rem;font-size: 0.897rem;cursor:pointer;font-family:'DM Sans',sans-serif}
   .ai-preset:hover{background:rgba(212,168,67,.18)}
 
-/* AI button — retuned for the parchment topbar (was dark-topbar in 318P). */
-.ai-btn { font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: var(--accent);
-  background: none; border: 1px solid var(--comment-border); border-radius: 6px;
-  padding: 6px 11px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
-.ai-btn:hover { background: var(--comment-bg); }
-.ai-btn .ai-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--comment-border); }
-.ai-btn.ai-active { color: var(--go); border-color: rgba(42,90,58,.4); }
-.ai-btn.ai-active .ai-dot { background: var(--go); }
+/* ── AI status: a dot on the gear ─────────────────────────────────────────────
+   This used to be its own topbar button reading "AI: Groq ✓" — a word for the
+   subject, a word for the provider and a tick for the state, in a bar that had
+   run out of room. The gear is already the control that acts on it (it opens
+   Settings → AI, which prints the provider and the model in full), so the state
+   rides on the gear and the button is gone. Green dot = a model is configured;
+   no dot = off. The gear's title attribute carries the provider and model. */
+.iconbtn .ai-dot { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px;
+  border-radius: 50%; background: var(--go); box-shadow: 0 0 0 2px var(--parchment); display: none; }
+.iconbtn.ai-active .ai-dot { display: block; }
+
+/* ── The "My work" menu ───────────────────────────────────────────────────────
+   Save / Open / Conversations → page are once-a-term actions. Behind one opener
+   they cost one button instead of three, and each keeps a full sentence saying
+   what it does — which is more than the old title attributes gave a touch
+   device, where there is no hover at all. */
+.menuwrap { position: relative; flex: 0 0 auto; }
+.menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: min(21rem, 80vw);
+  background: var(--parchment); border: 1px solid var(--comment-border); border-radius: 8px;
+  box-shadow: 0 6px 22px rgba(44,36,22,.16); padding: 5px; }
+.menu[hidden] { display: none; }
+.menu button { display: block; width: 100%; text-align: left; background: none; border: 0;
+  border-radius: 6px; padding: 8px 10px; cursor: pointer; font-family: var(--sans);
+  font-size: 14.5px; font-weight: 600; color: var(--accent); }
+.menu button em { display: block; font-style: normal; font-weight: 400; font-size: 12.5px;
+  line-height: 1.4; color: var(--muted); margin-top: 2px; }
+.menu button:hover, .menu button:focus-visible { background: var(--comment-bg); outline: none; }
+/* The topbar wraps on a phone and the opener lands at the LEFT edge of the second
+   row, where right-anchoring would push a 21rem menu off the side of the screen. */
+@media (max-width: 700px){ .menu { right: auto; left: 0; } }
 
 
 /* ===== Notebook — two lenses (by day / by piece) + entry actions ===== */
@@ -688,7 +710,7 @@ body.capturing .hl-mark:not(.preview) { display: none; }
    .ai-modal panel, so colours here are for THAT background: --ink and --muted are
    parchment-theme darks and vanish against it. */
 .iconbtn { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
-  width: 30px; height: 30px; border: 1px solid var(--comment-border); border-radius: 6px;
+  position: relative; width: 30px; height: 30px; border: 1px solid var(--comment-border); border-radius: 6px;
   background: none; color: var(--accent); cursor: pointer; }
 .iconbtn:hover { background: var(--comment-bg); }
 body.focus .iconbtn { display: none !important; }

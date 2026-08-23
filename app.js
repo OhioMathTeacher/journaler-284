@@ -186,31 +186,33 @@ function getStoredKey(provider) {
 
 let _modalProvider = 'none';
 
+// ── AI status now rides on the gear, not on a button of its own.
+//
+// It was "● AI: Groq ✓" in the topbar -- three tokens saying one thing, in a bar
+// that had run out of room. The gear is the control that acts on it, and Settings
+// → AI already prints "Selected: Groq · openai/gpt-oss-120b" in full, so the topbar
+// only has to answer yes/no: green dot = a model is configured. The words that were
+// on the button move into the gear's title, where they cost nothing.
+//
+// ⚠ A dot cannot say "chosen but not usable". So a provider with no key still gets
+// NO dot -- it is not connected -- and the title says why, rather than showing green
+// beside a provider that will fail on the first question.
 function updateAIBtn() {
-  const btn   = document.getElementById('aiBtn');
-  const label = document.getElementById('aiBtnLabel');
+  const gear = document.getElementById('settingsBtn');
   const p = getProvider();
-  if (p === 'anthropic') {
-    btn.classList.add('ai-active');
-    label.textContent = getStoredKey('anthropic') ? 'AI: Claude ✓' : 'AI: Claude (no key)';
-  } else if (p === 'gemini') {
-    btn.classList.add('ai-active');
-    label.textContent = getStoredKey('gemini') ? 'AI: Gemini ✓' : 'AI: Gemini (no key)';
-  } else if (p === 'groq') {
-    btn.classList.add('ai-active');
-    label.textContent = getStoredKey('groq') ? 'AI: Groq ✓' : 'AI: Groq (no key)';
-  } else if (p === 'local') {
-    btn.classList.add('ai-active');
-    const m = getLocalModel();
-    label.textContent = m ? `AI: ${m}` : 'AI: Local (no model)';
-  } else if (p === 'custom') {
-    btn.classList.add('ai-active');
+  let on = false, said = 'off';
+  if (p === 'anthropic')   { on = !!getStoredKey('anthropic'); said = on ? 'Claude' : 'Claude (no key yet)'; }
+  else if (p === 'gemini') { on = !!getStoredKey('gemini');    said = on ? 'Gemini' : 'Gemini (no key yet)'; }
+  else if (p === 'groq')   { on = !!getStoredKey('groq');      said = on ? 'Groq'   : 'Groq (no key yet)'; }
+  else if (p === 'local')  { const m = getLocalModel(); on = !!m; said = m || 'Local (no model answered)'; }
+  else if (p === 'custom') {
     const m = localStorage.getItem(CUSTOM_MODEL_KEY) || '';
-    label.textContent = (getStoredKey('custom') && m) ? `AI: ${m}` : 'AI: Custom (setup)';
-  } else {
-    btn.classList.remove('ai-active');
-    label.textContent = 'AI · off';
+    on = !!(getStoredKey('custom') && m); said = on ? m : 'Custom (needs setup)';
   }
+  if (!gear) return;
+  gear.classList.toggle('ai-active', on);
+  gear.title = `Settings · AI: ${said}`;
+  gear.setAttribute('aria-label', `Settings. AI: ${said}`);
 }
 
 // ── About. Global (inline onclick in index.html), same overlay pattern as the AI modal.
@@ -1710,9 +1712,8 @@ async function runReflection(rf, text, hooks) {
       <div class="divider"></div><p class="lead">For the notebook</p>
       ${Object.entries(NAMED).map(([k,m]) => {
         const done = !!turnin()[m.slot];
-        return `<button class="moment ${k===fwCur?'on':''} ${done?'has':''}" data-op="${k}"><span class="mname"><span class="dot"></span>${m.t}</span><span class="mkind">${done ? '✓ kept &amp; tagged' : m.lead + ' · required'}</span></button>`;
-      }).join('')}
-      <p class="runline">Keeping one of these tags it. Nothing to do in December.</p>`;
+        return `<button class="moment ${k===fwCur?'on':''} ${done?'has':''}" data-op="${k}"><span class="mname"><span class="dot"></span>${m.t}</span><span class="mkind">${done ? '✓ kept' : m.lead}</span></button>`;
+      }).join('')}`;
     frame.innerHTML = `<div class="head"><h1>Freewrite</h1><p>Start a timer, trust the gush, then shape it.</p></div>
       <div class="layout"><nav class="spine">${spine}</nav><main class="stage" id="stage"></main></div>`;
     frame.querySelectorAll('[data-op]').forEach(b=>b.addEventListener('click',()=>{ if(G.running) return; fwCur=b.dataset.op; renderFree(); }));
@@ -4401,8 +4402,10 @@ You: Really. The first line only has to exist, not be good.`;
       : `nothing kept yet — ${jump('start with Why do we write? →','baseline')}`;
 
     return `<div class="project">
-      <p class="pj-txt">My progress
-        <button class="pj-about" id="pjAbout">About this project →</button></p>
+      <!-- No title. The lens above it is called My Progress and the head says what it
+           is for; a third "My progress" here was the same words a third time. The
+           About link keeps its place at the right of the row. -->
+      <p class="pj-txt"><button class="pj-about" id="pjAbout">About this project →</button></p>
       <table class="pjtable">
         ${row(1, 'Kept practice', 20, `Every entry you keep, from anywhere. Nothing to tag. ${jump('Open page →','open')}`,
               kept + `<br><span class="pj-aim">${band}</span>`,
@@ -4805,7 +4808,7 @@ You: Really. The first line only has to exist, not be good.`;
         <span class="ti-pips">${pips}</span></summary>
       <p class="runline">Every column needs at least one filled box.
         Only the three you flag get read closely; everything else stays unread.</p>
-      ${noteMode === 'tags' ? '' : `<p class="runline"><button class="btn sm" id="goTags">Open Turn in →</button></p>`}
+      ${noteMode === 'tags' ? '' : `<p class="runline"><button class="btn sm" id="goTags">Open My Progress →</button></p>`}
       ${TURNIN_SLOTS.map(([k,label,hint]) => {
         const id = T[k], e = id && ordered.find(x => x.id === id);
         // Rows are LIVE. Todd: "these aren't linked. difficult to edit after the fact."
@@ -4839,7 +4842,7 @@ You: Really. The first line only has to exist, not be good.`;
   // Every lens ends the same way — the turn-in panel and the button that prints the
   // report. The Tags lens returns early from renderNote with its own markup, so this
   // wiring has to be callable from either branch rather than living in one of them.
-  // ⚠ In the Turn in lens the project panel already carries the rows, the points, the
+  // ⚠ In the My Progress lens the project panel already carries the rows, the points, the
   //   pickers and the links, so the older checklist would be the SAME nine checks a
   //   second time, in a second collapsible, on one screen. It is rendered everywhere
   //   else, where it is the summary and the way in.
@@ -4848,7 +4851,7 @@ You: Really. The first line only has to exist, not be good.`;
   function wireNoteFoot(){
     const goT = document.getElementById('goTags');
     if(goT) goT.onclick = () => { noteMode = 'tags'; renderNote(); };
-    // Caught at the moment it matters. A student who never found the Turn in lens would
+    // Caught at the moment it matters. A student who never found My Progress would
     // otherwise print a report with empty parts and no idea anything was missing —
     // silent and wrong, which is the failure mode this app is built to avoid.
     const bBtn = document.getElementById('bundleBtn');
@@ -4905,7 +4908,7 @@ You: Really. The first line only has to exist, not be good.`;
     const _R = readiness(); const tagDone = _R.done, tagAll = _R.all;
     const tagBadge = (DB.journal||[]).length
       ? `<span class="nbcount ${tagDone<tagAll?'todo':'ready'}">${tagDone}/${tagAll}</span>` : '';
-    const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button><button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">Turn in ${tagBadge}</button><button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads">Threads</button></div>`;
+    const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button><button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">My Progress ${tagBadge}</button><button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads">Threads</button></div>`;
     // ── The Tags lens: every entry against every tag, on one screen.
     //
     // Tagging lived only on the individual entry, so finding which page held which tag
@@ -4945,12 +4948,10 @@ You: Really. The first line only has to exist, not be good.`;
         return `<button class="moment has ${threadSel===t.id?'on':''}" data-thread="${t.id}">
           <span class="mname"><span class="dot"></span>${escHtml(t.name)}</span>
           <span class="mkind">${es.length} ${es.length===1?'entry':'entries'}${quiet>21?` · quiet ${quiet} days`:''}</span></button>`;
-      }).join('') : `<p class="empty" style="font-family:var(--sans)">No threads yet. A thread is anything that keeps coming back — a person, a room, a question you cannot leave alone. Name it, put that name on every entry it turns up in, and before you turn the notebook in, write what you see across them. That reading is part of <strong>Thinking on the page</strong>. Open any entry and use <strong>＋ Add to a thread</strong> to start one.</p>`;
+      }).join('') : `<p class="empty" style="font-family:var(--sans)">No threads yet. Name one below, or open any entry and use <strong>＋ Add to a thread</strong>.</p>`;
       const leftT = `<div class="piecelist"><p class="lead">Your threads</p>${list}
         <div class="newthread"><input id="ntName" placeholder="Name a new thread…" maxlength="48">
           <button class="btn ghost sm" id="ntAdd">Start it</button></div>
-        <p class="runline">A thread is anything that keeps coming back. Name it, then put it on
-          every entry it turns up in.</p>
         ${comeback}</div>`;
 
 
@@ -5196,6 +5197,23 @@ You: Really. The first line only has to exist, not be good.`;
   const _wfi = document.getElementById('workFileInput');
   const _openBtn = document.getElementById('openWorkBtn');
   if(_openBtn && _wfi){ _openBtn.addEventListener('click', ()=>_wfi.click()); _wfi.addEventListener('change', ()=>{ if(_wfi.files[0]) openWork(_wfi.files[0]); _wfi.value=''; }); }
+
+  // The three of them live behind one opener now. Closing on outside-click, on Escape
+  // and on choosing an item: a menu that stays open over the writing surface is worse
+  // than the three buttons it replaced.
+  const _mwBtn = document.getElementById('myWorkBtn'), _mwMenu = document.getElementById('myWorkMenu');
+  if(_mwBtn && _mwMenu){
+    const setMenu = open => { _mwMenu.hidden = !open; _mwBtn.setAttribute('aria-expanded', String(open)); };
+    _mwBtn.addEventListener('click', e => { e.stopPropagation(); setMenu(_mwMenu.hidden); });
+    _mwMenu.addEventListener('click', () => setMenu(false));
+    document.addEventListener('click', e => { if(!document.getElementById('myWorkWrap').contains(e.target)) setMenu(false); });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape') setMenu(false); });
+  }
+
+  // My Progress was a lens inside Notebook and nothing outside Notebook pointed at it.
+  // From the topbar it is reachable from wherever the student happens to be writing.
+  const _mpBtn = document.getElementById('myProgressBtn');
+  if(_mpBtn) _mpBtn.addEventListener('click', () => { if(G.running) return; noteMode = 'tags'; show('note'); });
 
   wireNameField();
 
