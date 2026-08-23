@@ -549,7 +549,7 @@ const REFLECTION_PARTNER = [
   'One sentence each. No preamble, no praise. Just the questions.'
 ].join(' ');
 
-// Paint the exchange: the partner's question, then a box to answer it in. The OP1
+// Paint the exchange: Romano's question, then a box to answer it in. The OP1
 // handout tells students to "answer the app's questions about how the writing went,"
 // so the question on its own is half a conversation. The answer is saved and prints
 // on the session record. Callers that pass no hooks get the question only.
@@ -933,7 +933,7 @@ async function runReflection(rf, text, hooks) {
       + fact('Readings', byReading.length)
       + fact('Exchanges', turns)
       // The whole point of the header, borrowed from verbatim: never one merged number.
-      + fact('Words', `${stuW} mine · ${aiW} the partner's`)
+      + fact('Words', `${stuW} mine · ${aiW} Romano's`)
       + fact('AI provider', typeof getProvider === 'function' ? getProvider() : '—')
       + fact('Model', model)
       + fact('Exported', now.toLocaleString())
@@ -948,7 +948,7 @@ async function runReflection(rf, text, hooks) {
         h += `<section class="ex">`;
         if(x.passage || x.quote) h += `<blockquote class="passage">${esc(x.passage || x.quote)}<cite>— ${esc(cite)}</cite></blockquote>`;
         h += `<div class="turn me"><p class="who">I asked</p><div class="text">${esc(x.question || 'Help me think about this passage.')}</div><p class="meta">${wordsIn(x.question)} words</p></div>`;
-        h += `<div class="turn ai"><p class="who">The reading partner</p><div class="text">${esc(x.reply)}</div><p class="meta">${wordsIn(x.reply)} words · not my writing</p></div>`;
+        h += `<div class="turn ai"><p class="who">Romano</p><div class="text">${esc(x.reply)}</div><p class="meta">${wordsIn(x.reply)} words · not my writing</p></div>`;
         h += `</section>`;
       }
     }
@@ -968,7 +968,7 @@ async function runReflection(rf, text, hooks) {
  .meta{margin:.2rem 0 0;font-size:.72rem;color:#9a9182}
  @media print{body{background:#fff;margin:0;max-width:none}}
 </style>
-<h1>Conversations with the reading partner</h1>${h}`;
+<h1>Conversations with Romano</h1>${h}`;
   }
   function exportTranscript(btn){
     try{
@@ -1094,7 +1094,7 @@ async function runReflection(rf, text, hooks) {
   let _toastT;
   function toast(msg){
     let el = document.getElementById('cr284Toast');
-    if(!el){ el = document.createElement('div'); el.id = 'cr284Toast'; el.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--parchment);font-family:var(--sans);font-size:13px;padding:9px 16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:60;opacity:0;transition:opacity .2s;pointer-events:none'; document.body.appendChild(el); }
+    if(!el){ el = document.createElement('div'); el.id = 'cr284Toast'; el.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--parchment);font-family:var(--sans);font-size:15px;padding:9px 16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:60;opacity:0;transition:opacity .2s;pointer-events:none'; document.body.appendChild(el); }
     el.textContent = msg; el.style.opacity = '1'; clearTimeout(_toastT); _toastT = setTimeout(()=>{ el.style.opacity = '0'; }, 1700);
   }
   function elevate(pieceId, pieceKind, pieceTitle, text, dateKey, meta){
@@ -2509,11 +2509,11 @@ async function runReflection(rf, text, hooks) {
   //
   // The rule is LABELLING, not exclusion. elevateHighlight already puts non-student
   // text in the notebook every time it runs — a quotation — and that is fine because
-  // it goes in quoted and attributed. This does the same for the partner's words.
+  // it goes in quoted and attributed. This does the same for Romano's words.
   // What must never happen is a reply landing as bare prose that reads as the
   // student's own, because the notebook is graded and numbered (see the ENTRY
   // NUMBERS note in the print bundle). Keep the attribution lines below.
-  // The selected text, but only when the selection lies inside the partner's reply --
+  // The selected text, but only when the selection lies inside Romano's reply --
   // selecting your own question or the quoted passage should not become "what he said".
   function qaCardOfSelection(){
     const s = window.getSelection();
@@ -3237,8 +3237,31 @@ You: Really. The first line only has to exist, not be good.`;
   // ---------- Notebook — kept pages, seen two ways (by day · by piece) ----------
   const NOTE_MIN = 2026*12 + 6;  // July 2026 (open now for testing; term is Aug–Dec)
   const NOTE_MAX = 2026*12 + 11; // December 2026
-  let noteView = new Date(2026, 6, 1); // July 2026
-  let noteSel = null;          // selected calendar day (by-day lens)
+  // Was hardcoded to July 2026, so the calendar opened on July whatever the date —
+  // "today" could be selected on a month you were not looking at. Opens on the current
+  // month now, clamped to the term so it cannot land outside the navigable range.
+  const _thisMonth = () => {
+    const n = new Date(); const k = n.getFullYear()*12 + n.getMonth();
+    const c = Math.min(Math.max(k, NOTE_MIN), NOTE_MAX);
+    return new Date(Math.floor(c/12), c%12, 1);
+  };
+  let noteView = _thisMonth();
+  // Today, not null. The Notebook opened on "Pick a day" and made you find the current
+  // date on a calendar before you could write a word -- and the overwhelmingly common
+  // reason to open the Notebook is to write in it now. Todd, 2026-08-23. The empty day
+  // is still worth landing on: the quick-write box is right there.
+  // Today when today is in the term; otherwise the first day of the nearest term month,
+  // so the selected day is always one you can actually see on the calendar.
+  const _todayKey = () => {
+    const d = new Date(), pad = n => String(n).padStart(2,'0');
+    const k = d.getFullYear()*12 + d.getMonth();
+    if(k < NOTE_MIN || k > NOTE_MAX){
+      const c = Math.min(Math.max(k, NOTE_MIN), NOTE_MAX);
+      return `${Math.floor(c/12)}-${pad((c%12)+1)}-01`;
+    }
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  };
+  let noteSel = _todayKey();   // selected calendar day (by-day lens)
   let noteMode = 'day';        // 'day' | 'piece' | 'tags' | 'threads'
   let threadSel = null;        // the thread being looked at
   let cbSel = null;            // the recurring term being looked at, if any
@@ -3292,7 +3315,7 @@ You: Really. The first line only has to exist, not be good.`;
   function recurringTerms(minEntries){
     minEntries = minEntries || 3;
     // Kept AI exchanges are excluded: this panel claims to show what the STUDENT keeps
-    // returning to, and feeding the partner's vocabulary in would put the model's
+    // returning to, and feeding Romano's vocabulary in would put the model's
     // preoccupations into the student's threads under the student's name.
     const entries = (DB.journal || []).filter(e =>
       e.pieceKind !== 'conversation' && String(e.text || '').trim());
@@ -3380,9 +3403,10 @@ You: Really. The first line only has to exist, not be good.`;
     // between keeping something and writing about it, which is the moment the whole
     // notebook exists for -- see the UI note in the changelog for 2026-08-23.
     const authorChip = e.author ? `<span class="who-chip ${e.authorKind === 'ai' ? 'ai' : 'me'}">${escHtml(e.author)}</span>` : '';
-    return `<div class="entryrow"><div class="k">${head}${authorChip}</div><div class="x writable" data-edit="${e.id}" title="Click to write on this page">${escHtml(e.text).replace(/\n/g,'<br>')}</div>
-      ${tagBar(e)}
-      ${threadBar(e)}
+    // Tag and thread pickers moved into the header row, right-aligned beside the
+    // delete control. They were two full-width rows under the page, so every entry
+    // cost ~70px of vertical space to two controls most entries never use.
+    return `<div class="entryrow"><div class="k"><span class="k-head">${head}</span>${authorChip}<span class="k-tools">${tagBar(e)}${threadBar(e)}</span></div><div class="x writable" data-edit="${e.id}" title="Click to write on this page">${escHtml(e.text).replace(/\n/g,'<br>')}</div>
       <div class="entacts"><button class="entlink" data-edit="${e.id}">Edit</button>${openLink}</div></div>`;
   }
 
@@ -3429,7 +3453,7 @@ You: Really. The first line only has to exist, not be good.`;
     const list = journalByDate(noteSel).sort((a,b)=>a.ts.localeCompare(b.ts));
     const entries = list.length ? list.map(e=>entryCard(e, {})).join('') : `<p class="empty">Nothing kept this day yet.</p>`;
     return `<div class="notedetail"><h3>${label}</h3>${entries}
-      <div class="entryrow"><div class="k">Quick-write for this day</div><textarea id="noteCompose" placeholder="Jot a note or free-write, then keep it…" style="width:100%;min-height:88px;box-sizing:border-box;font-family:var(--serif);font-size:15px;line-height:1.6;padding:10px 12px;border:1px solid var(--comment-border);border-radius:6px;resize:vertical"></textarea>
+      <div class="entryrow"><div class="k">Quick-write for this day</div><textarea id="noteCompose" placeholder="Jot a note or free-write, then keep it…" style="width:100%;min-height:88px;box-sizing:border-box;font-family:var(--serif);font-size:17px;line-height:1.65;padding:10px 12px;border:1px solid var(--comment-border);border-radius:6px;resize:vertical"></textarea>
       <button class="btn sm" id="noteSaveBtn" style="margin-top:8px">Keep this page</button></div></div>`;
   }
 
