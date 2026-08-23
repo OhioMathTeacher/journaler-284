@@ -5224,39 +5224,57 @@ You: Really. The first line only has to exist, not be good.`;
                : p.when === 'ahead' ? `Opening ${fmt(p.date)}`
                                     : `From ${fmt(p.date)}`;
 
+    // ── What is actually on the page.
+    //
+    // Most of the class poems cannot be reprinted here, and Todd's answer was "they
+    // don't have to be poems from class if they aren't public domain yet". So on those
+    // days a public-domain poem stands in, printed whole -- and the class poem is still
+    // named and linked directly under the byline, where it cannot be mistaken for the
+    // one being read. The kicker says "A poem for" rather than "Daily Poem" for the
+    // same reason: the page must never imply the class read this.
+    const sub = p.sub && p.sub.text ? p.sub : null;
+    const shown = sub || p;
+    const kicker = sub ? `A poem for ${when}` : `Daily Poem · ${when}`;
+    const inclass = !sub ? '' : `<p class="pmclass">In class${p.when === 'today' ? ' today' : ''}:
+      “${escHtml(p.title)}” by ${escHtml(p.poet)}${p.url
+        ? ` — <a href="${escHtml(p.url)}" target="_blank" rel="noopener">read it ↗</a>`
+        : (p.where ? ` — on ${escHtml(p.where)}` : '')}</p>`;
+
     // Stanzas are blank-line separated; the lines inside one are the poet's, so they
     // break where the poet broke them and a line too long for the column hangs
     // rather than starting a false new line (see .pmline in app.css).
-    const stanzas = String(p.text || '').split(/\n{2,}/).map(st =>
+    const stanzas = String(shown.text || '').split(/\n{2,}/).map(st =>
       `<p class="pmstanza">${st.split('\n').map(l =>
         `<span class="pmline">${escHtml(l)}</span>`).join('')}</p>`).join('');
 
     // No text is not a failure: for most of these, linking out is the only lawful
     // way to show them, and the course pages do the same. Say where it is instead.
-    const bodyHTML = p.text ? `<div class="pmtext">${stanzas}</div>`
+    const bodyHTML = shown.text ? `<div class="pmtext">${stanzas}</div>`
       : `<p class="pmelse">${p.url
           ? `The text is not reproduced here. <a href="${escHtml(p.url)}" target="_blank" rel="noopener">Read it →</a>`
           : `The text is not reproduced here — it is on ${escHtml(p.where)}.`}</p>`;
 
     // Only when the text is here. Without it the "Read it →" above IS the source,
     // and two links to the same page a line apart is just noise.
-    const src = !p.text ? ''
+    // Only for the class poem's own text; a stand-in's provenance is its textSource.
+    const src = sub || !p.text ? ''
       : p.url ? `<a class="pmsrc" href="${escHtml(p.url)}" target="_blank" rel="noopener">Source ↗</a>`
       : p.where ? `<span class="pmsrc">Source: ${escHtml(p.where)}</span>` : '';
 
     frame.innerHTML = `<div class="poempage">
-      <p class="pmkick">Daily Poem · ${escHtml(when)}</p>
-      <h1 class="pmtitle">${escHtml(p.title)}</h1>
-      <p class="pmby">By ${escHtml(p.poet)}${p.note ? ` · ${escHtml(p.note)}` : ''}</p>
+      <p class="pmkick">${escHtml(kicker)}</p>
+      <h1 class="pmtitle">${escHtml(shown.title)}</h1>
+      <p class="pmby">By ${escHtml(shown.poet)}${shown.note ? ` · ${escHtml(shown.note)}` : ''}</p>
+      ${inclass}
       ${bodyHTML}
-      ${src || p.textSource ? `<p class="pmfoot">${src}${p.textSource ? `<span class="pmfrom">${escHtml(p.textSource)}</span>` : ''}</p>` : ''}
+      ${src || shown.textSource ? `<p class="pmfoot">${src}${shown.textSource ? `<span class="pmfrom">${escHtml(shown.textSource)}</span>` : ''}</p>` : ''}
       <div class="pmacts">
         <button class="btn" id="pmKeep">＋ Share with notebook</button>
         <button class="btn ghost" id="pmAsk">Discuss with ${AI_NAME}</button>
       </div>
       <div id="pmPanel"></div>
     </div>`;
-    wirePoemActions(p);
+    wirePoemActions(shown, p);
   }
 
   // ── The two things you can do with a poem.
@@ -5268,7 +5286,7 @@ You: Really. The first line only has to exist, not be good.`;
   function poemRef(p){
     return `${p.title}\n— ${p.poet}${p.date ? `, read ${p.date}` : ''}`;
   }
-  function wirePoemActions(p){
+  function wirePoemActions(p, session){
     const panel = document.getElementById('pmPanel');
     const keep = document.getElementById('pmKeep'), ask = document.getElementById('pmAsk');
 

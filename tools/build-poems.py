@@ -21,7 +21,7 @@ Aug 31") plus which of Mon/Wed that week actually links a page.  Week 3 has no
 Monday (Labor Day) and its row is dated to the Wednesday, which is why the day is
 read from the links rather than assumed.
 """
-import re, sys, json, subprocess, datetime, pathlib
+import re, sys, json, subprocess, datetime, pathlib, urllib.parse, urllib.request
 
 MONTHS = {m: i + 1 for i, m in enumerate(
     'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split())}
@@ -45,6 +45,55 @@ def sessions(course):
             if d.strftime('%a') != which:
                 sys.exit(f'week {wk} {which}: derived {d} is a {d.strftime("%a")}')
             out.append((d, int(wk), which, course / href))
+    return out
+
+
+# ── Public-domain stand-ins ──────────────────────────────────────────────────
+#
+# Most of the class poems cannot be reproduced here, so those days show a poem that
+# can be, named in poem-substitutes.txt and fetched from PoetryDB — a fixed corpus of
+# 129 out-of-copyright poets.
+#
+# ⚠ Fetched at BUILD time and cached under poem-texts/_pd/, never called from the
+# app. The landing page is the first thing a student sees, it has to work on a
+# campus VPN or with no network at all, and a poem that arrives over the wire is a
+# poem that can fail to arrive. It is also why the texts land in git, where they can
+# be read in a diff rather than trusted.
+PDB = 'https://poetrydb.org/author,title/%s;%s'
+
+
+def poetrydb(author, title, cache):
+    """(lines, note) for one poem, from the cache if it is there."""
+    f = cache / f'{slugify(author)}--{slugify(title)}.txt'
+    if f.exists():
+        return f.read_text().strip('\n'), 'PoetryDB (cached)'
+    url = PDB % (urllib.parse.quote(author), urllib.parse.quote(title))
+    req = urllib.request.Request(url, headers={'User-Agent': 'journaler-284 poem builder'})
+    try:
+        d = json.load(urllib.request.urlopen(req, timeout=25))
+    except Exception as e:
+        print(f'  ! {author} — {title}: {e}')
+        return '', ''
+    if isinstance(d, dict) or not d:          # PoetryDB says 404 with a JSON object
+        print(f'  ! {author} — {title}: not in PoetryDB')
+        return '', ''
+    text = '\n'.join(d[0]['lines']).strip('\n')
+    cache.mkdir(parents=True, exist_ok=True)
+    f.write_text(text + '\n')
+    return text, 'PoetryDB'
+
+
+def substitutes(here):
+    f = here / 'poem-substitutes.txt'
+    if not f.exists():
+        return []
+    out = []
+    for line in f.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or '|' not in line:
+            continue
+        a, t = line.split('|', 1)
+        out.append((a.strip(), t.strip()))
     return out
 
 
@@ -140,6 +189,7 @@ def main():
     except Exception:
         rev = 'not a git checkout'
 
+    here = pathlib.Path(__file__).resolve().parent.parent
     rows, skipped = [], []
     for date, wk, which, path in sessions(course):
         p = poem(path)
@@ -148,6 +198,20 @@ def main():
             continue
         rows.append(dict(date=date.isoformat(), week=wk, day=which,
                          src=str(path.relative_to(course)), **p))
+
+    # Every session whose own poem cannot be printed gets the next stand-in, in the
+    # order poem-substitutes.txt lists them. Assigned here, in one pass over the term,
+    # so the same date always lands on the same poem however often this is re-run.
+    subs, cache = substitutes(here), here / 'poem-texts' / '_pd'
+    need = [r for r in rows if not r['text']]
+    if subs and need:
+        print(f'{len(need)} sessions need a stand-in; {len(subs)} in the list')
+        for i, r in enumerate(need):
+            author, title = subs[i % len(subs)]
+            text, note = poetrydb(author, title, cache)
+            if text:
+                r['sub'] = dict(slug=slugify(title), poet=author, title=title,
+                               text=text, textSource=note)
 
     body = ',\n'.join('  ' + json.dumps(r, ensure_ascii=False) for r in rows)
     out = pathlib.Path(__file__).resolve().parent.parent / 'poems.js'
@@ -158,8 +222,9 @@ def main():
 // Source: {course.name} @ {rev}
 // Built:  {datetime.date.today().isoformat()}
 // {len(rows)} poems across {len(rows) + len(skipped)} class sessions.
-// {len([r for r in rows if r["text"]])} carry their text (see poem-texts/README.md);
-// the rest link out, which is what the course pages do.
+// {len([r for r in rows if r["text"]])} carry their own text (see poem-texts/README.md);
+// {len([r for r in rows if r.get("sub")])} show a public-domain stand-in instead, named in
+// poem-substitutes.txt, with the class poem still linked above it.
 // Sessions with no Daily Poem: {', '.join(skipped) or 'none'}.
 //
 // Poem text, where present, is transcribed by hand into poem-texts/ and is there only
@@ -169,10 +234,14 @@ window.DAILY_POEMS = [
 ];
 ''')
     withtext = [r for r in rows if r['text']]
-    print(f'{out}: {len(rows)} poems, {len(withtext)} with text, '
-          f'{len(skipped)} sessions without a poem')
+    withsub = [r for r in rows if r.get('sub')]
+    print(f"{out}: {len(rows)} poems — {len(withtext)} printed in full, "
+          f"{len(withsub)} standing in, {len(rows) - len(withtext) - len(withsub)} link only; "
+          f"{len(skipped)} sessions with no poem")
     for r in rows:
-        print(f"  {'text  ' if r['text'] else 'link  '}{r['date']}  {r['title']}")
+        how = 'class ' if r['text'] else ('sub   ' if r.get('sub') else 'LINK  ')
+        tail = f"  →  {r['sub']['poet']}, {r['sub']['title']}" if r.get('sub') else ''
+        print(f"  {how}{r['date']}  {r['title']}{tail}")
     for s in skipped:
         print(f'  no poem: {s}')
 

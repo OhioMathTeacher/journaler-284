@@ -1,0 +1,27 @@
+# Public-domain stand-ins, in order of use.
+#
+# Todd: "They don't have to be poems from class if they aren't public domain yet."
+# Thirteen of the sixteen class poems cannot be reproduced here (poem-texts/README.md
+# says which and why), so those days get a poem from this list instead — printed in
+# full, with the class poem still named and linked above it.
+#
+# One "Author | Title" per line, exactly as PoetryDB spells them; the builder fetches
+# the text and caches it under poem-texts/_pd/. Reorder freely — line 1 goes to the
+# first session that needs one, line 2 to the second, and so on down the term. Fewer
+# lines than sessions and the list wraps around.
+#
+# These are a starting set, not a syllabus. Swap any of them.
+
+William Blake | The Tyger
+Christina Rossetti | A Birthday
+Percy Bysshe Shelley | Ozymandias
+Emily Dickinson | Success is counted sweetest
+Gerard Manley Hopkins | Pied Beauty
+William Shakespeare | Sonnet 130: My mistress' eyes are nothing like the sun
+Emily Bronte | Love and Friendship
+William Blake | A POISON TREE
+Edgar Allan Poe | A Dream Within A Dream
+William Wordsworth | I Wandered Lonely As A Cloud
+Robert Herrick | TO THE VIRGINS, TO MAKE MUCH OF TIME
+William Blake | London
+John Keats | To Autumn
