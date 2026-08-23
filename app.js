@@ -1661,7 +1661,7 @@ async function runReflection(rf, text, hooks) {
       <p class="kicker">${m.lead}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
       ${key === 'letter' ? baselineBesideLetter() : ''}
       <textarea class="gush" id="gush" placeholder="${escHtml(m.ph)}">${escHtml(saved)}</textarea>
-      <div style="max-width:var(--writecol);margin:10px auto 0;display:flex;gap:10px;align-items:baseline">
+      <div style="max-width:var(--writecol);margin:10px 0 0;display:flex;gap:10px;align-items:baseline">
         <button class="btn ghost sm" id="namedAdd">＋ Keep in notebook</button>
         <span class="note" id="namedState"></span></div>
       ${assignmentNote(m.slot, 'asnNamed')}`;

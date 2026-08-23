@@ -15,7 +15,9 @@
        sets in Iowan Old Style -- see the two #print rules. */
     --write: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     --readsurround: #E4E0D8;
-    --writecol: 680px;
+    /* The measure for a writing surface. 680 was set against a 1180 frame; with
+       the cap gone the gush sat in the middle of a pane twice its width. */
+    --writecol: 920px;
     --cave-dark: #1A2A40; --cave-glow: #D4A843;
   }
 
@@ -103,18 +105,26 @@
      ~530px and pushed the writing surface below the fold.
      Still capped, because a 2,000px line of prose is unreadable, and the writing
      surfaces keep their own --writecol on top of this. */
-  .frame { max-width: 1560px; margin: 0; padding: 22px clamp(12px,3vw,28px) 60px; }
+  /* ⚠ NO CAP. It was 1180 when the frame was centred, then 1560, and both still
+     left a third of a wide monitor empty beside the panes — Todd, arrows to the
+     right edge: "wider!", "wider panel". Line length is now held where it belongs,
+     on the individual writing surfaces (--writecol) rather than on the whole page,
+     so a pane can fill the window without prose running 2,000px wide. */
+  .frame { max-width: none; margin: 0; padding: 22px clamp(12px,3vw,28px) 60px; }
   /* ⚠ FULL-BLEED IS ITS OWN CLASS, and it is not the same thing as the One-Pager's
      two-column layout. Both used to be `body.wide`, so opening a gushed One-Pager
      tore the whole frame out to the window edge while every other page in the same
      tab sat at 1180 — click "1 · Why You Write" then "Why do we write?" and the
      page jumped. Readings and Notebook genuinely need the window (a PDF beside its
      notes, a grid eight columns wide). A writing surface never does. */
+  /* body.bleed is now the default; kept so the class is harmless where it is set. */
   body.bleed .frame { max-width: none; }   /* width only — the padding must match, or
      Notebook starts 8px left of Freewrite and the page still twitches on tab change */
 
   .head h1 { font-family: var(--write); font-weight: 600; font-size: 30px; margin: 0 0 4px; }
-  .head p { margin: 0 0 18px; color: var(--muted); font-size: 16.5px; max-width: 70ch; }
+  /* Todd: "can we remove the width constraint on the summary sentence?" — 70ch
+     wrapped a one-line subtitle onto two with the whole window to spare. */
+  .head p { margin: 0 0 18px; color: var(--muted); font-size: 16.5px; }
 
   /* The gap is the breathing room between the rail and the pane. At 24px the pane
      read as glued to the list it was launched from. */
@@ -133,7 +143,7 @@
   .stage { background: var(--comment-bg); border: 1px solid var(--comment-border); border-radius: 8px; padding: 22px 24px 26px; min-height: 420px; }
   .kicker { font-size: 12.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); font-weight: 700; margin: 0 0 6px; }
   .stage h2 { font-family: var(--write); font-size: 26.5px; margin: 0 0 6px; font-weight: 600; }
-  .framing { font-size: 17px; margin: 0 0 16px; max-width: 62ch; } .framing .hint { color: var(--muted); }
+  .framing { font-size: 17px; margin: 0 0 16px; max-width: 90ch; } .framing .hint { color: var(--muted); }
 
   .stagelabel { font-size: 12.5px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 700; margin: 20px 0 10px; padding-top: 16px; border-top: 1px solid var(--comment-border); display: flex; align-items: center; gap: 8px; }
   .stagelabel .n { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12.5px; display: inline-flex; align-items: center; justify-content: center; }
@@ -154,7 +164,7 @@
   .locknote { font-size: 14.5px; color: var(--muted); } .lockflag { color: var(--danger); font-weight: 700; }
   .minsel { font-family: var(--sans); font-size: 15px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--comment-border); background: #fff; }
 
-  textarea.gush { display: block; width: 100%; max-width: var(--writecol); margin: 0 auto; height: 52vh; min-height: 320px; max-height: 600px; overflow-y: auto; resize: none; font-family: var(--write); font-size: 18.5px; line-height: 1.7; background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; padding: 32px 40px; color: var(--ink); }
+  textarea.gush { display: block; width: 100%; max-width: var(--writecol); margin: 0; height: 52vh; min-height: 320px; max-height: 600px; overflow-y: auto; resize: none; font-family: var(--write); font-size: 18.5px; line-height: 1.7; background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; padding: 32px 40px; color: var(--ink); }
   /* [readonly] is the post-buzzer state: frozen but selectable, so the gush can be copied
      into the One-Pager. :disabled is the before-you-start state. Both look the same. */
   textarea.gush:disabled, textarea.gush[readonly] { background: #fdfbf6; color: var(--ink); } textarea.locked { border-color: var(--accent-light); box-shadow: 0 0 0 3px var(--highlight-soft); }
@@ -168,7 +178,7 @@
   .toolbar button { font-family: var(--write); font-size: 17px; width: 34px; height: 32px; border: 1px solid var(--comment-border); background: #fff; border-radius: 5px; cursor: pointer; }
   .toolbar .sep { width: 1px; height: 22px; background: var(--comment-border); margin: 0 4px; }
   .toolbar .wc { margin-left: auto; font-family: var(--sans); font-size: 14px; color: var(--muted); } .toolbar .wc.good { color: var(--go); font-weight: 600; }
-  .page { background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; box-shadow: 0 1px 8px rgba(44,36,22,.06); width: 100%; max-width: var(--writecol); height: 52vh; min-height: 320px; max-height: 600px; overflow-y: auto; margin: 0 auto; padding: 32px 40px; font-family: var(--write); font-size: 18px; line-height: 1.65; }
+  .page { background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; box-shadow: 0 1px 8px rgba(44,36,22,.06); width: 100%; max-width: var(--writecol); height: 52vh; min-height: 320px; max-height: 600px; overflow-y: auto; margin: 0; padding: 32px 40px; font-family: var(--write); font-size: 18px; line-height: 1.65; }
   .page:empty:before { content: attr(data-ph); color: var(--muted); font-style: italic; } .page img { max-width: 100%; border-radius: 3px; margin: 6px 0; }
   .composer-foot { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; } .composer-foot .note { font-size: 14.5px; color: var(--muted); }
   .stems { margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -466,7 +476,12 @@
 /* Tips is a quotation, not a working surface, so it does not want the whole pane —
    it wants to sit clear of the rail. Todd: "the right pane moved horizontally to
    give more breathing room". */
-.poemlayout { grid-template-columns: 232px 1fr; column-gap: 76px; }
+/* ⚠ 232px truncated nearly every chapter title — "Writer's Block Just Ha…",
+   "Only Geniuses can be W…" — on a page with a third of the window empty. Todd:
+   "oh my lord, why are these truncated? we have the space for the full list."
+   340 fits all but the longest; those still clip, with the full title in the
+   tooltip. A drag-to-resize pane is the other answer and is not built. */
+.poemlayout { grid-template-columns: 340px 1fr; column-gap: 76px; }
 /* ── The rail: sixteen links, one screen ──────────────────────────────────────
    These were .moment cards, four lines and a border each, which came to roughly
    1,400px of rail for a term — you had to scroll the sidebar to see the list it
