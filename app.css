@@ -979,3 +979,37 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .entryrow .k .k-tools { margin-left: auto; display: flex; gap: .35rem; align-items: center;
   text-transform: none; letter-spacing: 0; font-weight: 400; }
 .entryrow .k .k-tools select, .entryrow .k .k-tools .tagbar, .entryrow .k .k-tools .threadbar { margin: 0; }
+
+/* ── The toast's one action ────────────────────────────────────────────────────
+   A message that names somewhere the student cannot see, then vanishes, is only a
+   claim. The action makes it a route. It sits on the dark toast, so it borrows the
+   toast's own parchment rather than the accent, which would vibrate against --ink. */
+.toastact { background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; font-weight: 600; color: var(--parchment);
+  text-decoration: underline; text-underline-offset: 3px;
+  opacity: .82; cursor: pointer; white-space: nowrap; }
+.toastact:hover, .toastact:focus-visible { opacity: 1; }
+
+/* The entry you just arrived at, said once and then let go. Long enough to find with
+   the eye after a smooth scroll, short enough not to become part of the page. */
+.entryrow.justkept { animation: justkept 2.2s ease-out; border-radius: 6px; }
+@keyframes justkept {
+  0%, 55% { background: var(--highlight-soft); box-shadow: 0 0 0 4px var(--highlight-soft); }
+  100%    { background: transparent;           box-shadow: 0 0 0 4px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .entryrow.justkept { animation-duration: 1ms; }
+}
+
+/* ── Delete, where the entry is ────────────────────────────────────────────────
+   Delete used to live inside the editor: click the text to open it, then find the
+   button. Two steps and a mode change to throw one page away. It sits in the header
+   row now, beside the tag and thread controls, quiet until the row is hovered so a
+   destructive control is never the loudest thing on a page of writing. */
+.entdel { background: none; border: 0; padding: 3px; margin: 0; line-height: 0;
+  color: var(--muted); border-radius: 5px; cursor: pointer;
+  opacity: 0; transition: opacity .15s, color .15s, background .15s; }
+.entryrow:hover .entdel, .entdel:focus-visible { opacity: 1; }
+.entdel:hover { color: var(--danger); background: var(--highlight-soft); }
+/* Touch and keyboard have no hover, so it must never be invisible there. */
+@media (hover: none) { .entdel { opacity: .55; } }

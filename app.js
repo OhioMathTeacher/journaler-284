@@ -536,11 +536,21 @@ async function callModel(prompt) {
   return 'Unknown provider.';
 }
 
-// ===== Act I — post-buzzer reflection partner =====
+// ── What the students call him. Declared HERE, at file scope, rather than inside the
+//    main IIFE: the reflection prompt below is defined outside that closure, and a name
+//    that only half the app can reach is a name half the app will not use.
+//
+//    A human name alone hides that this is software, so anything KEPT, exported or
+//    printed carries AI_TAG ("Romano · AI") rather than AI_NAME. Live views use the bare
+//    name; the permanent record always marks it.
+const AI_NAME = 'Romano';          // the name students see, everywhere
+const AI_TAG  = AI_NAME + ' \u00b7 AI';   // the attribution chip -- always marks it as AI
+
+// ===== Act I — post-buzzer reflection =====
 // Touches the EXPERIENCE of the timed write, never the words. See next-steps /
 // [[human-first-creedo]]: the gush is the student's; AI reflects on pacing only.
 const REFLECTION_PARTNER = [
-  'You are a writing reflection partner in a college writing course.',
+  'You are ' + AI_NAME + ', a writing partner in a college writing course.',
   'A student just finished a timed "gush" — a fast freewrite with editing locked off.',
   'They share the text ONLY so you can sense energy and pacing.',
   'Do NOT judge the writing, its quality, grammar, or ideas. Do NOT quote it or rewrite it.',
@@ -554,7 +564,7 @@ const REFLECTION_PARTNER = [
 // so the question on its own is half a conversation. The answer is saved and prints
 // on the session record. Callers that pass no hooks get the question only.
 function paintReflection(rf, question, hooks) {
-  rf.innerHTML = '<span class="lbl">After the buzzer — reflection partner</span>'
+  rf.innerHTML = '<span class="lbl">Reflecting with ' + AI_NAME + '</span>'
     + '<span id="reflectBody"></span>';
   rf.querySelector('#reflectBody').textContent = question;
   if (!hooks) return;
@@ -568,7 +578,7 @@ function paintReflection(rf, question, hooks) {
 }
 
 async function runReflection(rf, text, hooks) {
-  rf.innerHTML = '<span class="lbl">After the buzzer — reflection partner</span>'
+  rf.innerHTML = '<span class="lbl">Reflecting with ' + AI_NAME + '</span>'
     + '<span id="reflectBody"><em>Reading your pace…</em></span>';
   const bodyEl = rf.querySelector('#reflectBody');
   // Nothing was typed, so there is no session to reflect on. Without this the model
@@ -580,7 +590,7 @@ async function runReflection(rf, text, hooks) {
     return;
   }
   if (getProvider() === 'none') {
-    bodyEl.innerHTML = '<em>Connect an AI (top right) and a reflection partner will ask you '
+    bodyEl.innerHTML = '<em>Connect an AI (top right) and ' + AI_NAME + ' will ask you '
       + 'a couple of questions about how the gush went. Optional — the gush is what matters.</em>';
     return;
   }
@@ -591,7 +601,7 @@ async function runReflection(rf, text, hooks) {
     if (hooks) hooks.onQuestion(reply);
     paintReflection(rf, reply, hooks);
   } catch (e) {
-    bodyEl.innerHTML = '<em>Reflection partner is unavailable right now.</em>';
+    bodyEl.innerHTML = '<em>' + AI_NAME + ' is unavailable right now.</em>';
   }
 }
 
@@ -912,7 +922,11 @@ async function runReflection(rf, text, hooks) {
   //    SEPARATELY, side by side, alongside provider and model. The file states its
   //    own provenance instead of leaving a reader to guess who wrote what. One
   //    self-contained page -- no viewer needed, opens anywhere, prints.
-  function wordsIn(s){ const t = String(s||'').trim(); return t ? t.split(/\s+/).length : 0; }
+  // wordCount() takes a STRING; wordsIn() near the notebook code takes an ENTRY. They
+  // were both called wordsIn, in the same IIFE scope, so the later declaration silently
+  // won and this one never ran -- handed a string it read `.text` off it and returned 0,
+  // which is what the AI-use log printed for every turn and both totals.
+  function wordCount(s){ const t = String(s||'').trim(); return t ? t.split(/\s+/).length : 0; }
   function buildTranscriptHTML(){
     const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const all = allQA() || {};
@@ -921,7 +935,7 @@ async function runReflection(rf, text, hooks) {
     for(const r of readings){
       const list = (all[r.id] || []).filter(x => x.reply);
       if(!list.length) continue;
-      list.forEach(x => { stuW += wordsIn(x.question); aiW += wordsIn(x.reply); turns++; });
+      list.forEach(x => { stuW += wordCount(x.question); aiW += wordCount(x.reply); turns++; });
       byReading.push({ r, list });
     }
     const model = (typeof getProvider === 'function' && getProvider() === 'local')
@@ -947,8 +961,8 @@ async function runReflection(rf, text, hooks) {
         const cite = x.page ? `${readingLabel(r)}, p. ${x.page}` : readingLabel(r);
         h += `<section class="ex">`;
         if(x.passage || x.quote) h += `<blockquote class="passage">${esc(x.passage || x.quote)}<cite>— ${esc(cite)}</cite></blockquote>`;
-        h += `<div class="turn me"><p class="who">I asked</p><div class="text">${esc(x.question || 'Help me think about this passage.')}</div><p class="meta">${wordsIn(x.question)} words</p></div>`;
-        h += `<div class="turn ai"><p class="who">Romano</p><div class="text">${esc(x.reply)}</div><p class="meta">${wordsIn(x.reply)} words · not my writing</p></div>`;
+        h += `<div class="turn me"><p class="who">I asked</p><div class="text">${esc(x.question || 'Help me think about this passage.')}</div><p class="meta">${wordCount(x.question)} words</p></div>`;
+        h += `<div class="turn ai"><p class="who">Romano</p><div class="text">${esc(x.reply)}</div><p class="meta">${wordCount(x.reply)} words · not my writing</p></div>`;
         h += `</section>`;
       }
     }
@@ -1037,6 +1051,27 @@ async function runReflection(rf, text, hooks) {
 
   // Restore from a zip: write the reading bytes back under filename-derived ids so the
   // highlights in the JSON find their pages, THEN hand the JSON to the normal restore.
+  // Opening a file REPLACES everything in this browser, and it is the only destructive
+  // act a student can reach in one click. It used to happen in silence: pick last
+  // month's backup by mistake and a term of writing is gone, no undo, nothing on screen
+  // to say so. Todd, 23 Aug 2026: "we have to be absolutely positive that a student's
+  // work will survive." Updates already do -- localStorage is keyed to the origin and a
+  // deploy never touches it. THIS is the path that loses work, so it now says what it
+  // is about to throw away, what it is about to put there, and counts both.
+  function confirmReplace(incoming){
+    const now  = (DB.journal || []).length;
+    const next = Array.isArray(incoming && incoming.journal) ? incoming.journal.length : 0;
+    if(!now) return true;                       // nothing here to lose
+    const ent = n => n + ' notebook ' + (n === 1 ? 'entry' : 'entries');
+    const lines = ['This REPLACES everything in this browser. It cannot be undone.', '',
+                   'In this browser now:   ' + ent(now),
+                   'In the file you chose: ' + ent(next), ''];
+    if(next < now) lines.push('\u26a0 The file has FEWER entries than this browser.',
+                              '   You would lose ' + (now - next) + '.', '');
+    lines.push('If you are not sure, press Cancel and use \u2913 Save my work first.', '',
+               'Replace everything?');
+    return confirm(lines.join('\n'));
+  }
   async function openZip(file){
     if(typeof JSZip === 'undefined'){ alert('Zip library not loaded.'); return; }
     const zip = await JSZip.loadAsync(file);
@@ -1052,6 +1087,7 @@ async function runReflection(rf, text, hooks) {
     const d = JSON.parse(await jsonEntry.async('string'));
     const st = d && d.state ? d.state : d;
     if(!st || typeof st !== 'object') throw new Error('not a Journaler file');
+    if(!confirmReplace(st)) return;
     localStorage.setItem(LS_KEY, JSON.stringify(st));
     location.reload();
   }
@@ -1066,6 +1102,7 @@ async function runReflection(rf, text, hooks) {
       const d = JSON.parse(e.target.result);
       const st = d && d.state ? d.state : d;
       if(!st || typeof st !== 'object') throw new Error('not a Journaler file');
+      if(!confirmReplace(st)) return;
       localStorage.setItem(LS_KEY, JSON.stringify(st));
       location.reload();
     } catch(err){ alert('Could not open that file: ' + err.message); } };
@@ -1092,17 +1129,76 @@ async function runReflection(rf, text, hooks) {
     const i = PIECE_ORDER.indexOf(id); return i<0 ? 99 : i;
   }
   let _toastT;
-  function toast(msg){
+  // A toast may carry ONE action. A message that names a place the student cannot see
+  // from the writing surface, and then vanishes in 1.7s without offering a route there,
+  // is only a claim that something happened. With an action the toast stays up long
+  // enough to be clicked and is the only pointer-events:auto thing on screen; without
+  // one it behaves exactly as it always did.
+  function toast(msg, action){
     let el = document.getElementById('cr284Toast');
-    if(!el){ el = document.createElement('div'); el.id = 'cr284Toast'; el.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--parchment);font-family:var(--sans);font-size:15px;padding:9px 16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:60;opacity:0;transition:opacity .2s;pointer-events:none'; document.body.appendChild(el); }
-    el.textContent = msg; el.style.opacity = '1'; clearTimeout(_toastT); _toastT = setTimeout(()=>{ el.style.opacity = '0'; }, 1700);
+    if(!el){ el = document.createElement('div'); el.id = 'cr284Toast'; el.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--parchment);font-family:var(--sans);font-size:15px;padding:9px 16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;display:flex;align-items:center;gap:14px'; document.body.appendChild(el); }
+    const hide = () => { el.style.opacity = '0'; el.style.pointerEvents = 'none'; };
+    el.textContent = '';
+    el.appendChild(document.createTextNode(msg));
+    el.style.pointerEvents = action ? 'auto' : 'none';
+    if(action){
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'toastact'; b.textContent = action.label;
+      b.onclick = () => { clearTimeout(_toastT); hide(); action.onClick(); };
+      el.appendChild(b);
+    }
+    el.style.opacity = '1'; clearTimeout(_toastT);
+    _toastT = setTimeout(hide, action ? 4200 : 1700);
   }
   function elevate(pieceId, pieceKind, pieceTitle, text, dateKey, meta){
     text = (text||'').trim();
     if(!text){ toast('Nothing to keep yet — write something first.'); return null; }
     const now = new Date();
     const entry = Object.assign({ id:'j'+now.getTime()+Math.round(Math.random()*1e5), pieceId, pieceKind, pieceTitle, ts:now.toISOString(), date: dateKey || now.toISOString().slice(0,10), edited: now.toISOString(), text }, meta || {});
-    DB.journal.push(entry); saveDB(); toast('Kept in your notebook ✎'); return entry;
+    DB.journal.push(entry); saveDB();
+    // Offered, never forced: the student stays on the writing surface unless they choose
+    // otherwise. Jumping straight to the notebook was the other candidate and was
+    // rejected -- it is the strongest "it saved" signal but it breaks the writing.
+    toast('Kept in your notebook ✎', { label: 'View →', onClick: () => revealEntry(entry) });
+    return entry;
+  }
+  // Open the notebook ON the entry just kept.
+  //
+  // The by-day lens is forced because it is the only one guaranteed to show a brand-new
+  // entry. Tags and Threads both FILTER: a page is listed there only once it has been
+  // tagged or threaded, which a page kept one second ago has not been. A student who
+  // clicked "View" and landed on a lens that did not list their entry would read that as
+  // the app having lost it -- the exact anxiety this link exists to answer.
+  // The row carries data-entryrow, NOT data-entry: the tag and thread <select>s inside
+  // each card already use data-entry for the id they act on, and one attribute meaning
+  // two things is how a future querySelectorAll('[data-entry]') quietly picks up wrappers.
+  function revealEntry(entry){
+    if(!entry) return;
+    noteMode = 'day'; noteSel = entry.date; nbEditingId = null;
+    show('note');
+    // After renderNote() has put the row in the document, not before.
+    requestAnimationFrame(() => {
+      const el = document.querySelector('[data-entryrow="' + entry.id + '"]');
+      if(!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('justkept');
+      setTimeout(() => el.classList.remove('justkept'), 2200);
+    });
+  }
+  // NB: named shapedPageText, not pageText -- `pageText(rid, doc, n)` already exists
+  // further down as the PDF page-text extractor for Romano's grounding. Two function
+  // declarations of one name in this IIFE means the later wins silently, and this one
+  // would have handed elevate() a Promise to store as the entry's text.
+  // The shaped One-Pager is contenteditable HTML; the notebook stores plain text. Block
+  // boundaries have to survive the conversion or a shaped page arrives in the notebook as
+  // one run-on paragraph, so they become newlines before the tags are dropped.
+  function shapedPageText(el){
+    if(!el) return '';
+    const d = document.createElement('div');
+    d.innerHTML = String(el.innerHTML || '')
+      .replace(/<\/(p|h[1-6]|li|div|blockquote)>/gi, '\n\n')
+      .replace(/<br\s*\/?>/gi, '\n');
+    return (d.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
   }
   function journalByDate(dateKey){ return DB.journal.filter(e=>e.date===dateKey); }
   function journalByPiece(pieceId){ return DB.journal.filter(e=>e.pieceId===pieceId).sort((a,b)=>a.ts.localeCompare(b.ts)); }
@@ -1290,7 +1386,8 @@ async function runReflection(rf, text, hooks) {
             <span class="note" id="keepcount"></span></span>
           <span class="locknote" id="lockmsg">Set your minutes, then start — the page locks and Focus opens.</span></div>
         <textarea class="gush" id="gush" placeholder="Don’t stop, don’t fix. Stalled? Write that you stalled — and keep going." disabled></textarea>
-        <div class="reflect" id="reflect" style="display:none"><span class="lbl">After the buzzer — reflection partner</span><span>How did it go? <em>(About the experience, never your words — stubbed.)</em></span></div>
+        <div class="reflect" id="reflect" style="display:none"><span class="lbl">Reflecting with ${AI_NAME}</span><span>How did it go? <em>(About the experience, never your words — stubbed.)</em></span></div>
+        <div style="margin-top:12px"><button class="btn ghost sm" id="opAddGush">＋ Add gush to notebook</button></div>
        </div>
        <div class="op-col shape" id="shapeCol">
         <div class="stagelabel"><span class="n">2</span> Shape — the One-Pager ${M.photos?'(image + text)':''}</div>
@@ -1302,7 +1399,7 @@ async function runReflection(rf, text, hooks) {
           <span class="sep"></span><button id="imgBtn" title="Insert a picture">&#128247;</button><span class="wc" id="wc">0 words</span></div>
         <div class="page" id="page" contenteditable="${fwGushed[fwCur]?'true':'false'}" data-ph="${M.ph}"></div>
         <input type="file" id="imgInput" accept="image/*" hidden ${M.photos?'multiple':''}>
-        <div class="composer-foot"><button class="btn" id="opExport">Export One-Pager (1-page PDF)</button><span class="note">The PDF you submit: your One-Pager, then your writing session and AI-use log.</span></div>
+        <div class="composer-foot"><button class="btn" id="opExport">Export One-Pager (1-page PDF)</button><button class="btn ghost sm" id="opAddPage">＋ Add to notebook</button><span class="note">The PDF you submit: your One-Pager, then your writing session and AI-use log.</span></div>
        </div>
       </div>`;
     wireTimer();
@@ -1319,6 +1416,20 @@ async function runReflection(rf, text, hooks) {
       if(rf0){ rf0.style.display = 'block'; paintReflection(rf0, saved.session.question, reflectHooks(fwCur)); }
     }
     const opKey = fwCur;
+    // ── Any writing done here can become a notebook entry.
+    //
+    // Todd, 23 Aug 2026: "students should be able to use any writing they do in
+    // Journaler-284 as a notebook entry." The currere gushes, reading notes, quick-writes
+    // and thread readings could already be kept. The One-Pager -- the largest thing a
+    // student writes in this app, and the thing they actually submit -- was the one
+    // surface with no route into the notebook at all. Both halves get one: the raw gush
+    // and the shaped page, kept separately, because they are different pieces of work
+    // and a student may want either without the other.
+    const opTitle = 'One-Pager ' + M.n + ' · ' + M.t;
+    const opAddG = document.getElementById('opAddGush');
+    if(opAddG) opAddG.onclick = () => { const g = document.getElementById('gush'); elevate(opKey, 'freewrite', opTitle + ' — gush', g ? g.value : ''); };
+    const opAddP = document.getElementById('opAddPage');
+    if(opAddP) opAddP.onclick = () => elevate(opKey, 'onepager', opTitle, shapedPageText(document.getElementById('page')));
     document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,reflect:reflectHooks(opKey),onEnd:()=>{fwDone[fwCur]=true;fwGushed[fwCur]=true;const gtxt=document.getElementById('gush').value;
       // The gush is a chalkboard: a new trial wipes the last one, by design. But the
       // RECORD should not be wiped with it, or a student who gushed four times shows up
@@ -1552,7 +1663,7 @@ async function runReflection(rf, text, hooks) {
       st.innerHTML=`<p class="kicker">${m.k}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
         <div class="gushbar"><div class="timerset" id="timerset"><button class="tadj" id="tminus">−</button><span class="timer editable" id="timer">8:00</span><button class="tadj" id="tplus">+</button></div><button class="btn go" id="startBtn">Start the gush</button><span class="locknote" id="lockmsg">Set your minutes, then start → locks + Focus.</span></div>
         <textarea class="gush" id="gush" placeholder="Don’t stop, don’t fix." disabled></textarea>
-        <div class="reflect" id="reflect" style="display:none"><span class="lbl">Reflection partner</span><span>How did remembering go? <em>(stubbed)</em></span></div>
+        <div class="reflect" id="reflect" style="display:none"><span class="lbl">Reflecting with ${AI_NAME}</span><span>How did remembering go? <em>(stubbed)</em></span></div>
         <div style="margin-top:12px"><button class="btn ghost sm" id="curAddNb">＋ Add to notebook</button></div>`;
       wireTimer();
       if(curBursts[curCur]){ document.getElementById('gush').value = curBursts[curCur]; }
@@ -2501,8 +2612,10 @@ async function runReflection(rf, text, hooks) {
   // A human name alone hides that this is software, so anything KEPT, exported or
   // printed carries AI_TAG ("Romano · AI") rather than AI_NAME. The live reading view
   // uses the bare name; the permanent record always marks it.
-  const AI_NAME = 'Romano';          // the name students see, everywhere
-  const AI_TAG  = AI_NAME + ' \u00b7 AI';   // the attribution chip -- always marks it as AI
+  // AI_NAME / AI_TAG are declared at the top of this file, above the reflection
+  // partner, because paintReflection() and runReflection() live OUTSIDE this IIFE and
+  // could not see them here. That is why the reflection panel still read "reflection
+  // partner" long after everything else had become Romano.
 
   // Keep an exchange with the reading partner. Decided 2026-08-23: good ideas do
   // spring from arguing with the text, and that is exactly what the notebook is for.
@@ -3393,7 +3506,7 @@ You: Really. The first line only has to exist, not be good.`;
     opts = opts || {};
     const when = new Date(e.ts).toLocaleString(undefined, {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
     if(nbEditingId === e.id){
-      return `<div class="entryrow"><div class="k">${escHtml(e.pieceTitle)} · ${when}</div>
+      return `<div class="entryrow" data-entryrow="${e.id}"><div class="k">${escHtml(e.pieceTitle)} · ${when}</div>
         <textarea id="edit_${e.id}" class="entry-edit" data-autogrow="1">${escHtml(e.text)}</textarea>
         <div style="margin-top:6px;display:flex;gap:6px"><button class="btn sm" data-save="${e.id}">Save</button><button class="btn ghost sm" data-cancel="1">Cancel</button><button class="btn ghost sm" data-del="${e.id}">Delete</button></div></div>`;
     }
@@ -3406,7 +3519,7 @@ You: Really. The first line only has to exist, not be good.`;
     // Tag and thread pickers moved into the header row, right-aligned beside the
     // delete control. They were two full-width rows under the page, so every entry
     // cost ~70px of vertical space to two controls most entries never use.
-    return `<div class="entryrow"><div class="k"><span class="k-head">${head}</span>${authorChip}<span class="k-tools">${tagBar(e)}${threadBar(e)}</span></div><div class="x writable" data-edit="${e.id}" title="Click to write on this page">${escHtml(e.text).replace(/\n/g,'<br>')}</div>
+    return `<div class="entryrow" data-entryrow="${e.id}"><div class="k"><span class="k-head">${head}</span>${authorChip}<span class="k-tools">${tagBar(e)}${threadBar(e)}<button class="entdel" data-del="${e.id}" title="Delete this page" aria-label="Delete this page"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M6.5 1h3a.5.5 0 0 1 .5.5V2h3a.5.5 0 0 1 0 1h-.55l-.6 10.2a1.5 1.5 0 0 1-1.5 1.3H5.65a1.5 1.5 0 0 1-1.5-1.3L3.55 3H3a.5.5 0 0 1 0-1h3v-.5a.5.5 0 0 1 .5-.5Zm-1.95 2 .59 10.14a.5.5 0 0 0 .5.46h4.7a.5.5 0 0 0 .5-.46L11.45 3h-6.9ZM6.8 5a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5Zm2.4 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5Z"/></svg></button></span></div><div class="x writable" data-edit="${e.id}" title="Click to write on this page">${escHtml(e.text).replace(/\n/g,'<br>')}</div>
       <div class="entacts"><button class="entlink" data-edit="${e.id}">Edit</button>${openLink}</div></div>`;
   }
 
@@ -3730,11 +3843,12 @@ You: Really. The first line only has to exist, not be good.`;
         <p class="pb-sub">What kept coming back, and what I make of it.</p>
         ${withEntries.map(({t, es}) => {
           const reads = es.filter(e => e.pieceKind === 'reflection');
-          // 'conversation' entries are kept AI exchanges, not the student's writing.
-          // They must never be counted as runs -- the entry count on this page is a
-          // claim about how much the student wrote.
+          // 'conversation' entries are kept AI exchanges. They are NOTEBOOK ONLY and do
+          // not print here at all -- Todd's call, 23 Aug 2026. The notebook is the one
+          // place nothing is graded, so what a student kept from Romano stays theirs;
+          // the bundle carries only writing they did. They must also never be counted as
+          // runs -- the entry count on this page is a claim about how much they wrote.
           const runs = es.filter(e => e.pieceKind !== 'reflection' && e.pieceKind !== 'conversation');
-          const kept = es.filter(e => e.pieceKind === 'conversation');
           return `<section class="pb-thread">
             <h3>${escHtml(t.name)}</h3>
             <p class="pb-sub">${runs.length} ${runs.length===1?'entry':'entries'} ·
@@ -3743,7 +3857,6 @@ You: Really. The first line only has to exist, not be good.`;
             <ol class="pb-toc">${runs.map(e => `<li><span class="pb-n">${nOf(e)}</span><span class="pb-d">${escHtml(fmtDate(e.date))}</span><span class="pb-t">${escHtml(entryLabel(e, 70))}</span></li>`).join('')}</ol>
             ${reads.length ? reads.map(e => `<div class="pb-read"><p class="pb-role">My reading of this thread · ${escHtml(fmtDate(e.date))}</p>${para(e.text)}</div>`).join('')
                            : `<p class="pb-role">No reading written for this thread.</p>`}
-            ${kept.length ? `<div class="pb-read"><p class="pb-role">Kept from the reading partner · ${kept.length} exchange${kept.length===1?'':'s'} — quoted, not written by me</p>${kept.map(e=>para(e.text)).join('')}</div>` : ''}
           </section>`;
         }).join('')}
       </section>` : '';
@@ -3786,9 +3899,20 @@ You: Really. The first line only has to exist, not be good.`;
   const SHEET_PX = { w: 680, h: 905 };
 
   // The second page of the export. OP1: "Your writing session and AI-use log go with
-  // it." This is that page — what the gush was, the gush itself, the reflection
-  // exchange, and what the machine was allowed to do. It is evidence, so when there
-  // is no recorded session it says so plainly rather than implying one happened.
+  // it." This is that page — what the gush was (how long, how many words, how many
+  // trials), the gush itself, the reflection exchange, and what the machine was allowed
+  // to do. It is evidence, so when there is no recorded session it says so plainly
+  // rather than implying one happened.
+  //
+  // THE GUSH IS PRINTED, deliberately. Todd weighed removing it on 23 Aug 2026 and kept
+  // it: the gush is the evidence that the One-Pager was built FROM something, and word
+  // counts alone can be produced by typing nonsense for eight minutes. OP1 says the
+  // writing session goes with the submission, and the session is the gush.
+  //
+  // The cost is real and was accepted knowingly: a gush a student knows will be read is
+  // a gush they will quietly tidy, and currere prompts ask for life history. If students
+  // start submitting suspiciously clean gushes, this is the line to revisit -- and the
+  // student-facing answer to "who can see this" must stay true to it.
   function sessionRecordHTML(M){
     const s = ((DB.freewrite[fwCur] || {}).session) || {};
     const gush = ((DB.freewrite[fwCur] || {}).gush || '').trim();
@@ -3815,7 +3939,7 @@ You: Really. The first line only has to exist, not be good.`;
     }
 
     const exchange = s.question ? `
-      <h3>The reflection partner asked</h3>
+      <h3>${escHtml(AI_TAG)} asked</h3>
       ${para(s.question)}
       <h3>I answered</h3>
       ${s.answer && s.answer.trim() ? para(s.answer) : '<p class="op-none">Not answered.</p>'}` : '';
@@ -3829,7 +3953,7 @@ You: Really. The first line only has to exist, not be good.`;
         ${exchange}
         <h3>AI use</h3>
         <p>${s.question
-          ? 'The reflection partner asked how the writing went, about the experience and not the content. It supplied none of the words in the One-Pager.'
+          ? escHtml(AI_TAG) + ' asked how the writing went, about the experience and not the content. It supplied none of the words in the One-Pager.'
           : 'No AI was used on this One-Pager.'}</p>
       </section>`;
   }
