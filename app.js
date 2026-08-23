@@ -1620,6 +1620,14 @@ async function runReflection(rf, text, hooks) {
 
   // A jump target is either a lens of this view or a piece elsewhere in the app.
   function wireProjectLinks(){
+    const ab = document.getElementById('aboutProj'), btn = document.getElementById('pjAbout');
+    if(ab && btn){
+      ab.style.display = 'none';
+      btn.onclick = () => { const on = ab.style.display !== 'none';
+        ab.style.display = on ? 'none' : 'block'; btn.textContent = on ? 'About this project →' : 'Hide'; };
+      const cl = document.getElementById('apClose');
+      if(cl) cl.onclick = () => { ab.style.display = 'none'; btn.textContent = 'About this project →'; };
+    }
     frame.querySelectorAll('[data-tagpick]').forEach(b => b.onclick = () => {
       const slot = b.dataset.tagpick, id = b.dataset.tagent, T = turnin();
       const prev = T[slot];
@@ -4233,6 +4241,39 @@ You: Really. The first line only has to exist, not be good.`;
     });
   }
 
+  // The assignment, on demand. It is orientation: needed once, re-read occasionally, and
+  // in the way every other time -- which is what it was doing sitting above the progress
+  // rows with a points column repeating on every line.
+  const GUIDELINES_URL = 'https://ohiomathteacher.github.io/tce284-fa26/writers-notebook/Writers%20Notebook%20Guidelines.docx';
+  function aboutProjectHTML(){
+    return `<div class="about-proj" id="aboutProj">
+      <p class="ap-h">The Writer's Notebook — ${NB_TOTAL} points</p>
+      <p>You turn in a <strong>report</strong>, not the whole notebook: the pages you choose, and
+        what you made of them. A <strong>marked</strong> page is printed in full. Everything else
+        is counted but not read — one line each in the Contents.</p>
+      <p>Anything you write is fair game to bring in here and rethink, expand or rewrite. What
+        does <em>not</em> belong is a finished draft that already lives somewhere else — your
+        timed One-Pager gushes go in on sheet two of their own PDF, and nothing gets counted
+        twice.</p>
+      <p><strong>Most of these mark themselves.</strong> The four required entries have their own
+        pages under <em>Freewrite → For the notebook</em>: write one, keep it, and it is marked in
+        the same action. Your Look-Back Letter too. The only thing left for December is flagging
+        the three entries you want read closely.</p>
+      <table class="ap-rows">
+        <tr><td>1 · Kept practice</td><td>20</td><td>Every entry you keep. Nothing to mark.</td></tr>
+        <tr><td>2 · Required entries</td><td>5</td><td>Baseline · Currere · Topic map · Source notes</td></tr>
+        <tr><td>3 · Look-Back Letter</td><td>10</td><td>Written in the last class, to your Week 1 answer.</td></tr>
+        <tr><td>4 · Thinking on the page</td><td>15</td><td>Your 3 flagged entries, and your reading of a thread.</td></tr>
+      </table>
+      <p class="ap-warn">Filling all nine boxes earns rows 2–4 — <strong>30 of the ${NB_TOTAL}
+        points</strong>. The other 20 are Row 1, and they come from how much you actually kept,
+        which no mark can fill in.</p>
+      <p><a href="${GUIDELINES_URL}" target="_blank" rel="noopener">Read the full assignment
+        (Writer's Notebook Guidelines) →</a></p>
+      <p><button class="btn ghost sm" id="apClose">Close</button></p>
+    </div>`;
+  }
+
   function projectPanel(){
     const ord   = numberedEntries();
     const T     = turnin();
@@ -4251,9 +4292,7 @@ You: Really. The first line only has to exist, not be good.`;
     const jump = (label, to) => `<button class="pj-link" data-jump="${to}">${label}</button>`;
     const row = (n, name, pts, feeds, state, ok) => `
       <tr class="${ok ? 'pj-ok' : ''}">
-        <td class="pj-n">${n}</td>
-        <td class="pj-name">${name}<em>${feeds}</em></td>
-        <td class="pj-pts">${pts}</td>
+        <td class="pj-name">${name}</td>
         <td class="pj-state">${state}</td>
       </tr>`;
 
@@ -4271,22 +4310,10 @@ You: Really. The first line only has to exist, not be good.`;
          ${days} day${days === 1 ? '' : 's'} · ${words.toLocaleString()} words`
       : `nothing kept yet — ${jump('start with Why do we write? →','baseline')}`;
 
-    return `<details class="project" ${tagged === 0 ? 'open' : ''}>
-      <summary><span class="pj-ico">📓</span><span class="pj-txt">What you are building
-        <em>The Writer's Notebook — ${NB_TOTAL} points</em></span></summary>
-      <p class="runline">You turn in a <strong>report</strong>, not the whole notebook: the pages
-        you choose, and what you made of them. A <strong>tagged</strong> page is printed in full.
-        Everything else is counted but not read — one line each in the Contents.</p>
-      <p class="runline">Anything you write is fair game to bring in here and rethink, expand or
-        rewrite. What does <em>not</em> belong is a finished draft that already lives somewhere
-        else — your timed One-Pager gushes go in on sheet two of their own PDF, and nothing gets
-        counted twice.</p>
-      <p class="runline"><strong>Most of these tag themselves.</strong> The four required
-        entries have their own pages under <em>Freewrite → For the notebook</em>: write one,
-        keep it, and it is tagged in the same action. Your Look-Back Letter too. The only
-        thing left for December is flagging the three entries you want read closely.</p>
+    return `<div class="project">
+      <p class="pj-txt">My progress
+        <button class="pj-about" id="pjAbout">About this project →</button></p>
       <table class="pjtable">
-        <tr><th></th><th>Scored on</th><th class="pj-pts">Pts</th><th>Where you are</th></tr>
         ${row(1, 'Kept practice', 20, `Every entry you keep, from anywhere. Nothing to tag. ${jump('Open page →','open')}`,
               kept + `<br><span class="pj-aim">${band}</span>`,
               ord.length >= ENTRIES_BANDS.full)}
@@ -4299,10 +4326,7 @@ You: Really. The first line only has to exist, not be good.`;
         ${row(4, 'Thinking on the page', 15, `Flag 3 kept entries — one per act — and write your reading of a thread. ${jump('Threads →','threads')}`,
               `${flags} of 3 flagged · reading ${ana ? 'kept' : 'not written'}`, flags === 3 && ana)}
       </table>
-      <p class="runline pj-warn">Filling all nine boxes earns rows 2–4 — <strong>30 of the ${NB_TOTAL}
-        points</strong>. The other 20 are Row 1, and they come from how much you actually kept,
-        which no tag can fill in.</p>
-    </details>`;
+      ${aboutProjectHTML()}</div>`;
   }
 
   function readiness(){

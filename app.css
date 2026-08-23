@@ -1115,3 +1115,24 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .tray-open { background: none; border: 0; padding: 0; font: inherit; font-size: 13px;
   color: var(--muted); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .tray-open:hover { color: var(--accent); }
+
+/* ── My progress: status only. The assignment moved behind a link. ─────────── */
+.project { background: var(--margin-bg); border: 1px solid var(--comment-border);
+  border-radius: 9px; padding: 10px 14px 12px; margin: 0 0 14px; }
+.project .pj-txt { display: flex; align-items: baseline; gap: .6rem; margin: 0 0 6px;
+  font-family: var(--sans); font-weight: 700; font-size: 15.5px; }
+.pj-about { background: none; border: 0; padding: 0; font: inherit; font-weight: 400;
+  font-size: 13.5px; color: var(--accent); text-decoration: underline;
+  text-underline-offset: 2px; cursor: pointer; margin-left: auto; }
+.pj-about:hover { color: var(--ink); }
+.pjtable .pj-name { width: 12rem; }
+.about-proj { border-top: 1px solid var(--comment-border); margin-top: 10px; padding-top: 10px;
+  font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+.about-proj p { margin: 0 0 8px; }
+.about-proj .ap-h { font-weight: 700; font-size: 15px; }
+.about-proj a { color: var(--accent); }
+.ap-rows { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13.5px; }
+.ap-rows td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--comment-border); vertical-align: top; }
+.ap-rows td:nth-child(1) { font-weight: 600; width: 11rem; }
+.ap-rows td:nth-child(2) { text-align: right; width: 2.2rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.about-proj .ap-warn { border-left: 3px solid var(--accent); padding-left: .7rem; }
