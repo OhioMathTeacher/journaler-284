@@ -1059,3 +1059,6 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .pjtable .pj-aim { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 .pjtable tr.pj-ok .pj-state { color: var(--go, #3f7a4d); }
 .project .pj-warn { border-left: 3px solid var(--accent); padding-left: .7rem; }
+.wp-note { background: rgba(198,154,92,.16); border-left: 3px solid rgba(198,154,92,.75);
+  border-radius: 0 5px 5px 0; padding: .4rem .55rem; margin-bottom: .45rem;
+  font-size: .84rem; line-height: 1.4; color: #e7dcc9; }

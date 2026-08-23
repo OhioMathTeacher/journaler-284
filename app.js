@@ -1318,6 +1318,44 @@ async function runReflection(rf, text, hooks) {
     return el ? el.getBoundingClientRect() : { left:_lastPtr.x, right:_lastPtr.x, top:_lastPtr.y, bottom:_lastPtr.y };
   }
 
+  // ── "All writing should be fair game to reinvision, expand upon, revise in the
+  //    notebook. But it's not a place to hold final drafts from other places."
+  //    -- Todd, 23 Aug 2026.
+  //
+  // The Guidelines put it as a rule: "Your timed One-Pager gushes do not go here. Each
+  // one is submitted on sheet two of the One-Pager PDF it produced ... Nothing gets
+  // counted twice." A LINE lifted out of a gush is not that -- it is a seed the student
+  // means to do something else with, and that is the whole point of the notebook. The
+  // WHOLE gush is that, exactly.
+  //
+  // So the test is proportion, not origin: nearly all of a One-Pager surface reads as
+  // the draft itself, and on THAT surface "To notebook" is withdrawn rather than merely
+  // warned about -- Todd, 23 Aug 2026: "Let's get rid of sending the whole thing of
+  // anything to notebook. Student selects passages."
+  //
+  // ⚠ SCOPED TO ONE-PAGERS ON PURPOSE, and the Guidelines are why. They list what the
+  //   notebook holds WHOLE: "Every free-write, including the Week 1 ... baseline and the
+  //   daily openers", "in-class quick-writes", "your currere gushes, brainstorms, and
+  //   storyboard notes", "your research topic map and source notes", "the Week 15
+  //   Look-Back Letter". Four of those are the Required entries row (5 pts) and the
+  //   Letter is its own row (10 pts). A rule that let students keep passages only would
+  //   put 15 of the 50 points out of reach and undercount Row 1, which counts entries.
+  //   The timed One-Pager gush is the single thing the Guidelines send elsewhere.
+  const WHOLE_DRAFT_RATIO = 0.9, WHOLE_DRAFT_MIN = 200;
+  function wholeDraftNote(text, el){
+    if(tab !== 'free' || !OPS[fwCur]) return '';
+    let src = '';
+    if(el && el.tagName === 'TEXTAREA') src = String(el.value || '');
+    else if(el && el.id === 'page') src = shapedPageText(el);
+    else return '';
+    const whole = src.trim().length;
+    if(whole < WHOLE_DRAFT_MIN) return '';
+    if(text.trim().length / whole < WHOLE_DRAFT_RATIO) return '';
+    return 'That is the whole draft, so it cannot go to the notebook \u2014 it is already '
+         + 'submitted on sheet two of this One-Pager\u2019s PDF, and nothing gets counted twice. '
+         + 'Select the part you want to rework and keep that.';
+  }
+
   function ensureWritePopup(){
     let pop = document.getElementById('writePopup');
     if(pop) return pop;
@@ -1326,6 +1364,7 @@ async function runReflection(rf, text, hooks) {
     pop.innerHTML = '<div class="popup-passage" id="wpPassage"></div>'
       + '<input type="text" id="wpInput" placeholder="Ask ' + AI_NAME + ' about this…" autocomplete="off">'
       + '<div class="popup-hint" id="wpHint"></div>'
+      + '<div class="wp-note" id="wpNote" style="display:none"></div>'
       + '<div class="wp-answer" id="wpAnswer" style="display:none"></div>'
       + '<div class="popup-quick">'
       +   '<button class="popup-chip" id="wpCopy">⧉ Copy</button>'
@@ -1375,6 +1414,10 @@ async function runReflection(rf, text, hooks) {
     if(el && el.classList) el.classList.add('wp-source');
     pop.querySelector('#wpPassage').textContent = text.length > 100 ? text.slice(0, 100) + '…' : text;
     const a = pop.querySelector('#wpAnswer'); a.style.display = 'none'; a.textContent = '';
+    const note = wholeDraftNote(text, el), noteEl = pop.querySelector('#wpNote');
+    noteEl.textContent = note; noteEl.style.display = note ? 'block' : 'none';
+    // Copy and Ask still work on a whole draft; only the filing of it goes away.
+    pop.querySelector('#wpNb').style.display = note ? 'none' : '';
     // With no AI connected, Copy and To notebook still work -- they are why a student
     // without a key can use this at all. Only the asking disappears.
     const noAI = getProvider() === 'none';
@@ -3989,6 +4032,10 @@ You: Really. The first line only has to exist, not be good.`;
       <p class="runline">You turn in a <strong>report</strong>, not the whole notebook: the pages
         you choose, and what you made of them. A <strong>tagged</strong> page is printed in full.
         Everything else is counted but not read — one line each in the Contents.</p>
+      <p class="runline">Anything you write is fair game to bring in here and rethink, expand or
+        rewrite. What does <em>not</em> belong is a finished draft that already lives somewhere
+        else — your timed One-Pager gushes go in on sheet two of their own PDF, and nothing gets
+        counted twice.</p>
       <table class="pjtable">
         <tr><th></th><th>Scored on</th><th class="pj-pts">Pts</th><th>Where you are</th></tr>
         ${row(1, 'Kept practice', 20, 'Every entry you keep. Nothing to tag.',
