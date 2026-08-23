@@ -1703,7 +1703,7 @@ async function runReflection(rf, text, hooks) {
   }
 
   function renderFree(){
-    body.classList.remove('wide');
+    body.classList.remove('wide', 'bleed');
     const spine = `
       <p class="lead">The Five One-Pagers</p>
       ${Object.entries(OPS).map(([k,o])=>`<button class="moment ${k===fwCur?'on':''} ${fwDone[k]?'has':''}" data-op="${k}"><span class="mname"><span class="dot"></span>${o.n} · ${o.t}</span><span class="mkind">gush → one page</span></button>`).join('')}
@@ -2110,7 +2110,7 @@ async function runReflection(rf, text, hooks) {
   let curCur='reg';
   const curBursts = { reg: (DB.currere.reg || ''), pro: (DB.currere.pro || '') };
   function renderCur(){
-    body.classList.remove('wide');
+    body.classList.remove('wide', 'bleed');
     const spine = Object.entries(MO).map(([k,m])=>`<button class="moment ${k===curCur?'on':''} ${curBursts[k]?'has':''}" data-mo="${k}"><span class="mname"><span class="dot"></span>${m.t}</span><span class="mkind">${m.kind==='gush'?'timed gush':m.kind==='ana'?'compare':'open draft'}</span></button>`).join('');
     frame.innerHTML = `<div class="head"><h1>Your Currere</h1><p>Four movements, run in order the way a current runs. Structure loosens as you go.</p></div>
       <div class="layout"><nav class="spine"><p class="lead">The four moments</p>${spine}<p class="runline">Gushes → comparison → open page.</p></nav><main class="stage" id="stage"></main></div>`;
@@ -3724,7 +3724,7 @@ You: Really. The first line only has to exist, not be good.`;
     return `<span class="dirchip off" title="${escHtml(why)}">📁 ${escHtml(nm)}<button class="dirchip-go" id="reconnectDir">Reconnect folder</button><button class="dirchip-x" id="forgetDir" title="Stop using this folder">✕</button></span>`;
   }
   function renderRead(){
-    body.classList.add('wide');
+    body.classList.add('bleed');
     sortReadings();
     const options = readings.length
       ? readings.map((r,i)=>`<option value="${i}" ${i===activeReading?'selected':''} title="${escHtml(r.name)}">${escHtml(readingLabel(r))}</option>`).join('')
@@ -4901,7 +4901,7 @@ You: Really. The first line only has to exist, not be good.`;
     return new Date(y,(m||1)-1,d||1).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
 
   function renderNote(){
-    body.classList.add('wide');
+    body.classList.add('bleed');
     // The Tags lens advertises itself. Todd: "Folks won't know to click on Tags." A lens
     // name sitting third in a row of three says nothing about being required before you
     // submit, so it carries its own count and goes red until every column is filled.
@@ -5218,7 +5218,7 @@ You: Really. The first line only has to exist, not be good.`;
   }
 
   function renderTip(){
-    body.classList.remove('wide');
+    body.classList.remove('wide', 'bleed');
     const fmt = k => { const [y,m,d] = String(k).split('-').map(Number);
       return new Date(y, (m||1)-1, d||1).toLocaleDateString(undefined,
         { weekday:'long', month:'long', day:'numeric' }); };

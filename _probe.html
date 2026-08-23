@@ -12,7 +12,7 @@
      every deploy: GitHub Pages will otherwise serve the cached files after a push.
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-23-132">
+<link rel="stylesheet" href="app.css?v=2026-08-23-131">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -212,7 +212,15 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-23-132"></script>
-<script src="app.js?v=2026-08-23-132"></script>
-</body>
+<script src="tips.js?v=2026-08-23-131"></script>
+<script src="app.js?v=2026-08-23-131"></script>
+<script>window.addEventListener("load",()=>setTimeout(()=>{
+const d=JSON.parse(localStorage.getItem("cr284_state")||"{}");
+d.journal=d.journal||[];
+for(let i=0;i<6;i++) d.journal.push({id:"x"+i,pieceKind:"freewrite",pieceTitle:"Free-writes & quick-writes",
+ ts:"2026-08-2"+i+"T10:00:00Z",date:"2026-08-1"+i,text:"A door you were afraid to open, and the room behind it that you still describe to people."});
+localStorage.setItem("cr284_state",JSON.stringify(d));
+document.body.classList.remove("bleed");
+location.reload();
+},400))</script></body>
 </html>
