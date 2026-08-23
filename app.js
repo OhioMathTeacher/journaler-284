@@ -3926,6 +3926,87 @@ You: Really. The first line only has to exist, not be good.`;
   }
   // Everything that must be true before the report is worth sending. Eight tags, then the
   // reading of a thread — in that order, because you cannot analyse what you have not kept.
+  // ── WHAT THE PROJECT IS, said inside the app.
+  //
+  // Todd: "when students have writings for all X tags, are they done with the project?
+  // Or is that just a part of the project? What is the project? lol" -- and he is the
+  // one who wrote it. If the author has to ask, a student has no chance.
+  //
+  // The four scored rows lived ONLY on the printed bundle cover, so nobody met them
+  // until the thing was already finished. Worse, the checklist reads "n of 9", which
+  // invites exactly the wrong conclusion: nine of nine is rows 2, 3 and 4 -- thirty of
+  // the fifty points. The other twenty are Row 1, kept practice, which no tag can fill
+  // and which is the single biggest row on the sheet.
+  //
+  // Every number here is COUNTED, never typed [[measured-not-typed]]: a student who has
+  // kept eleven pages should see eleven, not an estimate of where they ought to be.
+  const NB_TOTAL = 50;
+  // ⚠ THE ONE PLACE THESE NUMBERS LIVE, and they are the HANDOUT'S, not ours. Checked
+  //   against "Writers Notebook Guidelines.docx" (tce284-fa26/writers-notebook) on
+  //   23 Aug 2026, because Todd asked whether the figure had moved back to 20. It had
+  //   not, and never was: the document says "Expect 25 to 40 entries by December", and
+  //   the Kept practice row scores 25+ full, 15-24 partial, under 15 none. The nearest
+  //   thing to 20 is the middle of the partial band.
+  //   If the handout changes, change it HERE -- the panel, the row-1 tick and the
+  //   banding all read from this.
+  const ENTRIES_BANDS = { full: 25, partial: 15, high: 40, by: 'December' };
+  function projectPanel(){
+    const ord   = numberedEntries();
+    const T     = turnin();
+    const days  = new Set(ord.map(e => e.date)).size;
+    const words = ord.reduce((n, e) => n + wordsIn(e), 0);
+    const req   = ['baseline','currere','topicmap','sources'].filter(k => T[k]).length;
+    const letter= T['letter'] ? 1 : 0;
+    const flags = ['flag1','flag2','flag3'].filter(k => T[k]).length;
+    const ana   = analysisDone() ? 1 : 0;
+    const tagged = req + letter + flags + ana;
+
+    const row = (n, name, pts, feeds, state, ok) => `
+      <tr class="${ok ? 'pj-ok' : ''}">
+        <td class="pj-n">${n}</td>
+        <td class="pj-name">${name}<em>${feeds}</em></td>
+        <td class="pj-pts">${pts}</td>
+        <td class="pj-state">${state}</td>
+      </tr>`;
+
+    // The rubric bands, not a vague target: a student at 19 should know they are inside
+    // the partial band and what closes it, rather than reading "expect 25-40" and
+    // guessing. Spread matters as much as count -- "Twenty-eight entries dated in
+    // November is not a practice" -- so the days are shown beside the total.
+    const band = ord.length >= ENTRIES_BANDS.full
+      ? `${ENTRIES_BANDS.full}+ entries — full marks for this row, if they are spread across the term`
+      : ord.length >= ENTRIES_BANDS.partial
+        ? `partial band (${ENTRIES_BANDS.partial}–${ENTRIES_BANDS.full - 1}) — ${ENTRIES_BANDS.full - ord.length} more reaches full marks`
+        : `under ${ENTRIES_BANDS.partial} scores nothing for this row — ${ENTRIES_BANDS.partial - ord.length} more reaches the partial band`;
+    const kept = ord.length
+      ? `<strong>${ord.length}</strong> ${ord.length === 1 ? 'entry' : 'entries'} ·
+         ${days} day${days === 1 ? '' : 's'} · ${words.toLocaleString()} words`
+      : 'nothing kept yet';
+
+    return `<details class="project" ${tagged === 0 ? 'open' : ''}>
+      <summary><span class="pj-ico">📓</span><span class="pj-txt">What you are building
+        <em>The Writer's Notebook — ${NB_TOTAL} points</em></span></summary>
+      <p class="runline">You turn in a <strong>report</strong>, not the whole notebook: the pages
+        you choose, and what you made of them. A <strong>tagged</strong> page is printed in full.
+        Everything else is counted but not read — one line each in the Contents.</p>
+      <table class="pjtable">
+        <tr><th></th><th>Scored on</th><th class="pj-pts">Pts</th><th>Where you are</th></tr>
+        ${row(1, 'Kept practice', 20, 'Every entry you keep. Nothing to tag.',
+              kept + `<br><span class="pj-aim">${band}</span>`,
+              ord.length >= ENTRIES_BANDS.full)}
+        ${row(2, 'Required entries', 5, 'Baseline · Currere · Topic map · Source notes',
+              `${req} of 4 tagged`, req === 4)}
+        ${row(3, 'Look-Back Letter', 10, 'Your letter to the writer who answered on day one',
+              letter ? 'tagged' : 'not tagged yet', !!letter)}
+        ${row(4, 'Thinking on the page', 15, 'Your 3 flagged entries, and your reading of a thread',
+              `${flags} of 3 flagged · reading ${ana ? 'kept' : 'not written'}`, flags === 3 && ana)}
+      </table>
+      <p class="runline pj-warn">Filling all nine boxes earns rows 2–4 — <strong>30 of the ${NB_TOTAL}
+        points</strong>. The other 20 are Row 1, and they come from how much you actually kept,
+        which no tag can fill in.</p>
+    </details>`;
+  }
+
   function readiness(){
     const T = turnin();
     const checks = TURNIN_SLOTS.map(([k, label]) => ({ k, label, ok: !!T[k] }));
@@ -4548,6 +4629,7 @@ You: Really. The first line only has to exist, not be good.`;
       }).join('');
       frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Every entry against every tag. Click a box to tag a page — clicking a tag another page holds moves it here.</p>${toggle}</div>
         <div class="tagsgrid">
+          ${projectPanel()}
           <p class="runline"><strong>Every column needs at least one filled box.</strong>
             A tagged page is printed in full in your report; everything else appears in the
             Contents as one line, which is what keeps the report short.</p>

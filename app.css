@@ -1032,3 +1032,30 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
    keeps its own rect-based highlighting instead. */
 .wp-source::selection,  .wp-source ::selection  { background: rgba(198,154,92,.55); color: inherit; }
 .wp-source::-moz-selection, .wp-source ::-moz-selection { background: rgba(198,154,92,.55); color: inherit; }
+
+/* ── "What you are building" — the assignment, inside the app ──────────────────
+   The four scored rows lived only on the printed bundle cover, so a student met them
+   after finishing. Open by default until the first tag is placed, then collapsed:
+   it is orientation, and orientation stops being useful once you are oriented. */
+.project { background: var(--margin-bg); border: 1px solid var(--comment-border);
+  border-radius: 9px; padding: 10px 14px; margin: 0 0 14px; }
+.project > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: .5rem; }
+.project > summary::-webkit-details-marker { display: none; }
+.project .pj-ico { font-size: 1.05rem; }
+.project .pj-txt { font-family: var(--sans); font-weight: 700; font-size: 15.5px; }
+.project .pj-txt em { display: block; font-weight: 400; font-style: normal;
+  font-size: 13.5px; color: var(--muted); margin-top: 1px; }
+.pjtable { width: 100%; border-collapse: collapse; margin: 10px 0 8px; font-family: var(--sans); font-size: 14px; }
+.pjtable th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--comment-border); padding: 0 8px 4px 0; }
+.pjtable td { padding: 7px 8px 7px 0; border-bottom: 1px solid var(--comment-border); vertical-align: top; }
+.pjtable tr:last-child td { border-bottom: 0; }
+.pjtable .pj-n { color: var(--muted); width: 1.4rem; }
+.pjtable .pj-name { font-weight: 600; }
+.pjtable .pj-name em { display: block; font-weight: 400; font-style: normal;
+  font-size: 13px; color: var(--muted); margin-top: 2px; }
+.pjtable .pj-pts { text-align: right; width: 2.6rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+.pjtable .pj-state { width: 40%; }
+.pjtable .pj-aim { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.pjtable tr.pj-ok .pj-state { color: var(--go, #3f7a4d); }
+.project .pj-warn { border-left: 3px solid var(--accent); padding-left: .7rem; }
