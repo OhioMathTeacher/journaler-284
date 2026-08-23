@@ -95,7 +95,15 @@
      of pixels further in on a wide monitor, and changing tab slid the page sideways.
      The cap stays — nobody wants a 2,000px line of prose — but the slack now falls
      on the right, where it costs nothing, instead of being split around the content. */
-  .frame { max-width: 1180px; margin: 0; padding: 22px clamp(12px,3vw,28px) 60px; }
+  /* ⚠ 1180 was chosen when the frame was CENTRED and only Readings and Notebook
+     broke out of it. Flush left it simply left a third of a wide monitor empty to
+     the right of Freewrite. Todd: "make the directions / content wider to fill up
+     more of the page. This will use less vertical space (a good thing)" — and the
+     cost of a narrow pane really is paid vertically: the framing prose wrapped at
+     ~530px and pushed the writing surface below the fold.
+     Still capped, because a 2,000px line of prose is unreadable, and the writing
+     surfaces keep their own --writecol on top of this. */
+  .frame { max-width: 1560px; margin: 0; padding: 22px clamp(12px,3vw,28px) 60px; }
   /* ⚠ FULL-BLEED IS ITS OWN CLASS, and it is not the same thing as the One-Pager's
      two-column layout. Both used to be `body.wide`, so opening a gushed One-Pager
      tore the whole frame out to the window edge while every other page in the same
@@ -108,7 +116,9 @@
   .head h1 { font-family: var(--write); font-weight: 600; font-size: 30px; margin: 0 0 4px; }
   .head p { margin: 0 0 18px; color: var(--muted); font-size: 16.5px; max-width: 70ch; }
 
-  .layout { display: grid; grid-template-columns: 216px 1fr; gap: 24px; align-items: start; }
+  /* The gap is the breathing room between the rail and the pane. At 24px the pane
+     read as glued to the list it was launched from. */
+  .layout { display: grid; grid-template-columns: 216px 1fr; gap: 52px; align-items: start; }
   .spine { display: flex; flex-direction: column; gap: 6px; position: sticky; top: 64px; }
   .spine .lead { font-size: 12.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 2px 0 4px 4px; font-weight: 700; }
   .moment { text-align: left; font-family: var(--sans); cursor: pointer; background: var(--comment-bg); border: 1px solid var(--comment-border); border-left: 3px solid transparent; border-radius: 6px; padding: 10px 13px; display: flex; flex-direction: column; gap: 2px; }
@@ -323,7 +333,7 @@
      to shape rather than to gush. Two panes will not fit in 720px, so widen only in
      that case — `wide` is the class that already marks the two-column state. A single
      column stays narrow, since 1180px of one-line-per-paragraph is unreadable. */
-  body.focus.wide:not(.gushing) .frame { max-width: 1180px; }
+  body.focus.wide:not(.gushing) .frame { max-width: 1560px; }
   .exitfocus { display: none; position: fixed; top: 14px; right: 16px; z-index: 20; }
   body.focus .exitfocus { display: inline-flex; }
 
@@ -453,7 +463,10 @@
    do. The rail keeps the card idiom; the poem does not. */
 .poemlayout .stage.plain { background: none; border: 0; border-radius: 0; padding: 0;
   min-height: 0; }
-.poemlayout { grid-template-columns: 232px 1fr; }
+/* Tips is a quotation, not a working surface, so it does not want the whole pane —
+   it wants to sit clear of the rail. Todd: "the right pane moved horizontally to
+   give more breathing room". */
+.poemlayout { grid-template-columns: 232px 1fr; column-gap: 76px; }
 /* ── The rail: sixteen links, one screen ──────────────────────────────────────
    These were .moment cards, four lines and a border each, which came to roughly
    1,400px of rail for a term — you had to scroll the sidebar to see the list it
