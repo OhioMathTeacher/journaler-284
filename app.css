@@ -1022,3 +1022,13 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
   margin-bottom: .45rem; font-size: .9rem; line-height: 1.45; max-height: 150px; overflow: auto; }
 .wp-answer .wp-who { display: block; font-size: .74rem; letter-spacing: .04em;
   text-transform: uppercase; color: rgba(244,239,230,.45); margin-bottom: .2rem; }
+
+/* ── The highlight has to survive the decision ─────────────────────────────────
+   A browser paints an unfocused selection grey, or stops painting it at all, which
+   is precisely when the student is looking at the popup deciding what to do with
+   those words. .wp-source is set on whatever they selected in while the popup is up,
+   so the run stays visibly marked in the app's own colour rather than the system's.
+   Chats and text boxes can do this exactly; the PDF layer cannot, which is why it
+   keeps its own rect-based highlighting instead. */
+.wp-source::selection,  .wp-source ::selection  { background: rgba(198,154,92,.55); color: inherit; }
+.wp-source::-moz-selection, .wp-source ::-moz-selection { background: rgba(198,154,92,.55); color: inherit; }

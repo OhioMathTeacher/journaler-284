@@ -1273,6 +1273,51 @@ async function runReflection(rf, text, hooks) {
     return { id: 'free', kind: 'freewrite', title: 'Free-writes & quick-writes' };
   }
 
+  // ── Where the selection actually IS on screen.
+  //
+  // A <textarea> has no Range, so there is no rectangle to ask for. The standard answer
+  // is a mirror: an off-screen div wearing the textarea's own metrics, holding the same
+  // text with the selected run in a <span>, whose box can be measured. Without this the
+  // popup can only be placed at the pointer -- which is how it ended up sitting on top
+  // of the words it is asking about.
+  const MIRROR_PROPS = ['boxSizing','width','paddingTop','paddingRight','paddingBottom','paddingLeft',
+    'borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth','fontFamily','fontSize',
+    'fontWeight','fontStyle','letterSpacing','lineHeight','textTransform','wordSpacing','textIndent'];
+  function textareaSelectionRect(ta){
+    try {
+      const cs = getComputedStyle(ta);
+      const div = document.createElement('div');
+      MIRROR_PROPS.forEach(p => { div.style[p] = cs[p]; });
+      div.style.position = 'absolute'; div.style.left = '-9999px'; div.style.top = '0';
+      div.style.visibility = 'hidden'; div.style.whiteSpace = 'pre-wrap';
+      div.style.overflowWrap = 'break-word'; div.style.height = 'auto';
+      const head = document.createTextNode(ta.value.slice(0, ta.selectionStart));
+      const span = document.createElement('span');
+      span.textContent = ta.value.slice(ta.selectionStart, ta.selectionEnd) || '.';
+      div.appendChild(head); div.appendChild(span);
+      document.body.appendChild(div);
+      const t = ta.getBoundingClientRect(), d = div.getBoundingClientRect(), s = span.getBoundingClientRect();
+      const r = { left: t.left + (s.left - d.left),
+                  right: t.left + (s.right - d.left),
+                  top: t.top + (s.top - d.top) - ta.scrollTop,
+                  bottom: t.top + (s.bottom - d.top) - ta.scrollTop };
+      div.remove();
+      // A selection scrolled out of view gives a rect outside the box; clamp to it so
+      // the popup never flies off to where nothing is visible.
+      if(r.bottom < t.top || r.top > t.bottom) return t;
+      return r;
+    } catch(e){ return ta.getBoundingClientRect(); }
+  }
+  function selectionRect(el){
+    if(el && el.tagName === 'TEXTAREA') return textareaSelectionRect(el);
+    const sel = window.getSelection();
+    if(sel && sel.rangeCount){
+      const r = sel.getRangeAt(0).getBoundingClientRect();
+      if(r && (r.width || r.height)) return r;
+    }
+    return el ? el.getBoundingClientRect() : { left:_lastPtr.x, right:_lastPtr.x, top:_lastPtr.y, bottom:_lastPtr.y };
+  }
+
   function ensureWritePopup(){
     let pop = document.getElementById('writePopup');
     if(pop) return pop;
@@ -1291,6 +1336,16 @@ async function runReflection(rf, text, hooks) {
       +   '<button class="popup-btn primary" id="wpAsk">Ask ' + AI_NAME + '</button>'
       + '</div>';
     document.body.appendChild(pop);
+    // ⚠ THE SELECTION MUST STAY PAINTED. A browser stops drawing a selection the moment
+    // its element loses focus, so anything here that takes focus makes the highlighted
+    // words go grey -- exactly when the student is deciding what to do with them.
+    // Todd: "the text I highlighted should remain highlighted until I make a decision."
+    // Suppressing mousedown on the popup's chrome keeps focus, and the highlight, where
+    // the words are. The input is exempt: clicking it means they have already chosen to
+    // ask, and it cannot be typed into without focus.
+    pop.addEventListener('mousedown', function(e){
+      if(e.target.id !== 'wpInput') e.preventDefault();
+    });
     pop.querySelector('#wpCancel').onclick = closeWritePopup;
     pop.querySelector('#wpCopy').onclick   = copyWriteSelection;
     pop.querySelector('#wpNb').onclick     = keepWriteSelection;
@@ -1309,12 +1364,15 @@ async function runReflection(rf, text, hooks) {
     pop.style.display = 'none';
     const i = pop.querySelector('#wpInput'); if(i) i.value = '';
     const a = pop.querySelector('#wpAnswer'); if(a){ a.style.display = 'none'; a.textContent = ''; }
+    if(_selWhere && _selWhere.classList) _selWhere.classList.remove('wp-source');
     _selText = ''; _selWhere = null;
   }
 
   function openWritePopup(text, el){
     const pop = ensureWritePopup();
+    if(_selWhere && _selWhere.classList) _selWhere.classList.remove('wp-source');
     _selText = text; _selWhere = el;
+    if(el && el.classList) el.classList.add('wp-source');
     pop.querySelector('#wpPassage').textContent = text.length > 100 ? text.slice(0, 100) + '…' : text;
     const a = pop.querySelector('#wpAnswer'); a.style.display = 'none'; a.textContent = '';
     // With no AI connected, Copy and To notebook still work -- they are why a student
@@ -1326,15 +1384,22 @@ async function runReflection(rf, text, hooks) {
       ? 'Connect an AI (top right) to ask ' + AI_NAME + ' about this.'
       : 'Enter asks ' + AI_NAME;
     pop.style.display = 'block';
-    // Positioned at the pointer: a textarea selection has no Range, so there is no
-    // rectangle to hang it off, and the pointer is where the eye already is.
-    const w = pop.offsetWidth || 300, h = pop.offsetHeight || 190;
-    let left = _lastPtr.x - w / 2, top = _lastPtr.y + 12;
+    // Anchored to the SELECTION, never the pointer, and never over it: below the last
+    // line if there is room, above the first line if there is not. Centred on the run of
+    // words so it reads as belonging to them.
+    const r = selectionRect(el);
+    const w = pop.offsetWidth || 292, h = pop.offsetHeight || 190;
+    const GAP = 10;
+    let left = (r.left + r.right) / 2 - w / 2;
     if(left < 10) left = 10;
     if(left + w > window.innerWidth - 10) left = window.innerWidth - w - 10;
-    if(top + h > window.innerHeight - 10) top = Math.max(10, _lastPtr.y - h - 12);
-    pop.style.left = left + 'px'; pop.style.top = top + 'px';
-    if(!noAI) setTimeout(function(){ const i = pop.querySelector('#wpInput'); if(i) i.focus(); }, 40);
+    let top = r.bottom + GAP;
+    if(top + h > window.innerHeight - 10){
+      const above = r.top - h - GAP;
+      top = above >= 10 ? above : Math.max(10, window.innerHeight - h - 10);
+    }
+    pop.style.left = Math.round(left) + 'px'; pop.style.top = Math.round(top) + 'px';
+    // Deliberately NOT focusing the input -- see the mousedown note above.
   }
 
   function maybeOpenWritePopup(){
