@@ -43,6 +43,13 @@ const CUSTOM_ENDPOINT_KEY = 'cr_custom_endpoint';
 const CUSTOM_MODEL_KEY = 'cr_custom_model';
 const LOCAL_ENDPOINT_KEY = 'cr_local_endpoint';
 const LOCAL_MODEL_KEY    = 'cr_local_model';
+// Optional. Empty for an ordinary local model on this machine -- Ollama on
+// localhost wants no credentials and never will. It exists for the one case
+// that cannot work without it: a local model reached over the network through
+// an authenticating proxy, which is the only way to serve ToddGPT's models to
+// a class without publishing free inference to the internet. See
+// linux-setup/caddy/ollama-proxy.Caddyfile.
+const LOCAL_KEY          = 'cr_local_key';
 const GROQ_MODEL_KEY     = 'cr_groq_model';
 
 function getProvider() { return localStorage.getItem(PROVIDER_KEY) || 'none'; }
@@ -122,6 +129,15 @@ function aiLabel() {
 }
 function getLocalEndpoint() { return localStorage.getItem(LOCAL_ENDPOINT_KEY) || 'http://localhost:11434'; }
 function getLocalModel()    { return localStorage.getItem(LOCAL_MODEL_KEY) || ''; }
+function getLocalKey()      { return localStorage.getItem(LOCAL_KEY) || ''; }
+// Only send Authorization when there is something to send: an unauthenticated
+// Ollama does not care, but a bare "Bearer " header is worse than none.
+function localHeaders(){
+  const k = getLocalKey();
+  const h = { 'Content-Type': 'application/json' };
+  if(k) h['Authorization'] = 'Bearer ' + k;
+  return h;
+}
 
 // Diagnose a failed local-model call for the situation we are actually in.
 // Two real demo hazards: (1) browsers — Safari most strictly — block an HTTPS
@@ -391,7 +407,7 @@ async function callModel(prompt) {
       // below unchanged, so a student's own laptop keeps working exactly as now.
       const oll = await fetch(`${endpoint}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: localHeaders(),
         body: JSON.stringify({
           model,
           stream: false,
@@ -409,7 +425,7 @@ async function callModel(prompt) {
       }
       const res = await fetch(`${endpoint}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: localHeaders(),
         body: JSON.stringify({
           model,
           max_tokens: REPLY_MAX_TOKENS,
@@ -5518,7 +5534,10 @@ You: Really. The first line only has to exist, not be good.`;
   async function listLocalModels(endpoint, ms){
     const clean = String(endpoint).replace(/\/$/, '');
     try {
-      const res = await fetch(clean + '/v1/models', { signal: AbortSignal.timeout(ms || 2000) });
+      // Same key as the chat call. Without it a proxied endpoint 401s here, lists
+      // no models, and the server simply never appears in the panel -- which looks
+      // exactly like "nothing is running" and sends you debugging the wrong thing.
+      const res = await fetch(clean + '/v1/models', { headers: localHeaders(), signal: AbortSignal.timeout(ms || 2000) });
       if(!res.ok) return null;
       const data = await res.json();
       if(!data || !data.data) return null;
@@ -5602,6 +5621,31 @@ You: Really. The first line only has to exist, not be good.`;
         add.innerHTML = '<b>+ Add local server</b><small>Custom URL — anything speaking OpenAI-compatible /v1/chat/completions</small>' +
                         '<input type="text" id="aiAddUrl" placeholder="http://127.0.0.1:11434" autocomplete="off" spellcheck="false">';
         list.appendChild(add);
+
+        // Class key. Blank for a model on your own machine, which is the normal
+        // case and wants no credentials. Filled in only when the server is one
+        // Todd is running for the class behind a proxy that asks who you are --
+        // the same key for everyone, handed out in class, not a personal secret.
+        const keyBox = document.createElement('div');
+        keyBox.className = 'ai-add';
+        keyBox.innerHTML = '<b>Class key <span style="font-weight:400;color:#6b7280">(optional)</span></b>'
+          + '<small>Leave empty for a model on this computer. Needed only for a shared server that asks for one.</small>'
+          + '<input type="password" id="aiLocalKey" placeholder="none" autocomplete="off" spellcheck="false">';
+        list.appendChild(keyBox);
+        const kinp = keyBox.querySelector('#aiLocalKey');
+        kinp.value = getLocalKey();
+        // Saved on the way out rather than per keystroke: this is pasted, and a
+        // half-pasted key written to storage would break the next probe.
+        const saveKey = () => {
+          const v = kinp.value.trim();
+          if(v === getLocalKey()) return;
+          if(v) localStorage.setItem(LOCAL_KEY, v); else localStorage.removeItem(LOCAL_KEY);
+          logEvent('ai', 'local key ' + (v ? 'set' : 'cleared'));
+          toast(v ? 'Class key saved. Rechecking…' : 'Class key cleared.');
+          renderAiTab();
+        };
+        kinp.addEventListener('blur', saveKey);
+        kinp.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); saveKey(); } });
         const inp = add.querySelector('#aiAddUrl');
         inp.addEventListener('keydown', async e => {
           if(e.key !== 'Enter') return;
