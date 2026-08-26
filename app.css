@@ -685,7 +685,6 @@
 
 /* Marquee "box" capture (default reading mode): drag a rectangle over the page. */
 .marquee-overlay { position: absolute; inset: 0; z-index: 3; cursor: crosshair; }
-body:not(.marquee-on) .marquee-overlay { cursor: default; }
 .marquee-box { position: absolute; border: 1.5px solid #3a5a40; background: rgba(90,150,110,.16); pointer-events: none; z-index: 4; border-radius: 2px; }
 
 /* Passage-capture popup (highlight / Ask Romano). */

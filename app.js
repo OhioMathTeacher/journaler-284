@@ -2522,7 +2522,6 @@ async function runReflection(rf, text, hooks) {
   // so "box" mode is the default: drag a rectangle and harvest the spans it covers, in
   // reading order, plus a cropped image (figures). "select" = native text selection.
   // Toggle with the shelf button. See app.css .marquee-* / .selection-popup.
-  let pdfCaptureMode = (typeof DB === 'object' && DB && DB.pdfCaptureMode) || 'select';
   let captureText = '', captureImage = '', captureRects = null;
 
   // Reorder OCR text items into reading order when the page has clear columns.
@@ -2570,15 +2569,6 @@ async function runReflection(rf, text, hooks) {
     }
     return out;
   }
-  function setCaptureMode(m){
-    pdfCaptureMode = m;
-    document.querySelectorAll('.marquee-overlay').forEach(o=>{ o.style.pointerEvents = (m==='box')?'auto':'none'; });
-    const btn = document.getElementById('captureModeBtn');
-    if(btn){ btn.textContent = (m==='box') ? '▭ Box' : '✎ Select'; btn.classList.toggle('on', m==='box'); }
-    document.body.classList.toggle('marquee-on', m==='box');
-    if(typeof DB === 'object' && DB){ DB.pdfCaptureMode = m; saveDB(); }
-  }
-  function toggleCaptureMode(){ setCaptureMode(pdfCaptureMode==='box'?'select':'box'); }
 
   // Only one marquee can be dragged at a time, so the window listeners belong to
   // the module, not to a page. attachMarquee() runs per page per render, and it
@@ -2609,7 +2599,7 @@ async function runReflection(rf, text, hooks) {
   function attachMarquee(overlay, canvas, textLayerDiv){
     wireMarqueeWindowListeners();
     overlay.addEventListener('mousedown', e => {
-      if(pdfCaptureMode!=='box' || e.button!==0) return;
+      if(e.button!==0) return;
       document.querySelectorAll('.marquee-box').forEach(b=>b.remove());
       const r = overlay.getBoundingClientRect();
       const startX = e.clientX - r.left, startY = e.clientY - r.top;
@@ -2636,9 +2626,14 @@ async function runReflection(rf, text, hooks) {
     const text = spansToText(pr.spans);
     const rects = normalizeRectsToPages(pr.rects);
     if(pr.rects.length) console.log('[hl] box capture →', pr.rects.length, 'line(s), build', BUILD);
-    // cropped image of the region (for figures / to keep with a note)
+    // ⚠ CROP ONLY A REAL FIGURE (Todd, 2026-08-25). This used to crop every box and
+    // store the PNG as base64 on the highlight, so a passage of text was kept twice —
+    // once as words, once as a picture of those words — in the DB, in localStorage, and
+    // in the save zip. The list only ever displayed the thumbnail for a text-less box,
+    // so the bytes bought nothing. No text found means a figure; then the crop is the
+    // only record there is.
     let imgData = '';
-    try {
+    if(!text.trim()) try {
       const cRect = canvas.getBoundingClientRect();
       const sx = (boxRect.left-cRect.left)/cRect.width*canvas.width;
       const sy = (boxRect.top-cRect.top)/cRect.height*canvas.height;
@@ -2954,66 +2949,6 @@ async function runReflection(rf, text, hooks) {
     e.clipboardData.setData('text/plain', text);
     e.preventDefault();
   });
-  // Native text selection (Select mode). Take only the start & end words the user
-  // touched, then passageLineRects fills complete lines between them — so coverage
-  // never follows the browser's rectangular selection geometry.
-  function handleSelectionCapture(){
-    if(pdfCaptureMode !== 'select') return;
-    const sel = window.getSelection();
-    if(!sel || sel.isCollapsed || !sel.rangeCount) return;
-    const range = sel.getRangeAt(0);
-    const node = range.commonAncestorContainer;
-    const host = node.nodeType === 1 ? node : node.parentElement;
-    if(!host || !host.closest || !host.closest('#docPane')) return;   // not in the reader
-    // Take EVERY span the selection touches, the way box capture already does,
-    // instead of only the two boundary spans. spanOf() returned null whenever a
-    // boundary landed between spans — on a gap, a line end, the endOfContent div —
-    // and the capture was then abandoned with no popup and no explanation. That is
-    // why box "worked" and select was hit or miss.
-    // The real selection rectangles, so a band can never cover less than the glyphs
-    // the reader dragged over.
-    const selRects = [...range.getClientRects()].filter(r => r.width > 0 && r.height > 1);
-    const cands = [...document.querySelectorAll('#docPane .textLayer span')]
-      .filter(sp => sp.textContent && sp.textContent.trim() && !sp.classList.contains('markedContent'));
-    // Hit-test GEOMETRICALLY, the way box capture does. range.intersectsNode walks
-    // the DOM, but text-layer spans are absolutely positioned and their DOM order
-    // does not track reading order — orderByReadingColumns re-sorts them — so the
-    // range missed most of the spans it visibly covered: 9 anchors for an 8-line
-    // selection. Overlap against the selection's own rectangles cannot lie.
-    const anchors = cands.filter(sp => {
-      if(range.intersectsNode(sp)) return true;
-      const r = sp.getBoundingClientRect();
-      const area = r.width * r.height;
-      if(area <= 0) return false;
-      return selRects.some(s => {
-        const ix = Math.min(r.right, s.right) - Math.max(r.left, s.left);
-        const iy = Math.min(r.bottom, s.bottom) - Math.max(r.top, s.top);
-        return ix > 0 && iy > 0 && (ix * iy) >= area * 0.3;
-      });
-    });
-    // Geometry first — see bandsFromSelection. passageLineRects (anchor-driven) is
-    // kept only as a fallback for box capture, which supplies real hit-tested spans.
-    // Pointer path first; the selection-rect path is the fallback for a selection
-    // made without a drag (double-click, shift-click, keyboard).
-    let pr = bandsFromPoints(_dragFrom, _dragTo);
-    if(!pr.rects.length) pr = bandsFromSelection(selRects);
-    if(!pr.rects.length && anchors.length) pr = passageLineRects(anchors, selRects);
-    // Last resort: a selection the reader can SEE must always produce a popup.
-    // But the browser's rects are PER WORD, so using them raw drew a striped band
-    // with a gap at every space — the very artifact this all started with. Union
-    // them into one rect per line first.
-    let via = 'geometry';
-    if(!pr.rects.length && selRects.length){ pr = { rects: unionRectsByLine(selRects), spans: anchors }; via = 'fallback'; }
-    const text = pr.spans.length ? spansToText(pr.spans) : cleanOcrText(String(sel));
-    if(text.length < 2) return;
-    const rects = normalizeRectsToPages(pr.rects);
-    if(!rects.length) return;
-    logEvent('read', `selection → ${pr.rects.length} band(s)`, { via, anchors: anchors.length, cands: cands.length });
-    console.log('[hl] select capture →', pr.rects.length, 'band(s) via', via,
-                '· anchors', anchors.length, '/ cands', cands.length,
-                '· selRects', selRects.length, '· docLines', docLines().length, '· build', BUILD);
-    openCapturePopup(text, '', range.getBoundingClientRect(), rects);
-  }
 
   // ⚠ MARKING IS NOT ASKING (Todd, 2026-08-25). Enter used to send the note to Romano
   // and Ask Romano held the primary slot, so the ordinary act — reading a passage and
@@ -3506,7 +3441,7 @@ You: Really. The first line only has to exist, not be good.`;
     if(getProvider()==='none'){
       // No-AI is a supported path — don't bank a question nothing will answer.
       const box = document.getElementById('newnote');
-      if(box) box.insertAdjacentHTML('beforeend', '<div class="notecard"><em>Connect an AI (top right) and Romano will answer — optional; your reading and notes work without it.</em><br><em class="whois">Romano is the app\u2019s reading partner, named for the book\u2019s author. It is software, and its answers are its own.</em></div>');
+      if(box) box.insertAdjacentHTML('beforeend', '<div class="notecard"><em>Want to talk it through? Connect a model under \u2699 \u2014 optional. Your reading and notes work without it.</em></div>');
       return;
     }
     const rec = addQA(rid, {
@@ -3620,7 +3555,7 @@ You: Really. The first line only has to exist, not be good.`;
     // itself instead of vanishing into a panel nobody can see.
     const badge = document.getElementById('hlCount');
     if(badge) badge.textContent = (!notesOpen && list.length) ? ' · ' + list.length : '';
-    if(!list.length){ el.innerHTML = '<p class="hl-empty">No highlights yet. Select a passage (or ▭ box one) and choose ✎ Highlight.</p>'; return; }
+    if(!list.length){ el.innerHTML = '<p class="hl-empty">Nothing marked yet. Drag a box around a passage, then choose ✎ Highlight.</p>'; return; }
     el.innerHTML = list.map(h => {
       // Keep the WHOLE passage in the DOM — selectable, copyable, and ready for the
       // hand-off into the Notebook. .hl-quote clamps it visually; clicking opens it.
@@ -3770,7 +3705,7 @@ You: Really. The first line only has to exist, not be good.`;
         });
         // Marquee "box" capture overlay (default; reliable on OCR'd scans).
         const overlay = document.createElement('div'); overlay.className = 'marquee-overlay';
-        overlay.style.pointerEvents = (pdfCaptureMode === 'box') ? 'auto' : 'none';
+        overlay.style.pointerEvents = 'auto';
         pageDiv.appendChild(overlay);
         attachMarquee(overlay, canvas, tlDiv);
         paintHighlightsForPage(pageDiv, n, r.id);
@@ -3875,7 +3810,6 @@ You: Really. The first line only has to exist, not be good.`;
           <span class="vb-group" id="pageNav"></span>
           <span class="vb-spacer"></span>
           ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single">Single page</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>
-          <button class="vbtn capmode" id="captureModeBtn" title="Box: drag a box on the page to capture a passage or figure. Toggle to select text normally.">▭ Box</button>
           <label class="zoomwrap">Zoom <select id="zoomSel" class="zoomsel">${ZOOMS.map(z=>`<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select></label>` : ''}
           <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧ Hide notes' : '◨ Show notes'}<span class="hl-count" id="hlCount"></span></button>
         </div>
@@ -3902,8 +3836,6 @@ You: Really. The first line only has to exist, not be good.`;
     frame.querySelectorAll('.vbtn[data-vm]').forEach(b => b.onclick = () => { readPageMode = b.dataset.vm; DB.readPageMode = readPageMode; saveDB(); renderRead(); });
     const zs = document.getElementById('zoomSel');
     if(zs) zs.onchange = () => { readZoom = zs.value; DB.readZoom = readZoom; saveDB(); const rr = readings[activeReading]; if(rr) renderActiveDoc(rr); };
-    const cmBtn = document.getElementById('captureModeBtn');
-    if(cmBtn){ cmBtn.onclick = toggleCaptureMode; setCaptureMode(pdfCaptureMode); }
     applyNotesPane();
     const nt = document.getElementById('notesToggle');
     if(nt) nt.onclick = () => {
@@ -3914,7 +3846,7 @@ You: Really. The first line only has to exist, not be good.`;
     renderHighlightList();
     renderQAList();
     const dp = document.getElementById('docPane');
-    if(dp){ dp.addEventListener('mouseup', handleSelectionCapture); trackDrag(dp); }
+    if(dp){ trackDrag(dp); }
     watchPaneWidth(dp);
     const input = document.getElementById('readInput');
     const folderInput = document.getElementById('readFolderInput');
