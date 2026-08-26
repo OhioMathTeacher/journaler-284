@@ -3879,8 +3879,10 @@ You: Really. The first line only has to exist, not be good.`;
         <div class="doc" id="docPane">${docBody(active)}</div>
         <aside class="notes">
           <h4>Your highlights</h4>
-          <div id="hlList"></div>
-          <div id="newnote"></div>
+          <div class="notes-scroll">
+            <div id="hlList"></div>
+            <div id="newnote"></div>
+          </div>
           <p class="locknote" style="margin-top:10px">Highlights save automatically · export to your Notebook →</p>
         </aside>
       </div>`;
@@ -4253,10 +4255,12 @@ You: Really. The first line only has to exist, not be good.`;
   const NB_TOTAL = 50;
   // ⚠ THE ONE PLACE THESE NUMBERS LIVE, and they are the HANDOUT'S, not ours. Checked
   //   against "Writers Notebook Guidelines.docx" (tce284-fa26/writers-notebook) on
-  //   23 Aug 2026, because Todd asked whether the figure had moved back to 20. It had
-  //   not, and never was: the document says "Expect 25 to 40 entries by December", and
-  //   the Kept practice row scores 25+ full, 15-24 partial, under 15 none. The nearest
-  //   thing to 20 is the middle of the partial band.
+  //   23 Aug 2026 and read "25 to 40" there. THAT ANSWER IS OUT OF DATE. The published
+  //   handout was rewritten to "Expect 20 or more entries by December — typically one
+  //   per class meeting", and the course home now matches. 20 is the settled figure;
+  //   the only copies still saying 25 to 40 are the retired dev archive. Todd,
+  //   2026-08-26: "folks will FREAK if they see 40 notebook entries."
+  //   Verify against tce284-fa26/writers-notebook, never against fall-2026.
   //   If the handout changes, change it HERE -- the panel, the row-1 tick and the
   //   banding all read from this.
   const ENTRIES_BANDS = { full: 20, partial: 12, high: 32, by: 'December' };
@@ -4650,7 +4654,7 @@ You: Really. The first line only has to exist, not be good.`;
     // 'conversation' entries are kept AI exchanges. They are welcome in the notebook
     // -- the Guidelines invite "anything else you want to keep" -- but they are NOT
     // the student's practice, and this list is what the grade is counted from:
-    // "Expect 25 to 40 entries by December", Contents carries "every entry, numbered,
+    // "Expect 20 or more entries by December", Contents carries "every entry, numbered,
     // dated, with its word count", and "Nothing gets counted twice". So they are
     // excluded from numbering, from Contents, and from the word count, and are
     // printed separately under their own heading instead.
