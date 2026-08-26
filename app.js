@@ -1728,8 +1728,8 @@ async function runReflection(rf, text, hooks) {
   // by the page that knows what it is. December stops being archaeology.
   const NAMED = {
     baseline: { slot:'baseline', lead:'Week 1', t:'Why do we write?',
-      f:'Your first answer, before this course argues with you. <span class="hint">Write it fast and leave it alone — in Week 15 you write back to this person.</span>',
-      ph:'Why do we write? Go.' },
+      f:'On Monday you gushed about why you write. What does Romano say about it — did he give reasons you did not have? What do you make of that? <span class="hint">In Week 15 you come back to this, and to your Week 1 answers.</span>',
+      ph:'Monday I said… Romano says… What I make of that is…' },
     topicmap: { slot:'topicmap', lead:'Research', t:'Topic map',
       f:'What you might write about, and everything it touches. <span class="hint">Not an outline. Names, questions, angles, dead ends — the whole spread.</span>',
       ph:'Put the topic in the middle and write outward. Anything that touches it counts.' },
@@ -1737,7 +1737,7 @@ async function runReflection(rf, text, hooks) {
       f:'What a source actually says, and what you make of it. <span class="hint">Where it came from, what it claims, and the line you would quote.</span>',
       ph:'Source, claim, the line worth quoting — and what it makes you think.' },
     letter:   { slot:'letter',   lead:'Week 15', t:'Look-Back Letter',
-      f:'A letter to the writer who answered <em>why do we write?</em> on the first day. <span class="hint">Written in our last class, so the notebook is finished the day it is handed in.</span>',
+      f:'A letter to the writer who answered <em>why do we write?</em> in Week 1 — the gush, and what you made of Romano. <span class="hint">Written in our last class, so the notebook is finished the day it is handed in.</span>',
       ph:'Dear me-in-August…' },
   };
 
