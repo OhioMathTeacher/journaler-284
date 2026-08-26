@@ -13,7 +13,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-26-151">
+<link rel="stylesheet" href="app.css?v=2026-08-26-152">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -75,6 +75,19 @@
     </div>
   </div>
   <input type="file" id="workFileInput" accept=".json,.zip,application/json,application/zip" hidden>
+  <!-- The month, one click from anywhere. My Progress answers "where do I stand";
+       this answers "what have I been doing, and how evenly". Icon-only: the bar is
+       full, and a calendar glyph needs no word. It selects the By day lens inside
+       Notebook -- the calendar did not move, it just got a door. -->
+  <button class="iconbtn" id="calendarBtn" title="Your month — which days you wrote, and how the term is filling in" aria-label="Calendar">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="16" rx="2"/>
+      <path d="M3 10h18M8 3v4M16 3v4"/>
+      <circle cx="8.5" cy="14.5" r="1.1" fill="currentColor" stroke="none"/>
+      <circle cx="12" cy="14.5" r="1.1" fill="currentColor" stroke="none"/>
+      <circle cx="15.5" cy="18" r="1.1" fill="currentColor" stroke="none"/>
+    </svg>
+  </button>
   <button class="focusbtn" id="focusToggle" title="Focus mode — hide the top bar for more room to read &amp; write">◱ Focus</button>
   <!-- Settings. Things you touch once a term — the AI, the readings folder, the
        theme — plus diagnostics, kept off the writing surface. -->
@@ -214,7 +227,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-26-151"></script>
-<script src="app.js?v=2026-08-26-151"></script>
+<script src="tips.js?v=2026-08-26-152"></script>
+<script src="app.js?v=2026-08-26-152"></script>
 </body>
 </html>

@@ -5533,6 +5533,10 @@ You: Really. The first line only has to exist, not be good.`;
   // From the topbar it is reachable from wherever the student happens to be writing.
   const _mpBtn = document.getElementById('myProgressBtn');
   if(_mpBtn) _mpBtn.addEventListener('click', () => { if(G.running) return; noteMode = 'tags'; show('note'); });
+  // Same door, different lens. Guarded on G.running like every other tab move: the
+  // One-Pager timer is the one place navigation must not be possible.
+  const _calBtn = document.getElementById('calendarBtn');
+  if(_calBtn) _calBtn.addEventListener('click', () => { if(G.running) return; noteMode = 'day'; show('note'); });
 
   wireNameField();
 
