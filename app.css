@@ -67,9 +67,12 @@
   .about-build { margin-top: 16px !important; font-family: ui-monospace, monospace; font-size: 12.5px; color: #7C8B9C !important; }
 
   .topbar { display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; gap: 7px; border-bottom: 2px solid var(--comment-border); padding: 0 clamp(12px,3vw,24px); position: sticky; top: 0; background: var(--parchment); z-index: 5; }
-  /* Five tabs fit at 390px with a little to spare, but there is no margin left for a
-     sixth or for a larger text size, and an unreachable tab is a tab that does not
-     exist. The row scrolls on its own rather than pushing the page sideways. */
+  /* The five tabs run in course order: the day's tip, the write, the reading behind it,
+     the currere, then the Notebook everything is filed into. They fit at 390px with a
+     little to spare, but there is no margin left for a sixth, for a longer label, or for
+     a larger text size — "Tip of the Day" was tried here and spent the whole slack. The
+     scrollbar is hidden, so an unreachable tab is a tab that does not exist, and Notebook
+     now goes out of view first. The row scrolls rather than pushing the page sideways. */
   .tabbar { display: flex; gap: 2px; flex: 1 1 auto; flex-wrap: nowrap; min-width: 0;
     overflow-x: auto; scrollbar-width: none; }
   .tabbar::-webkit-scrollbar { display: none; }

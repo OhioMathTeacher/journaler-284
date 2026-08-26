@@ -8,11 +8,12 @@
      term. Same lotus-and-book mark as the About button, drawn from scratch. -->
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<!-- ?v= is the cache buster. Bump BOTH tags (here and app.js at the end of body) on
-     every deploy: GitHub Pages will otherwise serve the cached files after a push.
+<!-- ?v= is the cache buster. Bump ALL THREE tags — app.css here, and tips.js + app.js
+     at the end of body — on every deploy: GitHub Pages will otherwise serve the cached
+     files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-25-144">
+<link rel="stylesheet" href="app.css?v=2026-08-25-145">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -46,10 +47,10 @@
   </button>
   <div class="tabbar" id="tabbar">
     <button data-t="tips" class="on">Tips</button>
-    <button data-t="note">Notebook</button>
-    <button data-t="read">Readings</button>
     <button data-t="free">Freewrite</button>
+    <button data-t="read">Readings</button>
     <button data-t="cur">Currere</button>
+    <button data-t="note">Notebook</button>
   </div>
   <label class="namewrap" for="nameField" title="Type your name once. It goes on every PDF you export.">
     <span>Name</span>
@@ -213,7 +214,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-25-144"></script>
-<script src="app.js?v=2026-08-25-144"></script>
+<script src="tips.js?v=2026-08-25-145"></script>
+<script src="app.js?v=2026-08-25-145"></script>
 </body>
 </html>
