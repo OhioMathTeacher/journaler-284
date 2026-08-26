@@ -3615,6 +3615,35 @@ You: Really. The first line only has to exist, not be good.`;
       setTimeout(()=>{ const e2 = document.querySelector(`.hl-mark[data-hl="${id}"]`); if(e2){ e2.scrollIntoView({ behavior:'smooth', block:'center' }); flashMark(id); } }, 450);
     }
   }
+  // Legacy marks carry a single .note string. Read as one pass dated by the mark
+  // itself, so nothing needs migrating and 34 existing notes keep their day.
+  function notePasses(h){
+    if(Array.isArray(h.passes) && h.passes.length) return h.passes;
+    const t = (h.note || '').trim();
+    return t ? [{ text: t, ts: h.ts || Date.now() }] : [];
+  }
+  // .note stays in sync with the joined passes: elevateHighlight, the reflect dialog
+  // and the export all read it, and none of them should have to know about passes.
+  function writePasses(h, passes){
+    h.passes = passes;
+    h.note = passes.map(p => p.text).join('\n\n');
+  }
+  function updateHighlight(id, mutate){
+    const rid = currentReadingId(); if(!rid) return;
+    const list = getHighlights(rid).slice();
+    const i = list.findIndex(h => h.id === id); if(i < 0) return;
+    const h = Object.assign({}, list[i]);
+    mutate(h);
+    h.edited = Date.now();
+    list[i] = h;
+    persistHighlights(rid, list);
+    renderHighlightList();
+  }
+  function passStamp(ts){
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month:'short', day:'numeric' })
+      + ' · ' + d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+  }
   function applyNotesPane(){
     const r = document.querySelector('.reader');
     if(r) r.classList.toggle('notes-hidden', !notesOpen);
@@ -3646,17 +3675,95 @@ You: Really. The first line only has to exist, not be good.`;
       // A thumbnail of text just duplicates the quote above it, and rides along in
       // ⤓ Save my work as base64. Keep it only for real figures (boxed, no text).
       const thumb = (!h.text && h.image) ? `<img src="${h.image}" alt="figure" class="hl-thumb">` : '';
-      const note = h.note ? `<div class="hl-note">${escHtml(h.note)}</div>` : '';
-      return `<div class="hl-card" data-hl="${h.id}"><div class="hl-quote" title="Click to show the whole passage">${quote}</div>${thumb}${note}<div class="hl-row"><button class="hl-goto" data-hl="${h.id}" title="Scroll back to this passage and flash it">Go to p. ${escHtml(String(h.pageLabel || h.page || '?'))}</button><button class="hl-nb" data-hl="${h.id}" title="Keep this in your Writer's Notebook">📓 Notebook</button><button class="hl-del" data-hl="${h.id}">Remove</button></div></div>`;
+      const passes = notePasses(h);
+      const notes = passes.map((pz, i) => `<div class="hl-note" data-pass="${i}" data-hl="${h.id}"
+          title="Click to edit">${escHtml(pz.text)}<span class="hl-stamp">${escHtml(passStamp(pz.ts))}</span></div>`).join('');
+      return `<div class="hl-card" data-hl="${h.id}">`
+        + `<div class="hl-quote" data-hl="${h.id}" title="Click to go to it on the page. Use ✎ Trim to fix a box that grabbed too much.">${quote}</div>`
+        + thumb + notes
+        + `<div class="hl-row">`
+        + `<button class="hl-goto" data-hl="${h.id}" title="Scroll back to this passage and flash it">Go to p. ${escHtml(String(h.pageLabel || h.page || '?'))}</button>`
+        + `<button class="hl-add" data-hl="${h.id}" title="Add a dated line to this note. The old one stays — what you thought later beside what you thought first is the evidence your thread reading needs.">＋ Add</button>`
+        + `<button class="hl-trim" data-hl="${h.id}" title="Edit the quoted passage — for when the box grabbed a line more than you meant. The mark on the page does not move.">✎ Trim</button>`
+        + `<button class="hl-nb" data-hl="${h.id}" title="Keep this one passage in your Writer's Notebook on its own">📓</button>`
+        + `<button class="hl-del" data-hl="${h.id}">Remove</button>`
+        + `</div></div>`;
     }).join('');
     // Click the quote to expand/collapse — "Go to" already covers navigation.
-    el.querySelectorAll('.hl-quote').forEach(q => q.onclick = () => {
+    el.querySelectorAll('.hl-quote').forEach(q => q.onclick = e => {
+      if(q.querySelector('textarea') || e.target.closest('.hl-mini')) return;  // being trimmed
       const card = q.closest('.hl-card');
       const clamped = q.scrollHeight > q.clientHeight + 2;
       if(clamped || card.classList.contains('open')) card.classList.toggle('open');
       else scrollToHighlight(card.dataset.hl);
     });
     el.querySelectorAll('.hl-goto').forEach(b => b.onclick = () => scrollToHighlight(b.dataset.hl));
+
+    // One editor for every editable thing on a card. Escape abandons, blur keeps --
+    // the notebook's own rule, because an unsaved textarea is a good intention.
+    function editInPlace(host, value, onSave, opts){
+      opts = opts || {};
+      if(host.querySelector('textarea')) return;
+      const prev = host.innerHTML;
+      host.innerHTML = `<textarea class="hl-edit">${escHtml(value)}</textarea>`
+        + `<div class="hl-editrow"><button class="hl-mini save">Save</button>`
+        + `<button class="hl-mini">Cancel</button>`
+        + (opts.canDelete ? `<button class="hl-mini danger">Delete this line</button>` : '')
+        + `</div>`;
+      const ta = host.querySelector('textarea');
+      ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+      const btns = host.querySelectorAll('.hl-mini');
+      let done = false;
+      const finish = fn => { if(done) return; done = true; fn(); };
+      btns[0].onclick = () => finish(() => onSave(ta.value.trim()));
+      btns[1].onclick = () => finish(() => { host.innerHTML = prev; });
+      if(opts.canDelete) btns[2].onclick = () => finish(() => onSave(''));
+      ta.addEventListener('keydown', e => {
+        e.stopPropagation();
+        if(e.key === 'Escape'){ e.preventDefault(); finish(() => { host.innerHTML = prev; }); }
+        if(e.key === 'Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); finish(() => onSave(ta.value.trim())); }
+      });
+    }
+
+    // A note pass: click it to rewrite it, empty it to drop that line.
+    el.querySelectorAll('.hl-note').forEach(n => n.onclick = e => {
+      if(e.target.closest('.hl-mini')) return;
+      const id = n.dataset.hl, idx = +n.dataset.pass;
+      const cur = (notePasses(getHighlights(currentReadingId()).find(h => h.id === id)) || [])[idx];
+      if(!cur) return;
+      editInPlace(n, cur.text, text => {
+        updateHighlight(id, h => {
+          const ps = notePasses(h).slice();
+          if(!text) ps.splice(idx, 1); else ps[idx] = { text, ts: cur.ts, edited: Date.now() };
+          writePasses(h, ps);
+        });
+      }, { canDelete: true });
+    });
+
+    // ＋ Add — a NEW dated line. The old one stays; that is the whole point.
+    el.querySelectorAll('.hl-add').forEach(b => b.onclick = () => {
+      const card = b.closest('.hl-card');
+      const host = document.createElement('div');
+      host.className = 'hl-note pending';
+      card.querySelector('.hl-row').before(host);
+      editInPlace(host, '', text => {
+        if(!text){ host.remove(); return; }
+        updateHighlight(b.dataset.hl, h => writePasses(h, notePasses(h).concat([{ text, ts: Date.now() }])));
+      });
+    });
+
+    // ✎ Trim — the quoted passage itself, for a box that grabbed too much. The BAND
+    // on the page is not touched: it records where you looked, and the rects were
+    // measured against the render, not against this string.
+    el.querySelectorAll('.hl-trim').forEach(b => b.onclick = () => {
+      const id = b.dataset.hl;
+      const rec = getHighlights(currentReadingId()).find(h => h.id === id); if(!rec) return;
+      const q = b.closest('.hl-card').querySelector('.hl-quote');
+      editInPlace(q, rec.text || '', text => {
+        if(!text){ renderHighlightList(); return; }   // never blank a passage away
+        updateHighlight(id, h => { h.text = text; });
+      });
+    });
     // Clear-all. A highlight stores the rects it was SAVED with, so any band made by
     // an older build keeps its geometry for ever and no fix can repaint it — the
     // only remedy is to drop it and highlight again. Removing them one card at a

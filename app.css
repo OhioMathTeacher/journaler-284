@@ -1419,3 +1419,21 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
    separate thing they have to remember writing. */
 .rf-q .rf-pg { display: block; margin-top: .3rem; font-family: var(--sans); font-size: 12px; color: var(--muted); }
 .rf-mine { font-family: var(--sans); font-size: 14px; line-height: 1.5; color: var(--ink); background: var(--comment-bg); border-radius: 6px; padding: .45rem .6rem; margin: 0 0 12px 12px; }
+
+/* ── A mark is not frozen ──────────────────────────────────────────────────────
+   Notes are dated passes: the first one, then whatever you added later. Click any
+   of them to rewrite it, ＋ Add for a new one, ✎ Trim for the quote itself. No
+   threads — one reader returning to their own thinking does not need replies, it
+   needs the date. (Todd, 2026-08-26.) */
+.hl-note { cursor: pointer; border-radius: 5px; padding: .25rem .35rem; margin: 0 0 .3rem; }
+.hl-note:hover { background: var(--comment-bg); }
+.hl-note.pending { background: var(--comment-bg); }
+.hl-stamp { display: block; margin-top: .2rem; font-family: var(--sans); font-size: 11px; letter-spacing: .02em; color: var(--muted); }
+.hl-edit { width: 100%; box-sizing: border-box; min-height: 4.5rem; font-family: var(--serif); font-size: 15px; line-height: 1.5; padding: .45rem .5rem; border: 1px solid var(--accent); border-radius: 6px; background: #fff; color: var(--ink); resize: vertical; }
+.hl-editrow { display: flex; gap: 6px; margin-top: .35rem; flex-wrap: wrap; }
+.hl-mini { font-family: var(--sans); font-size: 12.5px; font-weight: 600; border: 1px solid var(--comment-border); background: none; color: var(--muted); border-radius: 5px; padding: 3px 8px; cursor: pointer; }
+.hl-mini.save { border-color: var(--accent); color: var(--accent); }
+.hl-mini.danger { color: #b4453f; border-color: rgba(180,69,63,.4); }
+.hl-mini:hover { background: var(--comment-bg); }
+.hl-add, .hl-trim { font-family: var(--sans); font-size: 12.5px; font-weight: 600; border: 1px solid var(--comment-border); background: none; color: var(--muted); border-radius: 5px; padding: 3px 8px; cursor: pointer; }
+.hl-add:hover, .hl-trim:hover { background: var(--comment-bg); color: var(--ink); }
