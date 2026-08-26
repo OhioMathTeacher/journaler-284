@@ -1946,7 +1946,10 @@ async function runReflection(rf, text, hooks) {
     const el = document.getElementById('keepcount'); if(!el) return;
     const s = DB.freewrite[key] || {};
     const total = ((s.gush||'').match(/\S+/g)||[]).length;
-    const kept = s.lifted ? `Kept ${s.lifted} of ${total} words.` : '';
+    // s.lifted accumulates across every lift; `total` is only the CURRENT gush text.
+    // Rewrite the gush shorter and it read "Kept 220 of 74 words." Clamp it.
+    const keptN = Math.min(s.lifted || 0, total);
+    const kept = keptN ? `Kept ${keptN} of ${total} words.` : '';
     const ta = document.getElementById('gush');
     const selWords = ta ? ((String(ta.value||'').slice(ta.selectionStart, ta.selectionEnd).trim().match(/\S+/g)||[]).length) : 0;
     const btn = document.getElementById('liftBtn');
@@ -4259,7 +4262,7 @@ You: Really. The first line only has to exist, not be good.`;
   //   thing to 20 is the middle of the partial band.
   //   If the handout changes, change it HERE -- the panel, the row-1 tick and the
   //   banding all read from this.
-  const ENTRIES_BANDS = { full: 25, partial: 15, high: 40, by: 'December' };
+  const ENTRIES_BANDS = { full: 20, partial: 12, high: 32, by: 'December' };
   // ── CHOOSE FROM WHAT YOU ACTUALLY WROTE.
   //
   // Todd: "Since there are multiple gushes ... Maybe the tags tab could have linked list
