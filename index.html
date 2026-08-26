@@ -13,7 +13,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-25-147">
+<link rel="stylesheet" href="app.css?v=2026-08-25-148">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -46,11 +46,11 @@
     </svg>
   </button>
   <div class="tabbar" id="tabbar">
-    <button data-t="tips" class="on">Tips</button>
-    <button data-t="free">Freewrite</button>
-    <button data-t="read">Readings</button>
-    <button data-t="cur">Currere</button>
-    <button data-t="note">Notebook</button>
+    <button data-t="tips" class="on" title="One short passage a day from Bad Ideas About Writing. Nothing is asked of you here — read it, or keep it in your notebook, or ask Romano about it.">Tips</button>
+    <button data-t="free" title="The five One-Pagers, and the pages for your required notebook entries. Gush against the timer with the edit keys off, then shape what you got.">Freewrite</button>
+    <button data-t="read" title="Open a WWM chapter, box a passage, and keep what strikes you. Your chapter files stay on your computer — nothing is uploaded.">Readings</button>
+    <button data-t="cur" title="The four moments of the currere — Regressive, Progressive, Analytical, Synthetical. Same gush-then-shape rhythm, loosening as you go.">Currere</button>
+    <button data-t="note" title="Everything you have kept, by day or by piece, plus where you stand on the 50-point Writer’s Notebook.">Notebook</button>
   </div>
   <label class="namewrap" for="nameField" title="Type your name once. It goes on every PDF you export.">
     <span>Name</span>
@@ -75,10 +75,10 @@
     </div>
   </div>
   <input type="file" id="workFileInput" accept=".json,.zip,application/json,application/zip" hidden>
-  <button class="focusbtn" id="focusToggle">◱ Focus</button>
+  <button class="focusbtn" id="focusToggle" title="Focus mode — hide the top bar for more room to read &amp; write">◱ Focus</button>
   <!-- Settings. Things you touch once a term — the AI, the readings folder, the
        theme — plus diagnostics, kept off the writing surface. -->
-  <button class="iconbtn" id="settingsBtn" title="Settings" aria-label="Settings">
+  <button class="iconbtn" id="settingsBtn" title="Settings — your readings folder, the AI reading partner, and the diagnostics log" aria-label="Settings">
     <span class="ai-dot" id="aiDot" aria-hidden="true"></span>
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="3.2"/>
@@ -214,7 +214,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-25-147"></script>
-<script src="app.js?v=2026-08-25-147"></script>
+<script src="tips.js?v=2026-08-25-148"></script>
+<script src="app.js?v=2026-08-25-148"></script>
 </body>
 </html>
