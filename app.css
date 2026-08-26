@@ -1399,3 +1399,8 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
    thing that is broken. */
 .nbview .nblock { font-weight: 700; font-size: 11.5px; letter-spacing: .03em; padding: 1px 5px; margin-left: 5px; border-radius: 999px; background: var(--comment-border); color: var(--muted); }
 .thin-note { background: var(--comment-bg); border-left: 3px solid var(--comment-border); border-radius: 0 6px 6px 0; padding: 8px 12px; margin: 0 0 10px; }
+/* The piece name on an entry is a link into that piece across the term — the only
+   door now that By piece is not a lens. Styled as the heading it already was, so it
+   reads as a name you can follow rather than a button bolted on. */
+.entpiece { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
+.entpiece:hover { color: var(--accent); }

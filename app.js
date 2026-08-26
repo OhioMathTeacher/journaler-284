@@ -1784,6 +1784,9 @@ async function runReflection(rf, text, hooks) {
       delete turnin()[b.dataset.untagpick]; saveDB(); renderNote();
     });
     frame.querySelectorAll('[data-reflect]').forEach(b => b.onclick = () => openReflect(b.dataset.reflect));
+    frame.querySelectorAll('[data-piecemode]').forEach(b => b.onclick = () => {
+      notePieceSel = b.dataset.piecemode; noteMode = 'piece'; nbEditingId = null; renderNote();
+    });
     frame.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => {
       const to = b.dataset.jump;
       if(to === 'threads'){ noteMode = 'threads'; renderNote(); return; }
@@ -4093,7 +4096,8 @@ You: Really. The first line only has to exist, not be good.`;
         <textarea id="edit_${e.id}" class="entry-edit" data-autogrow="1">${escHtml(e.text)}</textarea>
         <div style="margin-top:6px;display:flex;gap:6px"><button class="btn sm" data-save="${e.id}">Save</button><button class="btn ghost sm" data-cancel="1">Cancel</button><button class="btn ghost sm" data-del="${e.id}">Delete</button></div></div>`;
     }
-    const head = (opts.showPiece === false) ? when : `${escHtml(e.pieceTitle)} · ${when}`;
+    const head = (opts.showPiece === false) ? when
+      : `<button class="entpiece" data-piecemode="${escHtml(e.pieceId)}" title="See everything kept under ${escHtml(e.pieceTitle)}, earliest first">${escHtml(e.pieceTitle)}</button> · ${when}`;
     const openLink = (opts.pieceLink !== false && e.pieceId !== 'free') ? `<button class="entlink" data-open="${e.pieceId}">Open the live piece →</button>` : '';
     // The text itself opens the editor. Requiring the Edit button meant three clicks
     // between keeping something and writing about it, which is the moment the whole
@@ -5108,18 +5112,15 @@ You: Really. The first line only has to exist, not be good.`;
     const onPages = noteMode === 'day' || noteMode === 'piece';
     const toggle = `<div class="nbviews">`
       + `<button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">My Progress ${tagBadge}</button>`
-      + `<button class="nbview ${onPages?'on':''}" data-mode="day">Your pages</button>`
+      + `<button class="nbview ${onPages?'on':''}" data-mode="day">By day</button>`
       + `<button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads"`
       + ` title="${threadsReady
             ? 'A thread is anything that keeps coming back across your entries. Name one, tag every entry it turns up in, then write your reading of it.'
             : 'A thread is anything that keeps coming back across your entries. With ' + nEntries + ' so far there is not much to look across yet — it gets sharper as you keep writing. You name threads yourself; the list of repeated words is only a hint.'}">`
       + `Threads${threadsReady ? '' : ` <span class="nblock">${nEntries}</span>`}</button>`
       + `</div>`;
-    // The sort, inside the lens it sorts -- not a second thing to choose from the top.
-    const pagesSort = onPages ? `<div class="nbsort">`
-      + `<button class="nbview sub ${noteMode==='day'?'on':''}" data-mode="day">By day</button>`
-      + `<button class="nbview sub ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button>`
-      + `</div>` : '';
+    // No sub-switch. A piece opens from an entry and offers its own way back.
+    const pagesSort = '';
     // ── The Tags lens: every entry against every tag, on one screen.
     //
     // Tagging lived only on the individual entry, so finding which page held which tag
@@ -5213,7 +5214,7 @@ You: Really. The first line only has to exist, not be good.`;
       frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Hold one preoccupation still and watch it change across the term.</p>${toggle}</div>
         ${threadsAbout()}
         <div class="notewrap">${leftT}${rightT}</div>`;
-      frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+      frame.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
       wireProjectLinks();
       frame.querySelectorAll('[data-thread]').forEach(b => b.onclick = () => { threadSel = b.dataset.thread; renderNote(); });
       frame.querySelectorAll('.cbterm').forEach(b => b.onclick = () => {
@@ -5273,7 +5274,7 @@ You: Really. The first line only has to exist, not be good.`;
             : `<p class="empty">Nothing kept yet, so there is nothing to mark. Once you keep entries they appear here as rows, and you tick the box that says which required entry each one answers — or which three you want read closely.</p>`}
           ${noteFoot()}
         </div>`;
-      frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+      frame.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
       wireTray(); wireProjectLinks();
       wireTurninLinks(); wireNoteFoot();
       if(tagFocus){
@@ -5328,7 +5329,7 @@ You: Really. The first line only has to exist, not be good.`;
       const listHtml = pieces.length
         ? pieces.map(p=>`<button class="moment has ${notePieceSel===p.id?'on':''}" data-piece="${p.id}"><span class="mname"><span class="dot"></span>${escHtml(p.title)}</span><span class="mkind">${p.entries.length} kept pass${p.entries.length>1?'es':''}</span></button>`).join('')
         : `<p class="empty" style="font-family:var(--sans)">Nothing kept yet. This fills with everything you decide to keep — free-writes, currere gushes, reading notes, the four required entries — each one dated, numbered, and counted toward <strong>Kept practice</strong>, the largest row on the rubric. Write in any tab, then press <strong>＋ Add to notebook</strong>.</p>`;
-      leftPane = `<div class="piecelist">${pagesSort}<p class="lead">Your pieces</p>${listHtml}
+      leftPane = `<div class="piecelist"><button class="pj-link" data-mode="day" style="margin-bottom:10px">‹ All days</button><p class="lead">Your pieces</p>${listHtml}
         ${noteFoot()}</div>`;
       rightPane = notePieceDetail();
     }
@@ -5336,7 +5337,7 @@ You: Really. The first line only has to exist, not be good.`;
       ${draftTray()}
       <div class="notewrap">${leftPane}${rightPane}</div>`;
 
-    frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+    frame.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
     wireTray(); wireProjectLinks();
     // Only one lens renders at a time, so only one bundle button exists.
     // Tag / untag from the entry itself. Saved on the spot: there is no submit step here,
