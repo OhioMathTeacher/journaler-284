@@ -5109,9 +5109,11 @@ You: Really. The first line only has to exist, not be good.`;
     const toggle = `<div class="nbviews">`
       + `<button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">My Progress ${tagBadge}</button>`
       + `<button class="nbview ${onPages?'on':''}" data-mode="day">Your pages</button>`
-      + (threadsReady
-          ? `<button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads">Threads</button>`
-          : `<button class="nbview off" disabled title="A thread is something that keeps coming back across your entries. With fewer than ${THREADS_MIN} it cannot tell a thread from a word you happened to use twice, so it waits — and opens on its own.">Threads <span class="nblock">${nEntries}/${THREADS_MIN}</span></button>`)
+      + `<button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads"`
+      + ` title="${threadsReady
+            ? 'A thread is anything that keeps coming back across your entries. Name one, tag every entry it turns up in, then write your reading of it.'
+            : 'A thread is anything that keeps coming back across your entries. With ' + nEntries + ' so far there is not much to look across yet — it gets sharper as you keep writing. You name threads yourself; the list of repeated words is only a hint.'}">`
+      + `Threads${threadsReady ? '' : ` <span class="nblock">${nEntries}</span>`}</button>`
       + `</div>`;
     // The sort, inside the lens it sorts -- not a second thing to choose from the top.
     const pagesSort = onPages ? `<div class="nbsort">`
@@ -5126,7 +5128,6 @@ You: Really. The first line only has to exist, not be good.`;
     // nothing did before: a tagged entry is REPRINTED IN FULL in the report and an
     // untagged one appears only as a line in the Contents. That is what keeps the report
     // to under ten pages, and a student who does not know it cannot use it.
-    if(noteMode === 'threads' && numberedEntries().length < THREADS_MIN) noteMode = 'tags';
     if(noteMode === 'threads'){
       const ts = threads();
       const ordered = numberedEntries();
@@ -5135,8 +5136,13 @@ You: Really. The first line only has to exist, not be good.`;
       // reach for having noticed nothing, so it cannot sit below a full-height thread.
       const cbMin = ordered.length < 8 ? 2 : 3;
       const cand = recurringTerms(cbMin);
+      const thin = ordered.length < THREADS_MIN ? `<p class="runline thin-note"><strong>Early days.</strong>
+        With ${ordered.length} ${ordered.length === 1 ? 'entry' : 'entries'} there is not much to look
+        across yet, and the repeated words below will be noisy. Nothing is wrong — this is what it looks
+        like before a term accumulates. You can name a thread by hand at any time, and threading properly
+        begins in Week 6.</p>` : '';
       const comeback = `<div class="comeback">
-        <h4>What keeps coming back</h4>
+        <h4>What keeps coming back</h4>${thin}
         <p class="runline">Words you have used in <strong>${cbMin} or more different entries</strong>.
           A count, not a reading: it says what recurs, not what matters. Some will be noise.
           You decide which are threads.</p>
