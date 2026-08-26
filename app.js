@@ -2725,6 +2725,9 @@ async function runReflection(rf, text, hooks) {
       tmp.getContext('2d').drawImage(canvas, sx,sy,sw,sh, 0,0, tmp.width,tmp.height);
       imgData = tmp.toDataURL('image/png');
     } catch(e){ console.warn('crop', e); }
+    // The page the box was drawn on, for a capture with no text to hit-test.
+    const own = canvas.closest && canvas.closest('.pdf-page');
+    capturePageHint = own ? (+own.dataset.page || readPageNum) : readPageNum;
     openCapturePopup(text, imgData, boxRect, rects);
   }
   // The text-layer span containing a selection boundary node.
@@ -3085,6 +3088,7 @@ async function runReflection(rf, text, hooks) {
     });
     return pop;
   }
+  let capturePageHint = 0;   // set by a box drag; the page that box was drawn on
   function openCapturePopup(text, imgData, boxRect, rects){
     captureText = text || ''; captureImage = imgData || ''; captureRects = rects || null;
     const pop = ensureCapturePopup();
@@ -3210,7 +3214,7 @@ async function runReflection(rf, text, hooks) {
     const rec = {
       id: 'h' + Date.now() + '-' + Math.round(Math.random()*1e6),
       text: passage || '', image: captureImage || '', note,
-      rects, page: (rects[0] && rects[0].page) || readPageNum, ts: Date.now()
+      rects, page: (rects[0] && rects[0].page) || capturePageHint || readPageNum, ts: Date.now()
     };
     // Stamped now, not looked up later: the citation has to survive the reader
     // closing the chapter, and a kept note outlives the open document.
