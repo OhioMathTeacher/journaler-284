@@ -1414,3 +1414,8 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .entpiece { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
 .entpiece:hover { color: var(--accent); }
 .hl-scope { font-family: var(--sans); font-size: 12.5px; line-height: 1.45; color: var(--muted); margin: 0 0 10px; }
+/* In the reflect dialog: the citation on the passage, and underneath it what the
+   reader already said. Their own note is the raw material for the entry, not a
+   separate thing they have to remember writing. */
+.rf-q .rf-pg { display: block; margin-top: .3rem; font-family: var(--sans); font-size: 12px; color: var(--muted); }
+.rf-mine { font-family: var(--sans); font-size: 14px; line-height: 1.5; color: var(--ink); background: var(--comment-bg); border-radius: 6px; padding: .45rem .6rem; margin: 0 0 12px 12px; }

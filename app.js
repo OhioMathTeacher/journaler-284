@@ -1802,7 +1802,12 @@ async function runReflection(rf, text, hooks) {
     const g = capturesByPiece().find(x => x.id === pieceId);
     if(!g) return;
     const title = String(g.title||'').replace(/^Reading · /,'');
-    const quotes = g.items.map(e => `<blockquote class="rf-q">${escHtml(e.text)}</blockquote>`).join('');
+    const quotes = g.items.map(h => {
+      const pg = h.pageLabel || h.page;
+      const cite = pg ? `<span class="rf-pg">p. ${escHtml(String(pg))}</span>` : '';
+      const mine = (h.note || '').trim() ? `<p class="rf-mine">${escHtml(h.note.trim())}</p>` : '';
+      return `<blockquote class="rf-q">${escHtml(h.text || '(figure)')}${cite}</blockquote>${mine}`;
+    }).join('');
     const host = document.createElement('div');
     host.className = 'rf-overlay'; host.id = 'rfOverlay';
     host.innerHTML = `<div class="rf-box" role="dialog" aria-modal="true" aria-label="Reflect on ${escHtml(title)}">
@@ -4179,10 +4184,12 @@ You: Really. The first line only has to exist, not be good.`;
     // you kept -- but a day can now hold marked passages and no entry (the hollow dot),
     // and the one thing you might want standing here is to answer them. One button per
     // READING, same as the In-progress list, so a day of heavy marking is still short.
-    const pend = [...new Map(list.filter(isCapture).map(e => [e.pieceId, e])).values()];
+    // Readings MARKED on this day and not yet written about — from the marks, same
+    // source as the In-progress list, so the two can never disagree.
+    const pend = capturesByPiece().filter(g => !g.reflected && g.items.some(h => hlDayKey(h) === noteSel));
     const owed = pend.length ? `<div class="day-owed">
-      ${pend.map(e => `<button class="pj-link" data-reflect="${escHtml(e.pieceId)}">Write what you
-        make of ${escHtml(String(e.pieceTitle||'this reading').replace(/^Reading · /,''))} →</button>`).join('')}
+      ${pend.map(g => `<button class="pj-link" data-reflect="${escHtml(g.id)}">Write what you
+        make of ${escHtml(String(g.title||'this reading').replace(/^Reading · /,''))} →</button>`).join('')}
     </div>` : '';
     return `<div class="notedetail"><h3>${label}</h3>${entries}${owed}
       <p class="runline" style="margin-top:14px">Writing happens in
@@ -4664,18 +4671,24 @@ You: Really. The first line only has to exist, not be good.`;
   // elevateHighlight was the ONLY producer of pieceKind 'reading' before today, so an
   // entry with no .reflection flag is a capture whenever it came from.
   function isCapture(e){ return !!e && e.pieceKind === 'reading' && !e.reflection; }
+  // A highlight's day, in the same local form the calendar builds its cell keys with.
+  function hlDayKey(h){
+    const d = new Date(h && h.ts ? h.ts : Date.now());
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
   function capturesByPiece(){
-    const m = new Map();
-    for(const e of (DB.journal || [])){
-      if(!isCapture(e)) continue;
-      const g = m.get(e.pieceId) || { id: e.pieceId, title: e.pieceTitle, items: [], reflected: 0 };
-      g.items.push(e); m.set(e.pieceId, g);
+    const out = [];
+    for(const r of (readings || [])){
+      const items = getHighlights(r.id);
+      if(!items.length) continue;
+      const pieceId = 'reading:' + r.id;
+      // Reflected = the reader has written on this reading at least once. Written
+      // again later is a second entry, not a blocked one, so this only decides
+      // whether the reading still appears as owed.
+      const reflected = (DB.journal || []).filter(e => e.pieceId === pieceId && e.reflection).length;
+      out.push({ id: pieceId, rid: r.id, title: 'Reading · ' + readingLabel(r), items, reflected });
     }
-    // A piece stops being "in progress" once any reflection is written on it.
-    for(const e of (DB.journal || [])){
-      if(e.pieceKind === 'reading' && e.reflection && m.has(e.pieceId)) m.get(e.pieceId).reflected++;
-    }
-    return [...m.values()];
+    return out;
   }
   function numberedEntries(){
     // 'conversation' entries are kept AI exchanges. They are welcome in the notebook
@@ -5327,6 +5340,8 @@ You: Really. The first line only has to exist, not be good.`;
     if(noteMode === 'day'){
       const y = noteView.getFullYear(), m = noteView.getMonth();
       const monthName = noteView.toLocaleDateString(undefined, {month:'long', year:'numeric'});
+      const markedDays = new Set();
+      for(const g of capturesByPiece()) for(const h of g.items) markedDays.add(hlDayKey(h));
       const first = new Date(y, m, 1).getDay(), days = new Date(y, m+1, 0).getDate();
       const dow = ['S','M','T','W','T','F','S'].map(x=>`<div class="dow">${x}</div>`).join('');
       let cells = '';
@@ -5335,11 +5350,12 @@ You: Really. The first line only has to exist, not be good.`;
         const key = `${y}-${String(m+1).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
         const list = journalByDate(key);
         const wrote = list.some(e => !isCapture(e));
+        const markedHere = markedDays.has(key);
         // Legacy only: One-Pagers are submitted as their own PDF and no longer
         // elevate into the notebook, so nothing new carries this kind. Entries saved
         // before that change still render with their marker.
         const isOp = list.some(e=>e.pieceKind === 'one-pager');
-        cells += `<div class="cell ${wrote?'entry':''} ${!wrote&&list.length?'marked':''} ${isOp?'op':''} ${noteSel===key?'sel':''}" data-key="${key}">${dd}</div>`;
+        cells += `<div class="cell ${wrote?'entry':''} ${!wrote&&markedHere?'marked':''} ${isOp?'op':''} ${noteSel===key?'sel':''}" data-key="${key}">${dd}</div>`;
       }
       leftPane = `<div class="cal">${pagesSort}
         <div class="calhead"><button class="calnav" id="prevM" aria-label="Previous month" ${(y*12+m)<=NOTE_MIN?'disabled':''}>‹</button><span class="mname">${monthName}</span><button class="calnav" id="nextM" aria-label="Next month" ${(y*12+m)>=NOTE_MAX?'disabled':''}>›</button></div>
