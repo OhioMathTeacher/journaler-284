@@ -1906,7 +1906,7 @@ async function runReflection(rf, text, hooks) {
         const done = !!turnin()[m.slot];
         return `<button class="moment ${k===fwCur?'on':''} ${done?'has':''}" data-op="${k}"><span class="mname"><span class="dot"></span>${m.t}</span><span class="mkind">${done ? '✓ kept' : m.lead}</span></button>`;
       }).join('')}`;
-    frame.innerHTML = `<div class="head"><h1>Freewrite</h1><p>Start a timer, trust the gush, then shape it.</p></div>
+    frame.innerHTML = `<div class="head"><h1>Freewrite/OPs</h1><p>Start a timer, trust the gush, then shape it.</p></div>
       <div class="layout"><nav class="spine">${spine}</nav><main class="stage" id="stage"></main></div>`;
     frame.querySelectorAll('[data-op]').forEach(b=>b.addEventListener('click',()=>{ if(G.running) return; fwCur=b.dataset.op; renderFree(); }));
     if(NAMED[fwCur]) renderNamed(fwCur);
@@ -4498,7 +4498,7 @@ You: Really. The first line only has to exist, not be good.`;
     </div>` : '';
     return `<div class="notedetail"><h3>${label}</h3>${entries}${owed}
       <p class="runline" style="margin-top:14px">Writing happens in
-        <button class="pj-link" data-jump="open">Freewrite →</button>, and lands here on the day
+        <button class="pj-link" data-jump="open">Freewrite/OPs →</button>, and lands here on the day
         you keep it.</p></div>`;
   }
 
@@ -4735,7 +4735,7 @@ You: Really. The first line only has to exist, not be good.`;
         timed One-Pager gushes go in on sheet two of their own PDF, and nothing gets counted
         twice.</p>
       <p><strong>Most of these mark themselves.</strong> The four required entries have their own
-        pages under <em>Freewrite → For the notebook</em>: write one, keep it, and it is marked in
+        pages under <em>Freewrite/OPs → For the notebook</em>: write one, keep it, and it is marked in
         the same action. Your Look-Back Letter too. The only thing left for December is flagging
         the three entries you want read closely.</p>
       <table class="ap-rows">

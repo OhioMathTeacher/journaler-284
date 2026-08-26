@@ -13,7 +13,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-26-175">
+<link rel="stylesheet" href="app.css?v=2026-08-26-176">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -47,7 +47,7 @@
   </button>
   <div class="tabbar" id="tabbar">
     <button data-t="tips" class="on" title="One short passage a day from Bad Ideas About Writing. Nothing is asked of you here — read it, or keep it in your notebook, or ask Romano about it.">Tips</button>
-    <button data-t="free" title="The five One-Pagers, and the pages for your required notebook entries. Gush against the timer with the edit keys off, then shape what you got.">Freewrite</button>
+    <button data-t="free" title="The five One-Pagers, and the pages for your required notebook entries. Gush against the timer with the edit keys off, then shape what you got.">Freewrite/OPs</button>
     <button data-t="read" title="Open a WWM chapter, box a passage, and keep what strikes you. Your chapter files stay on your computer — nothing is uploaded.">Readings</button>
     <button data-t="cur" title="The four moments of the currere — Regressive, Progressive, Analytical, Synthetical. Same gush-then-shape rhythm, loosening as you go.">Currere</button>
     <button data-t="note" title="Everything you have kept, by day or by piece, plus where you stand on the 50-point Writer’s Notebook.">Notebook</button>
@@ -227,7 +227,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-26-175"></script>
-<script src="app.js?v=2026-08-26-175"></script>
+<script src="tips.js?v=2026-08-26-176"></script>
+<script src="app.js?v=2026-08-26-176"></script>
 </body>
 </html>
