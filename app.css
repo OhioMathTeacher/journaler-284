@@ -364,7 +364,13 @@
      frame is a column so the shelf can take its own height without pushing the reader
      past the bottom of the screen, which would bring the outer scrollbar back. */
   body.focus.reading .shelf { flex: 0 0 auto; padding: 10px 172px 0 16px; margin-bottom: 8px; }
-  body.focus.reading .reader { flex: 1 1 auto; }
+  /* ⚠ width:100% IS LOAD-BEARING (Todd, 2026-08-26): "focus still makes the pages
+     disappear... no matter what setting". .reader carries `margin: 0 auto`, and an
+     AUTO CROSS-AXIS MARGIN cancels align-items:stretch in a flex column -- so once the
+     frame became a flex column the reader stopped filling it and shrank to min-content:
+     360px, exactly its notes column, leaving 128px for the page. Measured in a headless
+     browser after reasoning about it twice and getting it wrong twice. */
+  body.focus.reading .reader { flex: 1 1 auto; width: 100%; }
   /* The shelf stays. It holds the CHAPTER SELECTOR, so hiding it in focus meant you
      could not change reading without leaving focus first — chrome and a control wearing
      one container. Focus hides the top bar and the page heading; everything you steer
