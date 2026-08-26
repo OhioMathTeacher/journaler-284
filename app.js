@@ -3870,6 +3870,21 @@ You: Really. The first line only has to exist, not be good.`;
             + `<button class="pdfnav-btn" id="pgNext" ${last>=doc.numPages?'disabled':''}>Next ›</button>`;
         })()
       : `<span class="pdfnav-lbl">${doc.numPages} pages · scroll to read</span>`;
+    // ⚠ NEVER BLANK THE PANE FOR A RENDER THAT MAY NOT FINISH (Todd, 2026-08-26):
+    // "I press fit, two page view, focus---and all the pages disappear!"
+    //
+    // pane.innerHTML='' used to run FIRST, then the loop awaited each page and bailed
+    // at the next `token !== _readToken` if a newer render had started. watchPaneWidth
+    // re-renders on a width change but ONLY at fit/page zoom -- which is why pressing
+    // fit was part of the recipe -- and entering focus in two-up moves the width more
+    // than once: the shelf arrives, the columns resize, the scrollbar makes up its
+    // mind. Each move started a render that superseded the one before it, and every
+    // one of them had already cleared the pane. Blank, with no error, because nothing
+    // had actually failed.
+    //
+    // So the wrap is built DETACHED and swapped in only once it holds a page. A
+    // superseded render discards its own work and leaves the screen alone. Do not
+    // hoist this clear back to the top.
     const wrap = document.createElement('div'); wrap.className = 'pdf-doc';
     let attached = false;
     const attach = () => { if(attached) return; pane.innerHTML = ''; pane.appendChild(wrap); attached = true; };
