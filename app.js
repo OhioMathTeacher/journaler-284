@@ -2402,6 +2402,13 @@ async function runReflection(rf, text, hooks) {
 
   // Reading view state.
   let readPageMode = DB.readPageMode || 'single';   // 'single' | 'continuous'
+  let readSpread = (DB.readSpread === 2) ? 2 : 1;   // pages shown at once in 'single'
+  // The pages on screen right now. null means "all of them" (continuous), which the
+  // margin reads as "do not filter".
+  function visiblePages(){
+    if(readPageMode !== 'single') return null;
+    return Array.from({ length: readSpread }, (_, i) => readPageNum + i);
+  }
   let readPageNum = 1;                               // current page in single mode
   let _curPdf = { id:null, doc:null, labels:null };  // cache the parsed doc so paging doesn't reparse
   // The WWM chapter PDFs carry /PageLabels (embedded 2026-08-26), so page 1 of
@@ -3608,7 +3615,8 @@ You: Really. The first line only has to exist, not be good.`;
     const rec = getHighlights(currentReadingId()).find(h => h.id === id);
     if(!rec) return;
     const pg = (rec.rects && rec.rects[0] && rec.rects[0].page) || rec.page || 1;
-    if(readPageMode === 'single' && pg !== readPageNum){
+    const vis0 = visiblePages();
+    if(vis0 && !vis0.includes(pg)){
       readPageNum = pg;
       renderActiveDoc(readings[activeReading]);
       renderHighlightList();   // the margin is filtered to the page, so it moves too
@@ -3652,19 +3660,20 @@ You: Really. The first line only has to exist, not be good.`;
     const el = document.getElementById('hlList'); if(!el) return;
     const all = getHighlights(currentReadingId());
     const single = readPageMode === 'single';
-    const list = single ? all.filter(h => (h.page || 1) === readPageNum) : all;
+    const vis = visiblePages();
+    const list = vis ? all.filter(h => vis.includes(h.page || 1)) : all;
     // Badge on the toggle, so work captured while the pane is closed still announces
     // itself instead of vanishing into a panel nobody can see.
     const badge = document.getElementById('hlCount');
     if(badge) badge.textContent = (!notesOpen && all.length) ? ' · ' + all.length : '';
     // Where the rest of them are, said as a fact rather than discovered by panic.
     const scope = !all.length ? '' : (single
-      ? `<p class="hl-scope">${list.length} on this page · <strong>${all.length}</strong> in this chapter.
+      ? `<p class="hl-scope">${list.length} on ${vis && vis.length > 1 ? 'these pages' : 'this page'} · <strong>${all.length}</strong> in this chapter.
          Switch to <strong>Continuous</strong> to see them all.</p>`
       : `<p class="hl-scope"><strong>${all.length}</strong> in this chapter, all pages.</p>`);
     if(!list.length){
       el.innerHTML = scope + (all.length
-        ? '<p class="hl-empty">Nothing marked on this page yet. Drag a box around a passage, then choose ✎ Highlight.</p>'
+        ? `<p class="hl-empty">Nothing marked on ${vis && vis.length > 1 ? 'these pages' : 'this page'} yet. Drag a box around a passage, then choose ✎ Highlight.</p>`
         : '<p class="hl-empty">Nothing marked yet. Drag a box around a passage, then choose ✎ Highlight.</p>');
       return;
     }
@@ -3847,7 +3856,15 @@ You: Really. The first line only has to exist, not be good.`;
     // pane. Splitting them across two strips was the thing that read as "wrong".
     const navHost = document.getElementById('pageNav');
     if(navHost) navHost.innerHTML = single
-      ? `<button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button><span class="pdfnav-lbl">Page ${pageLabelFor(readPageNum)} of ${pageLabelFor(doc.numPages)}</span><button class="pdfnav-btn" id="pgNext" ${readPageNum>=doc.numPages?'disabled':''}>Next ›</button>`
+      ? (() => {
+          const last = Math.min(readPageNum + readSpread - 1, doc.numPages);
+          const shown = last > readPageNum
+            ? `Pages ${pageLabelFor(readPageNum)}–${pageLabelFor(last)}`
+            : `Page ${pageLabelFor(readPageNum)}`;
+          return `<button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button>`
+            + `<span class="pdfnav-lbl">${shown} of ${pageLabelFor(doc.numPages)}</span>`
+            + `<button class="pdfnav-btn" id="pgNext" ${last>=doc.numPages?'disabled':''}>Next ›</button>`;
+        })()
       : `<span class="pdfnav-lbl">${doc.numPages} pages · scroll to read</span>`;
     pane.innerHTML = '';
     const wrap = document.createElement('div'); wrap.className = 'pdf-doc'; pane.appendChild(wrap);
@@ -3856,19 +3873,27 @@ You: Really. The first line only has to exist, not be good.`;
       // renderActiveDoc repaints the PAGE; the margin is a separate render, and now
       // that the list is filtered to the current page it has to follow the turn or it
       // would keep showing the page you just left.
-      if(pv) pv.onclick = ()=>{ if(readPageNum>1){ readPageNum--; renderActiveDoc(r); renderHighlightList(); } };
-      if(nx) nx.onclick = ()=>{ if(readPageNum<doc.numPages){ readPageNum++; renderActiveDoc(r); renderHighlightList(); } };
+      // Step by the spread: a two-page view turns two pages, or the reader re-reads
+      // the page they just finished every time they click Next.
+      if(pv) pv.onclick = ()=>{ if(readPageNum>1){ readPageNum = Math.max(1, readPageNum - readSpread); renderActiveDoc(r); renderHighlightList(); } };
+      if(nx) nx.onclick = ()=>{ if(readPageNum + readSpread - 1 < doc.numPages){ readPageNum += readSpread; renderActiveDoc(r); renderHighlightList(); } };
     }
     const avail = Math.max(320, pane.clientWidth - 64);
     // Fit-page needs the height the pane can actually show, less the nav strip.
     const availH = Math.max(280, pane.clientHeight - 96);
     const ratio = window.devicePixelRatio || 1;
-    const pages = single ? [readPageNum] : Array.from({length:doc.numPages}, (_,i)=>i+1);
+    const pages = single
+      ? (visiblePages() || []).filter(n => n >= 1 && n <= doc.numPages)
+      : Array.from({length:doc.numPages}, (_,i)=>i+1);
+    // Two portrait pages side by side need half the width each, less the gap between.
+    const twoUp = single && readSpread === 2 && pages.length > 1;
+    const colW = twoUp ? Math.max(280, Math.floor((avail - 18) / 2)) : avail;
+    if(twoUp) wrap.classList.add('two-up');
     for(const n of pages){
       if(token !== _readToken) return;
       const page = await doc.getPage(n);
       const unit = page.getViewport({ scale: 1 });
-      const scale = zoomScale(unit, avail, availH);
+      const scale = zoomScale(unit, colW, availH);
       const viewport = page.getViewport({ scale });
       const pageDiv = document.createElement('div'); pageDiv.className = 'pdf-page'; pageDiv.dataset.page = n;
       pageDiv.style.width = viewport.width + 'px'; pageDiv.style.height = viewport.height + 'px';
@@ -4007,7 +4032,7 @@ You: Really. The first line only has to exist, not be good.`;
         <div class="viewbar">
           <span class="vb-group" id="pageNav"></span>
           <span class="vb-spacer"></span>
-          ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single">Single page</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>
+          ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single" title="One page at a time. Click again to read two pages side by side — useful on a wide screen.">${readPageMode==='single' && readSpread===2 ? 'Two pages' : 'Single page'}</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>
           <label class="zoomwrap">Zoom <select id="zoomSel" class="zoomsel">${ZOOMS.map(z=>`<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select></label>` : ''}
           <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧ Hide notes' : '◨ Show notes'}<span class="hl-count" id="hlCount"></span></button>
         </div>
@@ -4031,7 +4056,14 @@ You: Really. The first line only has to exist, not be good.`;
       readPageNum = 1; _curPdf = { id:null, doc:null, labels:null };
       persistReadings(); renderRead();
     };
-    frame.querySelectorAll('.vbtn[data-vm]').forEach(b => b.onclick = () => { readPageMode = b.dataset.vm; DB.readPageMode = readPageMode; saveDB(); renderRead(); });
+    frame.querySelectorAll('.vbtn[data-vm]').forEach(b => b.onclick = () => {
+      // Already on single? The button cycles 1 ⇄ 2 pages. Otherwise it switches mode
+      // and keeps whichever spread you last read in.
+      if(b.dataset.vm === 'single' && readPageMode === 'single'){
+        readSpread = readSpread === 2 ? 1 : 2; DB.readSpread = readSpread;
+      } else { readPageMode = b.dataset.vm; DB.readPageMode = readPageMode; }
+      saveDB(); renderRead();
+    });
     const zs = document.getElementById('zoomSel');
     if(zs) zs.onchange = () => { readZoom = zs.value; DB.readZoom = readZoom; saveDB(); const rr = readings[activeReading]; if(rr) renderActiveDoc(rr); };
     applyNotesPane();
