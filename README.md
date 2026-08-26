@@ -18,7 +18,7 @@ in the browser's own storage on the student's machine.
 |---|---|
 | **Tips** | Where the app opens. One short passage a day from *Bad Ideas About Writing* — a free book of 43 chapters, each taking apart one bad idea. The rail lists every class meeting this term. |
 | **Notebook** | Everything kept, in four lenses: **By day**, **By piece**, **My Progress**, **Threads**. This is what gets bundled into the submitted PDF. |
-| **Readings** | Open a chapter PDF, read closely, highlight, and ask Romano about a passage. Readings come from the student's own files — the app does not host them. |
+| **Readings** | Open a chapter PDF, read closely, and mark passages — each kept with the book's own page number. Notes only; no AI in the margin. Readings come from the student's own files — the app does not host them. |
 | **Freewrite** | The five One-Pagers (timed gush → shaped page), an open page for keeping the practice, and the four required notebook entries. |
 | **Currere** | Four movements — go back, go forward, lay them side by side, put it back together. |
 
