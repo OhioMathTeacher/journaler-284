@@ -5111,7 +5111,7 @@ You: Really. The first line only has to exist, not be good.`;
       + `<button class="nbview ${onPages?'on':''}" data-mode="day">Your pages</button>`
       + (threadsReady
           ? `<button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads">Threads</button>`
-          : `<button class="nbview off" disabled title="Threads needs ${THREADS_MIN} entries before it can show you anything — you have ${nEntries}. It appears on its own.">Threads</button>`)
+          : `<button class="nbview off" disabled title="A thread is something that keeps coming back across your entries. With fewer than ${THREADS_MIN} it cannot tell a thread from a word you happened to use twice, so it waits — and opens on its own.">Threads <span class="nblock">${nEntries}/${THREADS_MIN}</span></button>`)
       + `</div>`;
     // The sort, inside the lens it sorts -- not a second thing to choose from the top.
     const pagesSort = onPages ? `<div class="nbsort">`

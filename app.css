@@ -1394,3 +1394,7 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .nbsort { display: flex; gap: 2px; margin: 0 0 12px; }
 .nbview.sub { font-size: 13px; padding: 4px 9px; border-radius: 5px; font-weight: 600; }
 .nbview.off { opacity: .38; cursor: default; }
+/* The gate, said out loud on the button rather than hidden in a tooltip nobody
+   hovers and no touch device shows. Reads as progress toward opening, not as a
+   thing that is broken. */
+.nbview .nblock { font-weight: 700; font-size: 11.5px; letter-spacing: .03em; padding: 1px 5px; margin-left: 5px; border-radius: 999px; background: var(--comment-border); color: var(--muted); }
