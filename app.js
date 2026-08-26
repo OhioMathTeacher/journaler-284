@@ -3495,6 +3495,10 @@ You: Really. The first line only has to exist, not be good.`;
       box.addEventListener('keyup',   () => setTimeout(relabel, 0));
     }
   }
+  // ⚠ RETIRED 2026-08-26 and currently unreferenced: Readings is notes only, so
+  // nothing calls this. Kept for one build rather than excised during class because it
+  // shares the retry/repair helpers below. Delete it, and whatever it alone uses, at the
+  // next clean-up. Do NOT wire it back into the reading pane.
   async function askRomanoInto(passage, question, page){
     const rid = currentReadingId(); if(!rid) return;
     if(getProvider()==='none'){
@@ -3877,8 +3881,6 @@ You: Really. The first line only has to exist, not be good.`;
           <h4>Your highlights</h4>
           <div id="hlList"></div>
           <div id="newnote"></div>
-          <div class="askbar"><input placeholder="Ask Romano about the reading…" id="askin"><button class="btn sm" id="askbtn">Ask</button></div>
-          <p class="whois">Romano is the app's reading partner, named for the book's author. It is software, and its answers are its own.</p>
           <p class="locknote" style="margin-top:10px">Highlights save automatically · export to your Notebook →</p>
         </aside>
       </div>`;
@@ -3919,23 +3921,6 @@ You: Really. The first line only has to exist, not be good.`;
     if(fgBtn) fgBtn.onclick = forgetReadingsFolder;
     input.onchange = async () => { await addReadingFiles(input.files); input.value = ''; };
     folderInput.onchange = async () => { await addReadingFiles(folderInput.files); folderInput.value = ''; };
-    // The ask bar is for the reading at large — no passage. It used to pass the
-    // lingering captureText, which is what filed stray questions under old quotes.
-    // Enter submits as well as the button: this is a chat box, and every other
-    // chat box in the world sends on Enter. Without it the typed question just
-    // sits there and the reader assumes the AI is broken.
-    const askEl = document.getElementById('askin');
-    const sendAsk = () => {
-      const v = askEl.value.trim();
-      if(!v) return;
-      askEl.value = '';
-      askRomanoInto('', v, readPageNum);
-    };
-    document.getElementById('askbtn').addEventListener('click', sendAsk);
-    askEl.addEventListener('keydown', e => {
-      // Shift+Enter stays free for anyone who expects it to mean "not yet".
-      if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendAsk(); }
-    });
   }
 
   // ---------- Notebook — kept pages, seen two ways (by day · by piece) ----------
@@ -4398,6 +4383,10 @@ You: Really. The first line only has to exist, not be good.`;
       <p>You turn in a <strong>report</strong>, not the whole notebook: the pages you choose, and
         what you made of them. A <strong>marked</strong> page is printed in full. Everything else
         is counted but not read — one line each in the Contents.</p>
+      <p><strong>What counts as an entry:</strong> a free-write, a currere gush, your reading of
+        a thread, an answer to a required-entry page — anything <em>you</em> wrote and kept. What
+        does not count on its own is a passage marked in a reading: marking keeps it and cites it,
+        and My Progress lists the readings waiting for you to say what you make of them.</p>
       <p>Anything you write is fair game to bring in here and rethink, expand or rewrite. What
         does <em>not</em> belong is a finished draft that already lives somewhere else — your
         timed One-Pager gushes go in on sheet two of their own PDF, and nothing gets counted
@@ -4407,7 +4396,9 @@ You: Really. The first line only has to exist, not be good.`;
         the same action. Your Look-Back Letter too. The only thing left for December is flagging
         the three entries you want read closely.</p>
       <table class="ap-rows">
-        <tr><td>1 · Kept practice</td><td>20</td><td>Every entry you keep. Nothing to mark.</td></tr>
+        <tr><td>1 · Kept practice</td><td>20</td><td>Every entry you keep — an entry is writing
+          <em>you</em> did. A passage marked in a reading is kept and cited, and becomes an entry
+          when you write what you make of it. Nothing to mark.</td></tr>
         <tr><td>2 · Required entries</td><td>5</td><td>Baseline · Currere · Topic map · Source notes</td></tr>
         <tr><td>3 · Look-Back Letter</td><td>10</td><td>Written in the last class, to your Week 1 answer.</td></tr>
         <tr><td>4 · Thinking on the page</td><td>15</td><td>Your 3 flagged entries, and your reading of a thread.</td></tr>
@@ -4557,7 +4548,9 @@ You: Really. The first line only has to exist, not be good.`;
       <p class="pj-txt"><button class="pj-about" id="pjAbout">About this project →</button></p>
       ${pendingPanel()}
       <table class="pjtable">
-        ${row(1, 'Kept practice', 20, `Every entry you keep, from anywhere. Nothing to tag. ${jump('Open page →','open')}`,
+        ${row(1, 'Kept practice', 20, `<strong>An entry is writing you did.</strong> Passages you
+              mark in a reading are kept and cited, but they become an entry when you write what you
+              make of them. Nothing to tag. ${jump('Open page →','open')}`,
               kept + `<br><span class="pj-aim">${band}</span>`,
               ord.length >= ENTRIES_BANDS.full)}
         ${row(2, 'Required entries', 5, 'Keeping one of these tags it. Or choose from what you already kept.',
@@ -4576,6 +4569,22 @@ You: Really. The first line only has to exist, not be good.`;
     const T = turnin();
     const checks = TURNIN_SLOTS.map(([k, label]) => ({ k, label, ok: !!T[k] }));
     checks.push({ k: 'analysis', label: 'Your reading of a thread', ok: analysisDone() });
+    // ⚠ TAGGING IS NOT A NOTEBOOK (Todd, 2026-08-26): "I don't think 3 entries created
+    // in 5 minutes should allow me to submit the entire notebook!" Filling all eight
+    // columns proved nothing about the practice, because an entry may hold several tags
+    // by design -- three entries could claim all eight and read as finished.
+    //
+    // Two checks close it. A floor on the count, set at the band below which Kept
+    // practice scores nothing at all, so "ready" can never mean an empty row 1. And the
+    // three close-reading flags must sit on three DIFFERENT entries: they are meant to
+    // be one per act, and one page wearing all three stars is not that.
+    const n = numberedEntries().length;
+    checks.push({ k: 'count',
+      label: `At least ${ENTRIES_BANDS.partial} entries — you have ${n}`,
+      ok: n >= ENTRIES_BANDS.partial });
+    const starred = ['flag1','flag2','flag3'].map(k => T[k]).filter(Boolean);
+    checks.push({ k: 'distinct', label: 'Three different entries flagged, one per act',
+      ok: starred.length === 3 && new Set(starred).size === 3 });
     return { checks, done: checks.filter(c => c.ok).length, all: checks.length };
   }
   // Column heads for the Tags grid. Eight full labels would make the table wider than the
