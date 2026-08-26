@@ -1386,3 +1386,11 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .rf-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
 @media (max-width: 640px){ .rf-box { padding: 16px; } .rf-actions { flex-direction: column-reverse; } .rf-actions .popup-btn { width: 100%; } }
 .day-owed { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 14px; }
+
+/* The By day / By piece sort, inside "Your pages" rather than competing with it
+   in the lens row. Quieter than a lens on purpose: it changes the order of one
+   list, it does not change what you are looking at. (Todd, 2026-08-26 — four
+   lenses became two.) */
+.nbsort { display: flex; gap: 2px; margin: 0 0 12px; }
+.nbview.sub { font-size: 13px; padding: 4px 9px; border-radius: 5px; font-weight: 600; }
+.nbview.off { opacity: .38; cursor: default; }

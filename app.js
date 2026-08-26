@@ -5092,6 +5092,9 @@ You: Really. The first line only has to exist, not be good.`;
   function shortDate(k){ const [y,m,d]=String(k).split('-').map(Number);
     return new Date(y,(m||1)-1,d||1).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
 
+  // Under this, recurringTerms drops to a 2-entry threshold and every word looks
+  // like a thread. Same number the Threads pane already used to pick cbMin.
+  const THREADS_MIN = 8;
   function renderNote(){
     body.classList.add('bleed');
     // The Tags lens advertises itself. Todd: "Folks won't know to click on Tags." A lens
@@ -5100,7 +5103,21 @@ You: Really. The first line only has to exist, not be good.`;
     const _R = readiness(); const tagDone = _R.done, tagAll = _R.all;
     const tagBadge = (DB.journal||[]).length
       ? `<span class="nbcount ${tagDone<tagAll?'todo':'ready'}">${tagDone}/${tagAll}</span>` : '';
-    const toggle = `<div class="nbviews"><button class="nbview ${noteMode==='day'?'on':''}" data-mode="day">By day</button><button class="nbview ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button><button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">My Progress ${tagBadge}</button><button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads">Threads</button></div>`;
+    const nEntries = numberedEntries().length;
+    const threadsReady = nEntries >= THREADS_MIN;
+    const onPages = noteMode === 'day' || noteMode === 'piece';
+    const toggle = `<div class="nbviews">`
+      + `<button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">My Progress ${tagBadge}</button>`
+      + `<button class="nbview ${onPages?'on':''}" data-mode="day">Your pages</button>`
+      + (threadsReady
+          ? `<button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads">Threads</button>`
+          : `<button class="nbview off" disabled title="Threads needs ${THREADS_MIN} entries before it can show you anything — you have ${nEntries}. It appears on its own.">Threads</button>`)
+      + `</div>`;
+    // The sort, inside the lens it sorts -- not a second thing to choose from the top.
+    const pagesSort = onPages ? `<div class="nbsort">`
+      + `<button class="nbview sub ${noteMode==='day'?'on':''}" data-mode="day">By day</button>`
+      + `<button class="nbview sub ${noteMode==='piece'?'on':''}" data-mode="piece">By piece</button>`
+      + `</div>` : '';
     // ── The Tags lens: every entry against every tag, on one screen.
     //
     // Tagging lived only on the individual entry, so finding which page held which tag
@@ -5109,6 +5126,7 @@ You: Really. The first line only has to exist, not be good.`;
     // nothing did before: a tagged entry is REPRINTED IN FULL in the report and an
     // untagged one appears only as a line in the Contents. That is what keeps the report
     // to under ten pages, and a student who does not know it cannot use it.
+    if(noteMode === 'threads' && numberedEntries().length < THREADS_MIN) noteMode = 'tags';
     if(noteMode === 'threads'){
       const ts = threads();
       const ordered = numberedEntries();
@@ -5189,7 +5207,7 @@ You: Really. The first line only has to exist, not be good.`;
       frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Hold one preoccupation still and watch it change across the term.</p>${toggle}</div>
         ${threadsAbout()}
         <div class="notewrap">${leftT}${rightT}</div>`;
-      frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+      frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
       wireProjectLinks();
       frame.querySelectorAll('[data-thread]').forEach(b => b.onclick = () => { threadSel = b.dataset.thread; renderNote(); });
       frame.querySelectorAll('.cbterm').forEach(b => b.onclick = () => {
@@ -5249,7 +5267,7 @@ You: Really. The first line only has to exist, not be good.`;
             : `<p class="empty">Nothing kept yet, so there is nothing to mark. Once you keep entries they appear here as rows, and you tick the box that says which required entry each one answers — or which three you want read closely.</p>`}
           ${noteFoot()}
         </div>`;
-      frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+      frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
       wireTray(); wireProjectLinks();
       wireTurninLinks(); wireNoteFoot();
       if(tagFocus){
@@ -5293,7 +5311,7 @@ You: Really. The first line only has to exist, not be good.`;
         const isOp = list.some(e=>e.pieceKind === 'one-pager');
         cells += `<div class="cell ${wrote?'entry':''} ${!wrote&&list.length?'marked':''} ${isOp?'op':''} ${noteSel===key?'sel':''}" data-key="${key}">${dd}</div>`;
       }
-      leftPane = `<div class="cal">
+      leftPane = `<div class="cal">${pagesSort}
         <div class="calhead"><button class="calnav" id="prevM" aria-label="Previous month" ${(y*12+m)<=NOTE_MIN?'disabled':''}>‹</button><span class="mname">${monthName}</span><button class="calnav" id="nextM" aria-label="Next month" ${(y*12+m)>=NOTE_MAX?'disabled':''}>›</button></div>
         <div class="grid">${dow}${cells}</div>
         <p class="runline" style="margin-top:12px">● green = a day you wrote. ○ hollow = passages marked, not yet reflected on. Click a day to read it.</p>
@@ -5304,7 +5322,7 @@ You: Really. The first line only has to exist, not be good.`;
       const listHtml = pieces.length
         ? pieces.map(p=>`<button class="moment has ${notePieceSel===p.id?'on':''}" data-piece="${p.id}"><span class="mname"><span class="dot"></span>${escHtml(p.title)}</span><span class="mkind">${p.entries.length} kept pass${p.entries.length>1?'es':''}</span></button>`).join('')
         : `<p class="empty" style="font-family:var(--sans)">Nothing kept yet. This fills with everything you decide to keep — free-writes, currere gushes, reading notes, the four required entries — each one dated, numbered, and counted toward <strong>Kept practice</strong>, the largest row on the rubric. Write in any tab, then press <strong>＋ Add to notebook</strong>.</p>`;
-      leftPane = `<div class="piecelist"><p class="lead">Your pieces</p>${listHtml}
+      leftPane = `<div class="piecelist">${pagesSort}<p class="lead">Your pieces</p>${listHtml}
         ${noteFoot()}</div>`;
       rightPane = notePieceDetail();
     }
@@ -5312,7 +5330,7 @@ You: Really. The first line only has to exist, not be good.`;
       ${draftTray()}
       <div class="notewrap">${leftPane}${rightPane}</div>`;
 
-    frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
+    frame.querySelectorAll('.nbview').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
     wireTray(); wireProjectLinks();
     // Only one lens renders at a time, so only one bundle button exists.
     // Tag / untag from the entry itself. Saved on the spot: there is no submit step here,
