@@ -2969,31 +2969,36 @@ async function runReflection(rf, text, hooks) {
   // and Ask Romano held the primary slot, so the ordinary act — reading a passage and
   // typing what you think about it — routed through the AI by default, and a reader who
   // pressed Enter out of habit had their comment answered instead of kept. Highlight is
-  // now the primary button and what Enter does; asking costs a deliberate click. Keep it
-  // that way: the notebook is the point, and the partner is optional.
+  // now the primary button and what Enter does. Keep it that way: the notebook is the
+  // point, and the partner is optional.
+  //
+  // 2026-08-26, Todd: Ask Romano left this popup ENTIRELY. Nothing in the course
+  // requires the margin partner — one conditional sentence in the Week 1 Monday
+  // outline is the only student-facing mention, the Writer's Notebook guidelines
+  // never name AI, and Act II's required reflection partner is a different surface.
+  // Marking a passage is now note-taking and nothing else. Asking still exists, one
+  // step away, in the ask bar under the list — which calls askRomanoInto directly.
   function ensureCapturePopup(){
     let pop = document.getElementById('capturePopup');
     if(pop) return pop;
     pop = document.createElement('div'); pop.className='selection-popup'; pop.id='capturePopup'; pop.style.display='none';
     pop.innerHTML = `<img id="captureThumb" alt="captured region" style="display:none;max-width:100%;max-height:130px;border-radius:4px;margin-bottom:.5rem;border:1px solid rgba(0,0,0,.15)">
       <div class="popup-passage" id="capturePassage"></div>
-      <input type="text" id="captureInput" placeholder="A note, or a question for Romano…" autocomplete="off">
-      <div class="popup-hint">Enter keeps your note · nothing goes to Romano unless you ask</div>
+      <input type="text" id="captureInput" placeholder="A note to keep with this passage…" autocomplete="off">
+      <div class="popup-hint">Enter keeps your note. To ask Romano, use the box under your highlights.</div>
       <div class="popup-quick"><button class="popup-chip" id="captureCopyBtn" title="Copy this passage (⌘C / Ctrl+C)">⧉ Copy</button><button class="popup-chip" id="captureNbBtn">📓 Keep in notebook</button><button class="popup-chip" id="captureFigBtn" style="display:none">↓ Save figure</button></div>
       <div class="popup-actions">
         <button class="popup-btn secondary" id="captureCancelBtn">Cancel</button>
-        <button class="popup-btn secondary" id="captureAskBtn">Ask Romano</button>
         <button class="popup-btn primary" id="captureSaveBtn">✎ Highlight</button>
       </div>`;
     document.body.appendChild(pop);
     pop.querySelector('#captureCancelBtn').onclick = closeCapture;
-    pop.querySelector('#captureSaveBtn').onclick = () => saveHighlight(false);
-    pop.querySelector('#captureAskBtn').onclick  = () => saveHighlight(true);
-    pop.querySelector('#captureNbBtn').onclick   = () => saveHighlight(false, true);
+    pop.querySelector('#captureSaveBtn').onclick = () => saveHighlight();
+    pop.querySelector('#captureNbBtn').onclick   = () => saveHighlight(true);
     pop.querySelector('#captureFigBtn').onclick = downloadCapture;
     pop.querySelector('#captureCopyBtn').onclick = copyCaptureText;
     pop.querySelector('#captureInput').addEventListener('keydown', e => {
-      if(e.key==='Enter'){ e.preventDefault(); saveHighlight(false); }
+      if(e.key==='Enter'){ e.preventDefault(); saveHighlight(); }
       if(e.key==='Escape') closeCapture();
       e.stopPropagation();          // typing "c" in the note is not a copy
     });
@@ -3131,7 +3136,7 @@ async function runReflection(rf, text, hooks) {
     // whatever was captured last. saveHighlight copies what it needs first.
     captureText = ''; captureImage = ''; captureRects = null;
   }
-  function saveHighlight(ask, toNotebook){
+  function saveHighlight(toNotebook){
     const pop = document.getElementById('capturePopup');
     const note = pop ? pop.querySelector('#captureInput').value.trim() : '';
     if(!captureText && !captureImage){ closeCapture(); return; }
@@ -3151,7 +3156,6 @@ async function runReflection(rf, text, hooks) {
     renderHighlightList();
     closeCapture();
     if(toNotebook) elevateHighlight(rec);
-    if(ask && passage) askRomanoInto(passage, note, rec.page);
   }
   // Reading work counts toward the 50-pt Writer's Notebook, so a highlight can be
   // kept as a dated pass like any other piece. Carries its own citation, since the
