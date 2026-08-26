@@ -3606,6 +3606,7 @@ You: Really. The first line only has to exist, not be good.`;
     if(readPageMode === 'single' && pg !== readPageNum){
       readPageNum = pg;
       renderActiveDoc(readings[activeReading]);
+      renderHighlightList();   // the margin is filtered to the page, so it moves too
       setTimeout(()=>{ const e2 = document.querySelector(`.hl-mark[data-hl="${id}"]`); if(e2){ e2.scrollIntoView({ behavior:'smooth', block:'center' }); flashMark(id); } }, 450);
     }
   }
@@ -3615,13 +3616,25 @@ You: Really. The first line only has to exist, not be good.`;
   }
   function renderHighlightList(){
     const el = document.getElementById('hlList'); if(!el) return;
-    const list = getHighlights(currentReadingId());
+    const all = getHighlights(currentReadingId());
+    const single = readPageMode === 'single';
+    const list = single ? all.filter(h => (h.page || 1) === readPageNum) : all;
     // Badge on the toggle, so work captured while the pane is closed still announces
     // itself instead of vanishing into a panel nobody can see.
     const badge = document.getElementById('hlCount');
-    if(badge) badge.textContent = (!notesOpen && list.length) ? ' · ' + list.length : '';
-    if(!list.length){ el.innerHTML = '<p class="hl-empty">Nothing marked yet. Drag a box around a passage, then choose ✎ Highlight.</p>'; return; }
-    el.innerHTML = list.map(h => {
+    if(badge) badge.textContent = (!notesOpen && all.length) ? ' · ' + all.length : '';
+    // Where the rest of them are, said as a fact rather than discovered by panic.
+    const scope = !all.length ? '' : (single
+      ? `<p class="hl-scope">${list.length} on this page · <strong>${all.length}</strong> in this chapter.
+         Switch to <strong>Continuous</strong> to see them all.</p>`
+      : `<p class="hl-scope"><strong>${all.length}</strong> in this chapter, all pages.</p>`);
+    if(!list.length){
+      el.innerHTML = scope + (all.length
+        ? '<p class="hl-empty">Nothing marked on this page yet. Drag a box around a passage, then choose ✎ Highlight.</p>'
+        : '<p class="hl-empty">Nothing marked yet. Drag a box around a passage, then choose ✎ Highlight.</p>');
+      return;
+    }
+    el.innerHTML = scope + list.map(h => {
       // Keep the WHOLE passage in the DOM — selectable, copyable, and ready for the
       // hand-off into the Notebook. .hl-quote clamps it visually; clicking opens it.
       const quote = escHtml(h.text || '(figure)');
@@ -3632,7 +3645,12 @@ You: Really. The first line only has to exist, not be good.`;
       return `<div class="hl-card" data-hl="${h.id}"><div class="hl-quote" title="Click to show the whole passage">${quote}</div>${thumb}${note}<div class="hl-row"><button class="hl-goto" data-hl="${h.id}" title="Scroll back to this passage and flash it">Go to p. ${escHtml(String(h.pageLabel || h.page || '?'))}</button><button class="hl-nb" data-hl="${h.id}" title="Keep this in your Writer's Notebook">📓 Notebook</button><button class="hl-del" data-hl="${h.id}">Remove</button></div></div>`;
     }).join('');
     // Click the quote to expand/collapse — "Go to" already covers navigation.
-    el.querySelectorAll('.hl-quote').forEach(q => q.onclick = () => q.closest('.hl-card').classList.toggle('open'));
+    el.querySelectorAll('.hl-quote').forEach(q => q.onclick = () => {
+      const card = q.closest('.hl-card');
+      const clamped = q.scrollHeight > q.clientHeight + 2;
+      if(clamped || card.classList.contains('open')) card.classList.toggle('open');
+      else scrollToHighlight(card.dataset.hl);
+    });
     el.querySelectorAll('.hl-goto').forEach(b => b.onclick = () => scrollToHighlight(b.dataset.hl));
     // Clear-all. A highlight stores the rects it was SAVED with, so any band made by
     // an older build keeps its geometry for ever and no fix can repaint it — the
@@ -3723,8 +3741,11 @@ You: Really. The first line only has to exist, not be good.`;
     const wrap = document.createElement('div'); wrap.className = 'pdf-doc'; pane.appendChild(wrap);
     if(single){
       const pv = document.getElementById('pgPrev'), nx = document.getElementById('pgNext');
-      if(pv) pv.onclick = ()=>{ if(readPageNum>1){ readPageNum--; renderActiveDoc(r); } };
-      if(nx) nx.onclick = ()=>{ if(readPageNum<doc.numPages){ readPageNum++; renderActiveDoc(r); } };
+      // renderActiveDoc repaints the PAGE; the margin is a separate render, and now
+      // that the list is filtered to the current page it has to follow the turn or it
+      // would keep showing the page you just left.
+      if(pv) pv.onclick = ()=>{ if(readPageNum>1){ readPageNum--; renderActiveDoc(r); renderHighlightList(); } };
+      if(nx) nx.onclick = ()=>{ if(readPageNum<doc.numPages){ readPageNum++; renderActiveDoc(r); renderHighlightList(); } };
     }
     const avail = Math.max(320, pane.clientWidth - 64);
     // Fit-page needs the height the pane can actually show, less the nav strip.

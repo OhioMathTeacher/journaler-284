@@ -1413,3 +1413,4 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
    reads as a name you can follow rather than a button bolted on. */
 .entpiece { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
 .entpiece:hover { color: var(--accent); }
+.hl-scope { font-family: var(--sans); font-size: 12.5px; line-height: 1.45; color: var(--muted); margin: 0 0 10px; }
