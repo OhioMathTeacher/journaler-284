@@ -1728,7 +1728,7 @@ async function runReflection(rf, text, hooks) {
   // by the page that knows what it is. December stops being archaeology.
   const NAMED = {
     baseline: { slot:'baseline', lead:'Week 1', t:'Why do we write?',
-      f:'On Monday you gushed about why you write. What does Romano say about it — did he give reasons you did not have? What do you make of that? <span class="hint">In Week 15 you come back to this, and to your Week 1 answers.</span>',
+      f:'On Monday you gushed about why you write. Romano\'s license plate reads <em>Write 2</em> — <em>write to express, write to communicate, write to clarify, write to learn.</em> Any of those reasons you did not have? What do you make of that? <span class="hint">In Week 15 you come back to this, and to your Week 1 answers.</span>',
       ph:'Monday I said… Romano says… What I make of that is…' },
     topicmap: { slot:'topicmap', lead:'Research', t:'Topic map',
       f:'What you might write about, and everything it touches. <span class="hint">Not an outline. Names, questions, angles, dead ends — the whole spread.</span>',
