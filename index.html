@@ -13,7 +13,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-26-165">
+<link rel="stylesheet" href="app.css?v=2026-08-26-166">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -88,7 +88,7 @@
       <circle cx="15.5" cy="18" r="1.1" fill="currentColor" stroke="none"/>
     </svg>
   </button>
-  <button class="focusbtn" id="focusToggle" title="Focus mode — hide the top bar for more room to read &amp; write">◱ Focus</button>
+  <button class="focusbtn" id="focusToggle" title="Hides the top bar and the page heading, and nothing else. Your notes, the chapter picker, the page controls and the zoom all stay where they are. Esc returns.">◱ Focus</button>
   <!-- Settings. Things you touch once a term — the AI, the readings folder, the
        theme — plus diagnostics, kept off the writing surface. -->
   <button class="iconbtn" id="settingsBtn" title="Settings — your readings folder, the AI reading partner, and the diagnostics log" aria-label="Settings">
@@ -227,7 +227,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-26-165"></script>
-<script src="app.js?v=2026-08-26-165"></script>
+<script src="tips.js?v=2026-08-26-166"></script>
+<script src="app.js?v=2026-08-26-166"></script>
 </body>
 </html>

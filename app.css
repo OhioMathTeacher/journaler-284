@@ -227,12 +227,14 @@
   /* Collapsed: one column, and the aside is display:none rather than removed. Its
      children are the render targets for highlights and the Romano thread, so they must
      stay in the DOM to keep receiving work captured while the pane is shut. */
-  /* Focus mode hides the pane too — same mechanism, so there is one code path and the
-     DOM stays intact either way. It does NOT touch notesOpen, so leaving focus restores
-     whichever state you had chosen. The toggle lives in the shelf, which focus also
-     hides: in focus there is the reading and nothing else, by design. */
-  .reader.notes-hidden,
-  body.focus.reading .reader { grid-template-columns: minmax(0, 1fr); }
+  /* ⚠ FOCUS KEEPS THE MARGIN (Todd, 2026-08-26). Focus used to delete the notes pane
+     as well, on the theory that focus means "the reading and nothing else". Reading a
+     PDF is not writing a draft: the margin IS the reading, and on a landscape monitor
+     hiding it threw away the comments AND the width, leaving one portrait page in an
+     acre of nothing. Focus now hides the CHROME -- top bar, shelf, page furniture --
+     and keeps your notes. ◧ Hide notes still works inside focus for anyone who does
+     want the page alone, which is the difference between a choice and a rule. */
+  .reader.notes-hidden { grid-template-columns: minmax(0, 1fr); }
 
   /* One toolbar across the top of the frame. Everything that acts on the DOCUMENT is
      here — page, view mode, capture, zoom, notes — while the shelf above the frame is
@@ -250,8 +252,7 @@
   .reader .viewbar .zoomsel:focus { outline: none; border-color: var(--accent); }
   /* Narrow frame: keep the controls, drop the word. */
   @container reader (max-width: 780px) { .reader .viewbar .zoomwrap > span:first-child { display: none; } }
-  .reader.notes-hidden .notes,
-  body.focus.reading .notes { display: none; }
+  .reader.notes-hidden .notes { display: none; }
   .hl-count { font-variant-numeric: tabular-nums; }
   /* The margin is a column with a fixed head and foot: the ask bar and the save note
      stay put while the LIST scrolls inside itself. It used to scroll as one block, so
@@ -343,13 +344,15 @@
      and the whole shelf row go, leaving the reading and your notes. Come back with Esc
      or ✕ Exit focus; page, zoom and Ask all stay reachable inside the reader. */
   body.focus.reading .frame { max-width: 1900px; padding-top: 0; }
-  body.focus.reading .shelf { display: none !important; }
+  /* The shelf stays. It holds the CHAPTER SELECTOR, so hiding it in focus meant you
+     could not change reading without leaving focus first — chrome and a control wearing
+     one container. Focus hides the top bar and the page heading; everything you steer
+     the reading with stays put. (Todd, 2026-08-26.) */
   body.focus.reading .reader { min-height: calc(100vh - 24px); border-radius: 0; border-left: none; border-right: none; }
   /* ✕ Exit focus is position:fixed top-right, and with the shelf gone the toolbar rises
      to meet it. Reserve its width at the end of the bar, and drop the notes toggle,
      which focus has already overridden and which therefore does nothing here. */
   body.focus.reading .viewbar { padding-right: 168px; }
-  body.focus.reading #notesToggle { display: none; }
   body.focus .layout { grid-template-columns: 1fr; }
   body.focus .stage { background: none; border: none; box-shadow: none; padding: 0; }
   body.focus .gushbar { justify-content: center; }
