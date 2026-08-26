@@ -253,7 +253,11 @@
   .reader.notes-hidden .notes,
   body.focus.reading .notes { display: none; }
   .hl-count { font-variant-numeric: tabular-nums; }
-  .reader .notes { background: var(--margin-bg); border-left: 1px solid var(--comment-border); padding: 20px 18px; overflow-y: auto; }
+  /* The margin is a column with a fixed head and foot: the ask bar and the save note
+     stay put while the LIST scrolls inside itself. It used to scroll as one block, so
+     a page with a dozen highlights pushed the ask bar off the bottom. */
+  .reader .notes { background: var(--margin-bg); border-left: 1px solid var(--comment-border); padding: 20px 18px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .reader .notes #hlList { flex: 1 1 auto; min-height: 5rem; overflow-y: auto; margin-right: -6px; padding-right: 6px; }
   .reader .notes h4 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
   .notecard { background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; padding: 11px 13px; margin-bottom: 10px; font-size: 15.5px; }
   .notecard .q { color: var(--accent); font-weight: 600; margin-bottom: 4px; }
@@ -361,7 +365,7 @@
   .exitfocus { display: none; position: fixed; top: 14px; right: 16px; z-index: 20; }
   body.focus .exitfocus { display: inline-flex; }
 
-  @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } .spine { position: static; } .reader { grid-template-columns: 1fr; } .reader .notes { border-left: none; border-top: 1px solid var(--comment-border); } }
+  @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } .spine { position: static; } .reader { grid-template-columns: 1fr; } .reader .notes { border-left: none; border-top: 1px solid var(--comment-border); display: block; overflow: visible; } .reader .notes #hlList { overflow: visible; max-height: none; } }
 
 /* ===== AI provider modal (harvested from 318P source) ===== */
 .ai-modal-overlay {

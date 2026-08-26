@@ -1696,7 +1696,7 @@ async function runReflection(rf, text, hooks) {
       // Open the chapter the notes came from, not just the Readings tab.
       const rid = pieceId.slice(8);   // "reading:" → the reading's id
       const idx = rid ? readings.findIndex(r => r.id === rid) : -1;
-      if(idx >= 0){ activeReading = idx; readPageNum = 1; _curPdf = { id:null, doc:null }; persistReadings(); }
+      if(idx >= 0){ activeReading = idx; readPageNum = 1; _curPdf = { id:null, doc:null, labels:null }; persistReadings(); }
       show('read');
     }
     else { show('free'); }
@@ -2358,7 +2358,19 @@ async function runReflection(rf, text, hooks) {
   // Reading view state.
   let readPageMode = DB.readPageMode || 'single';   // 'single' | 'continuous'
   let readPageNum = 1;                               // current page in single mode
-  let _curPdf = { id:null, doc:null };               // cache the parsed doc so paging doesn't reparse
+  let _curPdf = { id:null, doc:null, labels:null };  // cache the parsed doc so paging doesn't reparse
+  // The WWM chapter PDFs carry /PageLabels (embedded 2026-08-26), so page 1 of
+  // ch5-a-writing-place.pdf reports itself as book page 23. Everything a student
+  // READS or CITES should use that; everything that POSITIONS a highlight must keep
+  // using the index, because the rects were measured against it. Hence two fields on
+  // a highlight: .page (index, paints the band) and .pageLabel (book page, cites it).
+  // A PDF with no labels — a student's own scan — falls back to the index, so nothing
+  // depends on the labels existing.
+  function pageLabelFor(n){
+    const L = _curPdf.labels;
+    const v = (L && L[n-1] != null) ? String(L[n-1]).trim() : '';
+    return v || String(n);
+  }
 
   // Wait briefly for the pdf.js ES module (index.html) to attach to window.
   async function ensurePdfjs(){ for(let i=0; i<40 && !window.pdfjsLib; i++){ await new Promise(res=>setTimeout(res,100)); } return window.pdfjsLib; }
@@ -2401,7 +2413,7 @@ async function runReflection(rf, text, hooks) {
     delete DB.readingsDirName; saveDB();
     try { await idbDel('handles','readingsDir'); } catch(e){}
     if(activeReading >= readings.length) activeReading = Math.max(0, readings.length - 1);
-    _curPdf = { id:null, doc:null };
+    _curPdf = { id:null, doc:null, labels:null };
     persistReadings(); renderRead();
   }
   // Reconcile the shelf with what's actually in the folder — new files appear,
@@ -2500,7 +2512,10 @@ async function runReflection(rf, text, hooks) {
           if(!bytes){ pane.innerHTML = missingBytesStub(r); return; }
           doc = await lib.getDocument({ data: (bytes.slice ? bytes.slice(0) : bytes), ...(window.PDF_DOC_OPTS||{}) }).promise;
           if(token !== _readToken) return;
-          _curPdf = { id:r.id, doc };
+          let labels = null;
+          try { labels = await doc.getPageLabels(); }
+          catch(e){ console.warn('page labels', e); }
+          _curPdf = { id:r.id, doc, labels };
         }
         await renderPdfPages(pane, doc, r, token);
       } catch(e){ console.warn('pdf render', e); if(token===_readToken) pane.innerHTML = `<div class="docstub"><strong>Could not render this PDF.</strong><br>${escHtml(String((e&&e.message)||e))}</div>`; }
@@ -3127,6 +3142,9 @@ async function runReflection(rf, text, hooks) {
       text: passage || '', image: captureImage || '', note,
       rects, page: (rects[0] && rects[0].page) || readPageNum, ts: Date.now()
     };
+    // Stamped now, not looked up later: the citation has to survive the reader
+    // closing the chapter, and a kept note outlives the open document.
+    rec.pageLabel = pageLabelFor(rec.page);
     addHighlight(rec);
     logEvent('save', 'highlight kept', { page: rec.page, chars: (rec.text||'').length });
     repaintHighlights();
@@ -3142,7 +3160,7 @@ async function runReflection(rf, text, hooks) {
     if(!rec) return;
     const r = readings[activeReading];
     const label = r ? readingLabel(r) : '';
-    const where = label + (rec.page ? ', p. ' + rec.page : '');
+    const where = label + (rec.page ? ', p. ' + (rec.pageLabel || rec.page) : '');
     const body = [
       rec.text ? '“' + rec.text + '”' : '(figure)',
       where.trim() ? '— ' + where : '',
@@ -3196,7 +3214,7 @@ async function runReflection(rf, text, hooks) {
     if(!rec || !rec.reply) return;
     const r = readings[activeReading];
     const label = r ? readingLabel(r) : '';
-    const where = label + (rec.page ? ', p. ' + rec.page : '');
+    const where = label + (rec.page ? ', p. ' + (rec.pageLabel || rec.page) : '');
     const said = String(excerpt || rec.reply).trim();
     const partial = !!excerpt && excerpt.trim() !== String(rec.reply).trim();
     const body = [
@@ -3564,7 +3582,7 @@ You: Really. The first line only has to exist, not be good.`;
       // ⤓ Save my work as base64. Keep it only for real figures (boxed, no text).
       const thumb = (!h.text && h.image) ? `<img src="${h.image}" alt="figure" class="hl-thumb">` : '';
       const note = h.note ? `<div class="hl-note">${escHtml(h.note)}</div>` : '';
-      return `<div class="hl-card" data-hl="${h.id}"><div class="hl-quote" title="Click to show the whole passage">${quote}</div>${thumb}${note}<div class="hl-row"><button class="hl-goto" data-hl="${h.id}">Go to</button><button class="hl-nb" data-hl="${h.id}" title="Keep this in your Writer's Notebook">📓 Notebook</button><button class="hl-del" data-hl="${h.id}">Remove</button></div></div>`;
+      return `<div class="hl-card" data-hl="${h.id}"><div class="hl-quote" title="Click to show the whole passage">${quote}</div>${thumb}${note}<div class="hl-row"><button class="hl-goto" data-hl="${h.id}" title="Scroll back to this passage and flash it">Go to p. ${escHtml(String(h.pageLabel || h.page || '?'))}</button><button class="hl-nb" data-hl="${h.id}" title="Keep this in your Writer's Notebook">📓 Notebook</button><button class="hl-del" data-hl="${h.id}">Remove</button></div></div>`;
     }).join('');
     // Click the quote to expand/collapse — "Go to" already covers navigation.
     el.querySelectorAll('.hl-quote').forEach(q => q.onclick = () => q.closest('.hl-card').classList.toggle('open'));
@@ -3652,7 +3670,7 @@ You: Really. The first line only has to exist, not be good.`;
     // pane. Splitting them across two strips was the thing that read as "wrong".
     const navHost = document.getElementById('pageNav');
     if(navHost) navHost.innerHTML = single
-      ? `<button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button><span class="pdfnav-lbl">Page ${readPageNum} of ${doc.numPages}</span><button class="pdfnav-btn" id="pgNext" ${readPageNum>=doc.numPages?'disabled':''}>Next ›</button>`
+      ? `<button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button><span class="pdfnav-lbl">Page ${pageLabelFor(readPageNum)} of ${pageLabelFor(doc.numPages)}</span><button class="pdfnav-btn" id="pgNext" ${readPageNum>=doc.numPages?'disabled':''}>Next ›</button>`
       : `<span class="pdfnav-lbl">${doc.numPages} pages · scroll to read</span>`;
     pane.innerHTML = '';
     const wrap = document.createElement('div'); wrap.className = 'pdf-doc'; pane.appendChild(wrap);
@@ -3769,7 +3787,7 @@ You: Really. The first line only has to exist, not be good.`;
       }
     }
     activeReading = readings.length - 1;
-    readPageNum = 1; _curPdf = { id:null, doc:null };
+    readPageNum = 1; _curPdf = { id:null, doc:null, labels:null };
     persistReadings();
     renderRead();
   }
@@ -3825,12 +3843,12 @@ You: Really. The first line only has to exist, not be good.`;
       </div>`;
     if(active && (active.type === 'pdf' || active.type === 'docx')) renderActiveDoc(active);
     const sel = document.getElementById('readingSelect');
-    sel.onchange = () => { const i = +sel.value; if(i>=0){ activeReading = i; readPageNum = 1; _curPdf = { id:null, doc:null }; persistReadings(); renderRead(); } };
+    sel.onchange = () => { const i = +sel.value; if(i>=0){ activeReading = i; readPageNum = 1; _curPdf = { id:null, doc:null, labels:null }; persistReadings(); renderRead(); } };
     document.getElementById('removeReading').onclick = () => {
       if(readings.length<=1) return;
       readings.splice(activeReading, 1);
       if(activeReading >= readings.length) activeReading = readings.length - 1;
-      readPageNum = 1; _curPdf = { id:null, doc:null };
+      readPageNum = 1; _curPdf = { id:null, doc:null, labels:null };
       persistReadings(); renderRead();
     };
     frame.querySelectorAll('.vbtn[data-vm]').forEach(b => b.onclick = () => { readPageMode = b.dataset.vm; DB.readPageMode = readPageMode; saveDB(); renderRead(); });
