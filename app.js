@@ -2793,11 +2793,15 @@ async function runReflection(rf, text, hooks) {
       _mq.boxEl.style.width  = Math.abs(cx - _mq.startX)+'px';
       _mq.boxEl.style.height = Math.abs(cy - _mq.startY)+'px';
     });
-    window.addEventListener('mouseup', () => {
+    window.addEventListener('mouseup', e => {
       if(!_mq) return;
       const m = _mq; _mq = null;
       const r = m.boxEl.getBoundingClientRect();
-      if(r.width < 6 || r.height < 6){ m.boxEl.remove(); return; }
+      // A box under 6px was never a drag -- it was a CLICK, and this branch already knew
+      // it. So the link runs both ways for free: no change to .hl-mark's pointer-events,
+      // the bands stay click-through, and dragging a new box across an old highlight
+      // keeps working. (Ported from journaler-318P, build 35.)
+      if(r.width < 6 || r.height < 6){ m.boxEl.remove(); markAt(e.clientX, e.clientY); return; }
       handleMarqueeCapture(r, m.canvas, m.textLayerDiv);
     });
   }
@@ -3751,6 +3755,35 @@ You: Really. The first line only has to exist, not be good.`;
   function flashMark(id){
     document.querySelectorAll(`.hl-mark[data-hl="${id}"]`).forEach(el => { el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'), 1200); });
   }
+  // Which band is under that point. Smallest wins: bands overlap exactly where a reader
+  // marked a phrase inside a passage they had already marked, and the small one is what
+  // they were aiming at. 'live' and 'preview' bands are in-progress, not kept notes.
+  function markAt(x, y){
+    let best = null, bestArea = Infinity;
+    document.querySelectorAll('.hl-mark[data-hl]').forEach(el => {
+      if(el.classList.contains('live') || el.classList.contains('preview')) return;
+      const b = el.getBoundingClientRect();
+      if(x < b.left || x > b.right || y < b.top || y > b.bottom) return;
+      const a = b.width * b.height;
+      if(a < bestArea){ bestArea = a; best = el; }
+    });
+    if(best) revealHighlight(best.dataset.hl);
+  }
+  // Click a highlight, find its note -- the reverse of scrollToHighlight, and the same
+  // rule in the other direction: move the view only as much as it has to. The margin is
+  // a scrolling list here, so a card below the fold comes up first, then flashes.
+  function revealHighlight(id){
+    const card = document.querySelector(`.hl-card[data-hl="${id}"]`);
+    if(!card){ return; }
+    const pane = document.getElementById('hlList');
+    if(pane){
+      const cr = card.getBoundingClientRect(), pr = pane.getBoundingClientRect();
+      if(cr.bottom < pr.top + 2 || cr.top > pr.bottom - 2) card.scrollIntoView({ behavior:'smooth', block:'center' });
+    }
+    card.classList.add('flash');
+    setTimeout(() => card.classList.remove('flash'), 1400);
+  }
+
   function scrollToHighlight(id){
     const el = document.querySelector(`.hl-mark[data-hl="${id}"]`);
     if(el){ el.scrollIntoView({ behavior:'smooth', block:'center' }); flashMark(id); return; }
