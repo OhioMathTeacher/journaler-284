@@ -214,7 +214,12 @@
   .reader { display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto 1fr; gap: 0; border: 1px solid var(--comment-border); border-radius: 8px; overflow: hidden; min-height: 70vh; max-width: 1900px; margin: 0 auto; container-name: reader; container-type: inline-size; }
   /* overflow-x too: at 150-200% zoom the page is deliberately wider than its column,
      and without this it was clipped with no way to scroll to the rest of the line. */
-  .reader .doc { background: #fff; padding: 26px clamp(20px,4vw,64px); overflow: auto; }
+  /* min-height:0 — a grid item defaults to min-height:auto, which refuses to shrink
+     below its content, so a tall page grew the row instead of scrolling inside it and
+     .reader's overflow:hidden chopped the bottom off. The pane is the scroller; it has
+     to be allowed to be shorter than what it holds. (Todd, 2026-08-26.) */
+  .reader .doc { background: #fff; padding: 26px clamp(20px,4vw,64px); overflow: auto; min-height: 0; }
+
   /* A white sheet on a white surround has no edge — the page just dissolves into the
      pane. Every serious PDF reader puts a neutral behind the page for exactly this
      reason. Slate is warm-leaning so it sits with the parchment rather than fighting it.

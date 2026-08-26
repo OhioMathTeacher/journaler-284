@@ -3898,9 +3898,12 @@ You: Really. The first line only has to exist, not be good.`;
       if(pv) pv.onclick = ()=>{ if(readPageNum>1){ readPageNum = Math.max(1, readPageNum - readSpread); renderActiveDoc(r); renderHighlightList(); } };
       if(nx) nx.onclick = ()=>{ if(readPageNum + readSpread - 1 < doc.numPages){ readPageNum += readSpread; renderActiveDoc(r); renderHighlightList(); } };
     }
-    const avail = Math.max(320, pane.clientWidth - 64);
-    // Fit-page needs the height the pane can actually show, less the nav strip.
-    const availH = Math.max(280, pane.clientHeight - 96);
+    const _cs = getComputedStyle(pane);
+    const _padX = (parseFloat(_cs.paddingLeft) || 0) + (parseFloat(_cs.paddingRight) || 0);
+    const _padY = (parseFloat(_cs.paddingTop) || 0) + (parseFloat(_cs.paddingBottom) || 0);
+    const avail = Math.max(320, pane.clientWidth - _padX);
+    // Fit-page needs the height the pane can actually show, less its own padding.
+    const availH = Math.max(280, pane.clientHeight - _padY);
     const ratio = window.devicePixelRatio || 1;
     const pages = single
       ? (visiblePages() || []).filter(n => n >= 1 && n <= doc.numPages)
@@ -5748,7 +5751,21 @@ You: Really. The first line only has to exist, not be good.`;
   // Freewrite has to take it down or it hangs over whatever view replaced the pane.
   function show(t){ tab=t; document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); body.classList.toggle('reading', t==='read'); R[t](); paintInsMarker(); }
   document.querySelectorAll('#tabbar button').forEach(b=>b.addEventListener('click',()=>{ if(G.running)return; show(b.dataset.t); }));
-  function setFocus(on){ body.classList.toggle('focus',on); }
+  // ⚠ FOCUS MUST ASK FOR THE RE-RENDER (Todd, 2026-08-26): "when I click focus button
+  // on this page, the pages disappear." Toggling the class changes the reader's width
+  // AND its height in one step, and the only thing watching was the ResizeObserver --
+  // which fires just at fit/page zoom, only past a 24px delta, and then after its own
+  // debounce. So the recipe was fit + focus: the page sat at a size measured for the
+  // other layout while several width changes raced each other through the observer.
+  // Ask directly, two frames later, once the new layout has actually been laid out.
+  function setFocus(on){
+    body.classList.toggle('focus', on);
+    if(tab !== 'read') return;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const r = readings[activeReading];
+      if(r && (r.type === 'pdf' || r.type === 'docx')) renderActiveDoc(r);
+    }));
+  }
   document.getElementById('focusToggle').addEventListener('click',()=>setFocus(!body.classList.contains('focus')));
   document.getElementById('exitFocus').addEventListener('click',()=>setFocus(false));
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!G.running) setFocus(false); });
