@@ -4096,8 +4096,11 @@ You: Really. The first line only has to exist, not be good.`;
         <textarea id="edit_${e.id}" class="entry-edit" data-autogrow="1">${escHtml(e.text)}</textarea>
         <div style="margin-top:6px;display:flex;gap:6px"><button class="btn sm" data-save="${e.id}">Save</button><button class="btn ghost sm" data-cancel="1">Cancel</button><button class="btn ghost sm" data-del="${e.id}">Delete</button></div></div>`;
     }
+    const linkable = e.pieceId !== 'free' && journalByPiece(e.pieceId).length > 1;
     const head = (opts.showPiece === false) ? when
-      : `<button class="entpiece" data-piecemode="${escHtml(e.pieceId)}" title="See everything kept under ${escHtml(e.pieceTitle)}, earliest first">${escHtml(e.pieceTitle)}</button> · ${when}`;
+      : (linkable
+          ? `<button class="entpiece" data-piecemode="${escHtml(e.pieceId)}" title="You have written about this more than once. See every pass under ${escHtml(e.pieceTitle)}, earliest first, and what changed between the first and the last — the question your thread reading asks in December.">${escHtml(e.pieceTitle)}</button> · ${when}`
+          : `${escHtml(e.pieceTitle)} · ${when}`);
     const openLink = (opts.pieceLink !== false && e.pieceId !== 'free') ? `<button class="entlink" data-open="${e.pieceId}">Open the live piece →</button>` : '';
     // The text itself opens the editor. Requiring the Edit button meant three clicks
     // between keeping something and writing about it, which is the moment the whole
@@ -5111,8 +5114,8 @@ You: Really. The first line only has to exist, not be good.`;
     const threadsReady = nEntries >= THREADS_MIN;
     const onPages = noteMode === 'day' || noteMode === 'piece';
     const toggle = `<div class="nbviews">`
-      + `<button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags">My Progress ${tagBadge}</button>`
-      + `<button class="nbview ${onPages?'on':''}" data-mode="day">By day</button>`
+      + `<button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags" title="Where you stand on the 50 points: how much you have kept, which readings are still waiting for you to write about them, and which pages you have marked to be read closely. Start here.">My Progress ${tagBadge}</button>`
+      + `<button class="nbview ${onPages?'on':''}" data-mode="day" title="Your term as a calendar. A filled dot is a day you wrote; a hollow one is a day you marked passages but have not written about them yet. Spread is part of the grade — entries dated across the whole term read as a practice, a pile of them in November does not.">By day</button>`
       + `<button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads"`
       + ` title="${threadsReady
             ? 'A thread is anything that keeps coming back across your entries. Name one, tag every entry it turns up in, then write your reading of it.'
@@ -5211,7 +5214,7 @@ You: Really. The first line only has to exist, not be good.`;
             ${rows}</div>`;
         }
       }
-      frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Hold one preoccupation still and watch it change across the term.</p>${toggle}</div>
+      frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Something that keeps coming back across your entries. Name it, tag every entry it turns up in, then write your reading of one — what runs through these, and what is in the last that is not in the first.</p>${toggle}</div>
         ${threadsAbout()}
         <div class="notewrap">${leftT}${rightT}</div>`;
       frame.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
@@ -5333,7 +5336,7 @@ You: Really. The first line only has to exist, not be good.`;
         ${noteFoot()}</div>`;
       rightPane = notePieceDetail();
     }
-    frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Your kept pages — the writing you elevated with <strong>＋ Add to notebook</strong>. See them <strong>by day</strong>, or watch one piece grow <strong>by piece</strong>. This is the 50-pt Writer’s Notebook.</p>${toggle}</div>
+    frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>Your kept pages, by the day you kept them. Anything you have written about more than once carries a link on its name — follow it to see every pass at that one thing, earliest first.</p>${toggle}</div>
       ${draftTray()}
       <div class="notewrap">${leftPane}${rightPane}</div>`;
 
