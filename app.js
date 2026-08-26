@@ -3829,6 +3829,10 @@ You: Really. The first line only has to exist, not be good.`;
   //   · 24px threshold + debounce: sub-pixel and scrollbar-appearance jitter must not
   //     feed back into a re-render that changes the width again.
   let _paneRO = null, _paneW = 0, _paneT = null;
+  function watchPaneRerender(){
+    const r = readings[activeReading];
+    if(r && (r.type === 'pdf' || r.type === 'docx')) renderActiveDoc(r);
+  }
   function watchPaneWidth(pane){
     if(_paneRO){ _paneRO.disconnect(); _paneRO = null; }
     if(!pane || typeof ResizeObserver === 'undefined') return;
@@ -3839,10 +3843,10 @@ You: Really. The first line only has to exist, not be good.`;
       if(Math.abs(w - _paneW) < 24) return;
       _paneW = w;
       clearTimeout(_paneT);
-      _paneT = setTimeout(() => {
-        const r = readings[activeReading];
-        if(r && (r.type === 'pdf' || r.type === 'docx')) renderActiveDoc(r);
-      }, 120);
+      // Long enough to let a layout change settle -- entering focus moves the width
+      // more than once (shelf in, columns resize, scrollbar decides) and each move
+      // used to start a render that killed the one before it.
+      _paneT = setTimeout(watchPaneRerender, 220);
     });
     _paneRO.observe(pane);
   }
@@ -3866,8 +3870,9 @@ You: Really. The first line only has to exist, not be good.`;
             + `<button class="pdfnav-btn" id="pgNext" ${last>=doc.numPages?'disabled':''}>Next ›</button>`;
         })()
       : `<span class="pdfnav-lbl">${doc.numPages} pages · scroll to read</span>`;
-    pane.innerHTML = '';
-    const wrap = document.createElement('div'); wrap.className = 'pdf-doc'; pane.appendChild(wrap);
+    const wrap = document.createElement('div'); wrap.className = 'pdf-doc';
+    let attached = false;
+    const attach = () => { if(attached) return; pane.innerHTML = ''; pane.appendChild(wrap); attached = true; };
     if(single){
       const pv = document.getElementById('pgPrev'), nx = document.getElementById('pgNext');
       // renderActiveDoc repaints the PAGE; the margin is a separate render, and now
@@ -3900,7 +3905,7 @@ You: Really. The first line only has to exist, not be good.`;
       const canvas = document.createElement('canvas');
       canvas.width = Math.floor(viewport.width * ratio); canvas.height = Math.floor(viewport.height * ratio);
       canvas.style.width = viewport.width + 'px'; canvas.style.height = viewport.height + 'px';
-      pageDiv.appendChild(canvas); wrap.appendChild(pageDiv);
+      pageDiv.appendChild(canvas); wrap.appendChild(pageDiv); attach();
       await page.render({ canvasContext: canvas.getContext('2d'), viewport, transform: ratio !== 1 ? [ratio,0,0,ratio,0,0] : null }).promise;
       if(token !== _readToken) return;
       // Selectable text layer + marquee capture overlay (passages → Romano / Notebook).
@@ -3934,6 +3939,7 @@ You: Really. The first line only has to exist, not be good.`;
         paintHighlightsForPage(pageDiv, n, r.id);
       } catch(e){ console.warn('text layer', e); }
     }
+    if(token === _readToken && !attached){ pane.innerHTML = ''; }
   }
   // Add one or many files (multi-select or a whole folder). txt inline, PDF/.docx bytes to IndexedDB.
   // Stable, filename-derived id. Mirrors the `d:` scheme the persistent-folder path
