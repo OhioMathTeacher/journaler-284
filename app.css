@@ -304,6 +304,10 @@
   .cal .cell { aspect-ratio: 1; border: 1px solid var(--comment-border); border-radius: 5px; background: #fff; font-size: 14px; padding: 5px; color: var(--muted); position: relative; }
   .cal .cell.entry { background: var(--comment-bg); color: var(--ink); font-weight: 600; } .cal .cell.entry:after { content: ""; position: absolute; bottom: 5px; left: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--go); }
   .cal .cell.op { border-color: var(--accent); }
+  /* A day where passages were marked but nothing was written yet: the same dot,
+     hollow. Visible as work-in-hand without claiming the practice the filled dot
+     claims. Kept distinct from .entry so the month reads as a record of writing. */
+  .cal .cell.marked:after { content: ""; position: absolute; bottom: 5px; left: 5px; width: 6px; height: 6px; border-radius: 50%; background: transparent; border: 1.5px solid var(--go); box-sizing: border-box; }
   .cal .dow { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); text-align: center; font-weight: 700; }
 
   /* FOCUS / distraction-free */
@@ -1357,3 +1361,23 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .ap-rows td:nth-child(1) { font-weight: 600; width: 11rem; }
 .ap-rows td:nth-child(2) { text-align: right; width: 2.2rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .about-proj .ap-warn { border-left: 3px solid var(--accent); padding-left: .7rem; }
+
+/* ── In progress: readings with passages kept but nothing written on them yet.
+   One row per READING, never per passage — thirty marks across six chapters is six
+   things to do, not thirty. (Todd, 2026-08-26.) */
+.pending { border: 1px solid var(--comment-border); border-left: 3px solid var(--go); border-radius: 8px; padding: 12px 14px; margin: 0 0 16px; background: var(--comment-bg); }
+.pend-h { font-family: var(--sans); font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.pend-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 8px 0 0; border-top: 1px solid var(--comment-border); margin-top: 8px; }
+.pend-name { font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--ink); }
+.pend-n { font-weight: 400; font-size: 13px; color: var(--muted); margin-left: 8px; }
+.pend-go { white-space: nowrap; }
+
+/* The reflection surface: the passages you kept, and one place to answer them. */
+.rf-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(20,18,14,.55); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.rf-box { background: var(--paper, #fbf8f1); border-radius: 10px; max-width: 720px; width: 100%; max-height: 86vh; overflow-y: auto; padding: 22px 24px; box-shadow: 0 18px 48px rgba(0,0,0,.3); }
+.rf-h { font-family: var(--serif); font-weight: 400; font-size: 22px; margin: 0 0 6px; color: var(--ink); }
+.rf-quotes { max-height: 30vh; overflow-y: auto; margin: 12px 0; }
+.rf-q { font-family: var(--serif); font-size: 16px; line-height: 1.55; color: var(--ink); border-left: 3px solid var(--comment-border); margin: 0 0 10px; padding: 2px 0 2px 12px; }
+.rf-ta { width: 100%; min-height: 180px; box-sizing: border-box; font-family: var(--serif); font-size: 17px; line-height: 1.65; padding: 12px; border: 1px solid var(--comment-border); border-radius: 6px; resize: vertical; }
+.rf-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+@media (max-width: 640px){ .rf-box { padding: 16px; } .rf-actions { flex-direction: column-reverse; } .rf-actions .popup-btn { width: 100%; } }

@@ -1321,7 +1321,11 @@ async function runReflection(rf, text, hooks) {
     // Offered, never forced: the student stays on the writing surface unless they choose
     // otherwise. Jumping straight to the notebook was the other candidate and was
     // rejected -- it is the strongest "it saved" signal but it breaks the writing.
-    toast('Kept in your notebook ✎', { label: 'View →', onClick: () => revealEntry(entry) });
+    // A capture is not yet an entry, and saying "kept in your notebook" of one would
+    // be the whole misunderstanding in a single word.
+    if(entry.capture) toast('Passage kept with this reading — write what you make of it to log an entry',
+      { label: 'Notebook →', onClick: () => { noteMode = 'tags'; show('note'); } });
+    else toast('Kept in your notebook ✎', { label: 'View →', onClick: () => revealEntry(entry) });
     return entry;
   }
   // Open the notebook ON the entry just kept.
@@ -1779,6 +1783,7 @@ async function runReflection(rf, text, hooks) {
     frame.querySelectorAll('[data-untagpick]').forEach(b => b.onclick = () => {
       delete turnin()[b.dataset.untagpick]; saveDB(); renderNote();
     });
+    frame.querySelectorAll('[data-reflect]').forEach(b => b.onclick = () => openReflect(b.dataset.reflect));
     frame.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => {
       const to = b.dataset.jump;
       if(to === 'threads'){ noteMode = 'threads'; renderNote(); return; }
@@ -1787,6 +1792,38 @@ async function runReflection(rf, text, hooks) {
     });
   }
 
+  // Writing ON the passages, with them in front of you. The entry it creates carries
+  // reflection:true, which is what takes the reading off the In-progress list and what
+  // separates a reflection from the captures stacked under the same piece.
+  function openReflect(pieceId){
+    const g = capturesByPiece().find(x => x.id === pieceId);
+    if(!g) return;
+    const title = String(g.title||'').replace(/^Reading · /,'');
+    const quotes = g.items.map(e => `<blockquote class="rf-q">${escHtml(e.text)}</blockquote>`).join('');
+    const host = document.createElement('div');
+    host.className = 'rf-overlay'; host.id = 'rfOverlay';
+    host.innerHTML = `<div class="rf-box" role="dialog" aria-modal="true" aria-label="Reflect on ${escHtml(title)}">
+      <h3 class="rf-h">${escHtml(title)}</h3>
+      <p class="runline">What do you make of these? What surprised you, argued with you, or
+        stayed with you? Write to yourself — this is the entry.</p>
+      <div class="rf-quotes">${quotes}</div>
+      <textarea class="rf-ta" id="rfTa" placeholder="Write what you make of it…"></textarea>
+      <div class="rf-actions">
+        <button class="popup-btn secondary" id="rfCancel">Cancel</button>
+        <button class="popup-btn primary" id="rfKeep">✎ Keep as an entry</button>
+      </div></div>`;
+    document.body.appendChild(host);
+    const close = () => host.remove();
+    host.addEventListener('click', e => { if(e.target === host) close(); });
+    document.getElementById('rfCancel').onclick = close;
+    document.getElementById('rfTa').focus();
+    document.getElementById('rfKeep').onclick = () => {
+      const txt = (document.getElementById('rfTa').value||'').trim();
+      if(!txt){ toast('Write something first — that is the entry.'); return; }
+      elevate(pieceId, 'reading', g.title, txt, null, { reflection: true });
+      close(); renderNote();
+    };
+  }
   function renderNamed(key){
     const m = NAMED[key];
     const saved = (DB.freewrite[key] || {}).text || '';
@@ -3174,7 +3211,7 @@ async function runReflection(rf, text, hooks) {
     // notebook shows which chapter each pass came from and a chapter's notes
     // stack together the way a One-Pager's passes do.
     const pieceId = r ? 'reading:' + r.id : 'reading';
-    elevate(pieceId, 'reading', label ? 'Reading · ' + label : 'Reading notes', body);
+    elevate(pieceId, 'reading', label ? 'Reading · ' + label : 'Reading notes', body, null, { capture: true });
   }
   // The partner's name, in one place. "ToddGPT" was considered and rejected on
   // 2026-08-23: Todd's name on the replies implies he can read what students write
@@ -3929,7 +3966,12 @@ You: Really. The first line only has to exist, not be good.`;
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   };
   let noteSel = _todayKey();   // selected calendar day (by-day lens)
-  let noteMode = 'day';        // 'day' | 'piece' | 'tags' | 'threads'
+  // Opens on My Progress, not the calendar. Todd, 2026-08-26: a student clicking
+  // Notebook is asking "where do I stand", and the In-progress list — readings whose
+  // passages are waiting to be reflected on — lives there. Landing on the month meant
+  // the one thing they owed was two clicks away and unadvertised. By day, By piece and
+  // Threads are all still one click from here; the calendar did not move.
+  let noteMode = 'tags';       // 'day' | 'piece' | 'tags' | 'threads'
   let threadSel = null;        // the thread being looked at
   let cbSel = null;            // the recurring term being looked at, if any
 
@@ -4447,6 +4489,21 @@ You: Really. The first line only has to exist, not be good.`;
     </div>`;
   }
 
+  function pendingPanel(){
+    const pend = capturesByPiece().filter(g => !g.reflected);
+    if(!pend.length) return '';
+    const rows = pend.map(g => `<div class="pend-row">
+        <div class="pend-name">${escHtml(String(g.title||'').replace(/^Reading · /,''))}
+          <span class="pend-n">${g.items.length} passage${g.items.length===1?'':'s'} marked</span></div>
+        <button class="pj-link pend-go" data-reflect="${escHtml(g.id)}">Write what you make of it →</button>
+      </div>`).join('');
+    return `<div class="pending">
+      <p class="pend-h">In progress — ${pend.length} reading${pend.length===1?'':'s'} waiting on you</p>
+      <p class="runline">Marking a passage keeps it and cites it, but it is <strong>not an entry
+        yet</strong>. An entry is what <em>you</em> write. Say what you make of these and it counts
+        toward Kept practice — you can come back to the same reading later and write again.</p>
+      ${rows}</div>`;
+  }
   function projectPanel(){
     const ord   = numberedEntries();
     const T     = turnin();
@@ -4488,6 +4545,7 @@ You: Really. The first line only has to exist, not be good.`;
            is for; a third "My progress" here was the same words a third time. The
            About link keeps its place at the right of the row. -->
       <p class="pj-txt"><button class="pj-about" id="pjAbout">About this project →</button></p>
+      ${pendingPanel()}
       <table class="pjtable">
         ${row(1, 'Kept practice', 20, `Every entry you keep, from anywhere. Nothing to tag. ${jump('Open page →','open')}`,
               kept + `<br><span class="pj-aim">${band}</span>`,
@@ -4540,6 +4598,35 @@ You: Really. The first line only has to exist, not be good.`;
   }
   // Entries in one chronological order, numbered once. Entry 17 is entry 17 in the
   // Contents, in every part of the bundle, and in what the student writes on the cover.
+  // ⚠ A CAPTURED PASSAGE IS NOT AN ENTRY (Todd, 2026-08-26).
+  //
+  // Keeping a highlight files Romano's words, a citation, and possibly a one-line
+  // note. Counted as an entry, that let a student reach the 20 -- full marks on the
+  // 20-point kept-practice row -- without writing a sentence, and their quoted words
+  // inflated the word total on top of it. Todd: "otherwise, we'll just get a bunch of
+  // highlights with minimal reflection."
+  //
+  // So a capture is MATERIAL attached to the reading's piece, never an entry. The
+  // entry is the reflection the student writes ON that material, and a reading can
+  // carry several across the term -- returning to ch5 in Week 10 is a second, later
+  // entry, not a blocked one.
+  //
+  // elevateHighlight was the ONLY producer of pieceKind 'reading' before today, so an
+  // entry with no .reflection flag is a capture whenever it came from.
+  function isCapture(e){ return !!e && e.pieceKind === 'reading' && !e.reflection; }
+  function capturesByPiece(){
+    const m = new Map();
+    for(const e of (DB.journal || [])){
+      if(!isCapture(e)) continue;
+      const g = m.get(e.pieceId) || { id: e.pieceId, title: e.pieceTitle, items: [], reflected: 0 };
+      g.items.push(e); m.set(e.pieceId, g);
+    }
+    // A piece stops being "in progress" once any reflection is written on it.
+    for(const e of (DB.journal || [])){
+      if(e.pieceKind === 'reading' && e.reflection && m.has(e.pieceId)) m.get(e.pieceId).reflected++;
+    }
+    return [...m.values()];
+  }
   function numberedEntries(){
     // 'conversation' entries are kept AI exchanges. They are welcome in the notebook
     // -- the Guidelines invite "anything else you want to keep" -- but they are NOT
@@ -4548,7 +4635,7 @@ You: Really. The first line only has to exist, not be good.`;
     // dated, with its word count", and "Nothing gets counted twice". So they are
     // excluded from numbering, from Contents, and from the word count, and are
     // printed separately under their own heading instead.
-    return (DB.journal || []).filter(e => e.pieceKind !== 'conversation').slice().sort((a,b) =>
+    return (DB.journal || []).filter(e => e.pieceKind !== 'conversation' && !isCapture(e)).slice().sort((a,b) =>
       String(a.date).localeCompare(String(b.date)) || String(a.ts).localeCompare(String(b.ts)));
   }
 
@@ -5176,16 +5263,17 @@ You: Really. The first line only has to exist, not be good.`;
       for(let dd=1; dd<=days; dd++){
         const key = `${y}-${String(m+1).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
         const list = journalByDate(key);
+        const wrote = list.some(e => !isCapture(e));
         // Legacy only: One-Pagers are submitted as their own PDF and no longer
         // elevate into the notebook, so nothing new carries this kind. Entries saved
         // before that change still render with their marker.
         const isOp = list.some(e=>e.pieceKind === 'one-pager');
-        cells += `<div class="cell ${list.length?'entry':''} ${isOp?'op':''} ${noteSel===key?'sel':''}" data-key="${key}">${dd}</div>`;
+        cells += `<div class="cell ${wrote?'entry':''} ${!wrote&&list.length?'marked':''} ${isOp?'op':''} ${noteSel===key?'sel':''}" data-key="${key}">${dd}</div>`;
       }
       leftPane = `<div class="cal">
         <div class="calhead"><button class="calnav" id="prevM" aria-label="Previous month" ${(y*12+m)<=NOTE_MIN?'disabled':''}>‹</button><span class="mname">${monthName}</span><button class="calnav" id="nextM" aria-label="Next month" ${(y*12+m)>=NOTE_MAX?'disabled':''}>›</button></div>
         <div class="grid">${dow}${cells}</div>
-        <p class="runline" style="margin-top:12px">● green = a kept page. Click a day to read it.</p>
+        <p class="runline" style="margin-top:12px">● green = a day you wrote. ○ hollow = passages marked, not yet reflected on. Click a day to read it.</p>
         ${noteFoot()}</div>`;
       rightPane = noteDayDetail();
     } else {
