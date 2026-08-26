@@ -1575,7 +1575,7 @@ async function runReflection(rf, text, hooks) {
     // line if there is room, above the first line if there is not. Centred on the run of
     // words so it reads as belonging to them.
     const r = selectionRect(el);
-    const w = pop.offsetWidth || 292, h = pop.offsetHeight || 190;
+    const w = pop.offsetWidth || 340, h = pop.offsetHeight || 190;
     const GAP = 10;
     let left = (r.left + r.right) / 2 - w / 2;
     if(left < 10) left = 10;
@@ -3024,8 +3024,7 @@ async function runReflection(rf, text, hooks) {
     pop = document.createElement('div'); pop.className='selection-popup'; pop.id='capturePopup'; pop.style.display='none';
     pop.innerHTML = `<img id="captureThumb" alt="captured region" style="display:none;max-width:100%;max-height:130px;border-radius:4px;margin-bottom:.5rem;border:1px solid rgba(0,0,0,.15)">
       <div class="popup-passage" id="capturePassage"></div>
-      <input type="text" id="captureInput" placeholder="A note to keep with this passage…" autocomplete="off">
-      <div class="popup-hint">Enter keeps your note. To ask Romano, use the box under your highlights.</div>
+      <textarea id="captureInput" rows="4" placeholder="What do you make of this passage?"></textarea>
       <div class="popup-quick"><button class="popup-chip" id="captureCopyBtn" title="Copy this passage (⌘C / Ctrl+C)">⧉ Copy</button><button class="popup-chip" id="captureNbBtn">📓 Keep in notebook</button><button class="popup-chip" id="captureFigBtn" style="display:none">↓ Save figure</button></div>
       <div class="popup-actions">
         <button class="popup-btn secondary" id="captureCancelBtn">Cancel</button>
@@ -3038,7 +3037,7 @@ async function runReflection(rf, text, hooks) {
     pop.querySelector('#captureFigBtn').onclick = downloadCapture;
     pop.querySelector('#captureCopyBtn').onclick = copyCaptureText;
     pop.querySelector('#captureInput').addEventListener('keydown', e => {
-      if(e.key==='Enter'){ e.preventDefault(); saveHighlight(); }
+      if(e.key==='Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); saveHighlight(); }
       if(e.key==='Escape') closeCapture();
       e.stopPropagation();          // typing "c" in the note is not a copy
     });

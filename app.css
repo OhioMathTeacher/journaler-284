@@ -700,12 +700,21 @@
 .marquee-box { position: absolute; border: 1.5px solid #3a5a40; background: rgba(90,150,110,.16); pointer-events: none; z-index: 4; border-radius: 2px; }
 
 /* Passage-capture popup (highlight / Ask Romano). */
-.selection-popup { position: fixed; z-index: 1500; width: 292px; max-width: calc(100vw - 16px); background: #2b2a26; color: #f4efe6; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: .55rem .6rem; box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: 0.943rem; }
+.selection-popup { position: fixed; z-index: 1500; width: 340px; max-width: calc(100vw - 16px); background: #2b2a26; color: #f4efe6; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: .55rem .6rem; box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: 0.943rem; }
 .selection-popup .popup-passage { max-height: 66px; overflow: auto; line-height: 1.4; margin-bottom: .4rem; font-size: 0.897rem; color: #cfc7b8; }
 .selection-popup input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #f4efe6; border-radius: 6px; padding: .32rem .45rem; font: inherit; margin-bottom: .3rem; }
 .selection-popup .popup-hint { font-size: 0.782rem; color: rgba(244,239,230,.4); margin-bottom: .45rem; }
 .selection-popup input::placeholder { color: rgba(244,239,230,.4); }
 .selection-popup input:focus { outline: none; border-color: #c69a5c; }
+/* The note field is where the thinking happens, so it is paper, not chrome: white,
+   four lines deep, in the reading face. Dark-on-dark and one line tall read as a
+   search box nobody was invited to use. (Todd, 2026-08-26.) */
+.selection-popup textarea { width: 100%; box-sizing: border-box; background: #fff; color: #2b2a26;
+  border: 1px solid rgba(255,255,255,.2); border-radius: 6px; padding: .5rem .55rem;
+  font-family: var(--serif); font-size: 15.5px; line-height: 1.5; min-height: 5.5rem;
+  resize: vertical; margin-bottom: .45rem; display: block; }
+.selection-popup textarea::placeholder { color: #8a8272; }
+.selection-popup textarea:focus { outline: none; border-color: #c69a5c; box-shadow: 0 0 0 2px rgba(198,154,92,.35); }
 .popup-quick { display: flex; gap: .35rem; margin-bottom: .45rem; }
 .popup-chip { background: rgba(255,255,255,.08); color: #e7e0d4; border: 1px solid rgba(255,255,255,.14); border-radius: 6px; padding: .28rem .5rem; font: inherit; cursor: pointer; }
 .popup-actions { display: flex; gap: .35rem; }
