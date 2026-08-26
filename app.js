@@ -3015,19 +3015,25 @@ async function runReflection(rf, text, hooks) {
     openCapturePopup(text, '', range.getBoundingClientRect(), rects);
   }
 
+  // ⚠ MARKING IS NOT ASKING (Todd, 2026-08-25). Enter used to send the note to Romano
+  // and Ask Romano held the primary slot, so the ordinary act — reading a passage and
+  // typing what you think about it — routed through the AI by default, and a reader who
+  // pressed Enter out of habit had their comment answered instead of kept. Highlight is
+  // now the primary button and what Enter does; asking costs a deliberate click. Keep it
+  // that way: the notebook is the point, and the partner is optional.
   function ensureCapturePopup(){
     let pop = document.getElementById('capturePopup');
     if(pop) return pop;
     pop = document.createElement('div'); pop.className='selection-popup'; pop.id='capturePopup'; pop.style.display='none';
     pop.innerHTML = `<img id="captureThumb" alt="captured region" style="display:none;max-width:100%;max-height:130px;border-radius:4px;margin-bottom:.5rem;border:1px solid rgba(0,0,0,.15)">
       <div class="popup-passage" id="capturePassage"></div>
-      <input type="text" id="captureInput" placeholder="A question, or just a note…" autocomplete="off">
-      <div class="popup-hint">Enter asks · blank just highlights</div>
+      <input type="text" id="captureInput" placeholder="A note, or a question for Romano…" autocomplete="off">
+      <div class="popup-hint">Enter keeps your note · nothing goes to Romano unless you ask</div>
       <div class="popup-quick"><button class="popup-chip" id="captureCopyBtn" title="Copy this passage (⌘C / Ctrl+C)">⧉ Copy</button><button class="popup-chip" id="captureNbBtn">📓 Keep in notebook</button><button class="popup-chip" id="captureFigBtn" style="display:none">↓ Save figure</button></div>
       <div class="popup-actions">
         <button class="popup-btn secondary" id="captureCancelBtn">Cancel</button>
-        <button class="popup-btn secondary" id="captureSaveBtn">✎ Highlight</button>
-        <button class="popup-btn primary" id="captureAskBtn">Ask Romano</button>
+        <button class="popup-btn secondary" id="captureAskBtn">Ask Romano</button>
+        <button class="popup-btn primary" id="captureSaveBtn">✎ Highlight</button>
       </div>`;
     document.body.appendChild(pop);
     pop.querySelector('#captureCancelBtn').onclick = closeCapture;
@@ -3037,7 +3043,7 @@ async function runReflection(rf, text, hooks) {
     pop.querySelector('#captureFigBtn').onclick = downloadCapture;
     pop.querySelector('#captureCopyBtn').onclick = copyCaptureText;
     pop.querySelector('#captureInput').addEventListener('keydown', e => {
-      if(e.key==='Enter'){ e.preventDefault(); saveHighlight(true); }
+      if(e.key==='Enter'){ e.preventDefault(); saveHighlight(false); }
       if(e.key==='Escape') closeCapture();
       e.stopPropagation();          // typing "c" in the note is not a copy
     });
