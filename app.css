@@ -351,16 +351,23 @@
      A definite height, no padding, and nothing to scroll outside the reader, so the
      only two scrollers left are the ones that should be: the page, and the margin. */
   body.focus.reading { overflow: hidden; }
-  body.focus.reading .frame { max-width: 1900px; padding: 0; height: 100vh; }
+  body.focus.reading .frame { max-width: 1900px; padding: 0; height: 100vh;
+    display: flex; flex-direction: column; }
+  /* The shelf is the top row in focus now that it is no longer hidden, so it -- not the
+     viewbar -- is what .exitfocus (position:fixed, top 14px right 16px) floats over. It
+     landed straight on ＋ Load a folder. The reservation moves with the button. And the
+     frame is a column so the shelf can take its own height without pushing the reader
+     past the bottom of the screen, which would bring the outer scrollbar back. */
+  body.focus.reading .shelf { flex: 0 0 auto; padding: 10px 172px 0 16px; margin-bottom: 8px; }
+  body.focus.reading .reader { flex: 1 1 auto; }
   /* The shelf stays. It holds the CHAPTER SELECTOR, so hiding it in focus meant you
      could not change reading without leaving focus first — chrome and a control wearing
      one container. Focus hides the top bar and the page heading; everything you steer
      the reading with stays put. (Todd, 2026-08-26.) */
-  body.focus.reading .reader { height: 100%; min-height: 0; border-radius: 0; border-left: none; border-right: none; }
+  body.focus.reading .reader { height: auto; min-height: 0; border-radius: 0; border-left: none; border-right: none; }
   /* ✕ Exit focus is position:fixed top-right, and with the shelf gone the toolbar rises
      to meet it. Reserve its width at the end of the bar, and drop the notes toggle,
      which focus has already overridden and which therefore does nothing here. */
-  body.focus.reading .viewbar { padding-right: 168px; }
   body.focus .layout { grid-template-columns: 1fr; }
   body.focus .stage { background: none; border: none; box-shadow: none; padding: 0; }
   body.focus .gushbar { justify-content: center; }
