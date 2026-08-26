@@ -1219,16 +1219,30 @@ async function runReflection(rf, text, hooks) {
   // work will survive." Updates already do -- localStorage is keyed to the origin and a
   // deploy never touches it. THIS is the path that loses work, so it now says what it
   // is about to throw away, what it is about to put there, and counts both.
+  // ⚠ COUNT THE MARKS TOO (Todd, 2026-08-26). This weighed notebook entries alone and
+  // bailed out early on `if(!now) return true`. After marks stopped counting as entries,
+  // a browser holding a whole term of marking and no reflections reported ZERO -- so a
+  // restore replaced it with no warning at all, which is the one accident this dialog
+  // exists to prevent. Both counts now, and a warning if EITHER shrinks.
+  function countMarks(st){
+    const h = st && st.highlights;
+    if(!h || typeof h !== 'object') return 0;
+    return Object.keys(h).reduce((n, k) => n + ((h[k] || []).length), 0);
+  }
   function confirmReplace(incoming){
-    const now  = (DB.journal || []).length;
-    const next = Array.isArray(incoming && incoming.journal) ? incoming.journal.length : 0;
-    if(!now) return true;                       // nothing here to lose
-    const ent = n => n + ' notebook ' + (n === 1 ? 'entry' : 'entries');
+    const nowE  = (DB.journal || []).length,  nowM  = countMarks(DB);
+    const nextE = Array.isArray(incoming && incoming.journal) ? incoming.journal.length : 0;
+    const nextM = countMarks(incoming);
+    if(!nowE && !nowM) return true;             // genuinely nothing here to lose
+    const ent  = n => n + ' notebook ' + (n === 1 ? 'entry' : 'entries');
+    const mark = n => n + ' marked ' + (n === 1 ? 'passage' : 'passages');
     const lines = ['This REPLACES everything in this browser. It cannot be undone.', '',
-                   'In this browser now:   ' + ent(now),
-                   'In the file you chose: ' + ent(next), ''];
-    if(next < now) lines.push('\u26a0 The file has FEWER entries than this browser.',
-                              '   You would lose ' + (now - next) + '.', '');
+                   'In this browser now:   ' + ent(nowE)  + ' \u00b7 ' + mark(nowM),
+                   'In the file you chose: ' + ent(nextE) + ' \u00b7 ' + mark(nextM), ''];
+    if(nextE < nowE) lines.push('\u26a0 The file has FEWER entries than this browser.',
+                                '   You would lose ' + (nowE - nextE) + '.', '');
+    if(nextM < nowM) lines.push('\u26a0 The file has FEWER marked passages than this browser.',
+                                '   You would lose ' + (nowM - nextM) + ', with the notes on them.', '');
     lines.push('If you are not sure, press Cancel and use \u2913 Save my work first.', '',
                'Replace everything?');
     return confirm(lines.join('\n'));
