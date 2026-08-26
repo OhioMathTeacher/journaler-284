@@ -4161,9 +4161,19 @@ You: Really. The first line only has to exist, not be good.`;
     const label = d.toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
     const list = journalByDate(noteSel).sort((a,b)=>a.ts.localeCompare(b.ts));
     const entries = list.length ? list.map(e=>entryCard(e, {})).join('') : `<p class="empty">Nothing kept on this day. Whatever you write in any tab lands here on the day you keep it — a free-write, a currere gush, notes from a reading. Days you kept something carry a green dot on the calendar.</p>`;
-    return `<div class="notedetail"><h3>${label}</h3>${entries}
-      <div class="entryrow"><div class="k">Quick-write for this day</div><textarea id="noteCompose" placeholder="Jot a note or free-write, then keep it…" style="width:100%;min-height:88px;box-sizing:border-box;font-family:var(--serif);font-size:17px;line-height:1.65;padding:10px 12px;border:1px solid var(--comment-border);border-radius:6px;resize:vertical"></textarea>
-      <button class="btn sm" id="noteSaveBtn" style="margin-top:8px">Keep this page</button></div></div>`;
+    // What replaced the quick-write. Not a second writing box -- this view READS what
+    // you kept -- but a day can now hold marked passages and no entry (the hollow dot),
+    // and the one thing you might want standing here is to answer them. One button per
+    // READING, same as the In-progress list, so a day of heavy marking is still short.
+    const pend = [...new Map(list.filter(isCapture).map(e => [e.pieceId, e])).values()];
+    const owed = pend.length ? `<div class="day-owed">
+      ${pend.map(e => `<button class="pj-link" data-reflect="${escHtml(e.pieceId)}">Write what you
+        make of ${escHtml(String(e.pieceTitle||'this reading').replace(/^Reading · /,''))} →</button>`).join('')}
+    </div>` : '';
+    return `<div class="notedetail"><h3>${label}</h3>${entries}${owed}
+      <p class="runline" style="margin-top:14px">Writing happens in
+        <button class="pj-link" data-jump="open">Freewrite →</button>, and lands here on the day
+        you keep it.</p></div>`;
   }
 
   function notePieceDetail(){
@@ -5324,8 +5334,6 @@ You: Really. The first line only has to exist, not be good.`;
       if(pm) pm.onclick = () => { if((y*12+m)<=NOTE_MIN) return; noteView = new Date(y, m-1, 1); renderNote(); };
       if(nm) nm.onclick = () => { if((y*12+m)>=NOTE_MAX) return; noteView = new Date(y, m+1, 1); renderNote(); };
       frame.querySelectorAll('.cell[data-key]').forEach(c => c.onclick = () => { noteSel = c.dataset.key; nbEditingId = null; renderNote(); });
-      const nsb = document.getElementById('noteSaveBtn');
-      if(nsb) nsb.onclick = () => { const box = document.getElementById('noteCompose'); const txt = (box.value||'').trim(); if(!txt) return; elevate('free', 'freewrite', 'Free-writes & quick-writes', txt, noteSel); renderNote(); };
     } else {
       frame.querySelectorAll('[data-piece]').forEach(b => b.onclick = () => { notePieceSel = b.dataset.piece; nbEditingId = null; renderNote(); });
     }

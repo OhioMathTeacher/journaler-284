@@ -1381,3 +1381,4 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .rf-ta { width: 100%; min-height: 180px; box-sizing: border-box; font-family: var(--serif); font-size: 17px; line-height: 1.65; padding: 12px; border: 1px solid var(--comment-border); border-radius: 6px; resize: vertical; }
 .rf-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
 @media (max-width: 640px){ .rf-box { padding: 16px; } .rf-actions { flex-direction: column-reverse; } .rf-actions .popup-btn { width: 100%; } }
+.day-owed { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 14px; }
