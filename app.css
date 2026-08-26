@@ -343,12 +343,20 @@
      Focus here means "get everything out of the way of the page": the title, the blurb,
      and the whole shelf row go, leaving the reading and your notes. Come back with Esc
      or ✕ Exit focus; page, zoom and Ask all stay reachable inside the reader. */
-  body.focus.reading .frame { max-width: 1900px; padding-top: 0; }
+  /* ⚠ IN FOCUS THE READER *IS* THE VIEWPORT (Todd, 2026-08-26): "I want the notes and
+     article pages to move independently of each other. Right now the vertical scroll
+     moves both." It did, and by about 36 pixels: .frame keeps its 60px bottom padding
+     while the reader asks for calc(100vh - 24px), so the box stood taller than the
+     screen and the PAGE scrolled — one outer scrollbar dragging both columns together.
+     A definite height, no padding, and nothing to scroll outside the reader, so the
+     only two scrollers left are the ones that should be: the page, and the margin. */
+  body.focus.reading { overflow: hidden; }
+  body.focus.reading .frame { max-width: 1900px; padding: 0; height: 100vh; }
   /* The shelf stays. It holds the CHAPTER SELECTOR, so hiding it in focus meant you
      could not change reading without leaving focus first — chrome and a control wearing
      one container. Focus hides the top bar and the page heading; everything you steer
      the reading with stays put. (Todd, 2026-08-26.) */
-  body.focus.reading .reader { min-height: calc(100vh - 24px); border-radius: 0; border-left: none; border-right: none; }
+  body.focus.reading .reader { height: 100%; min-height: 0; border-radius: 0; border-left: none; border-right: none; }
   /* ✕ Exit focus is position:fixed top-right, and with the shelf gone the toolbar rises
      to meet it. Reserve its width at the end of the bar, and drop the notes toggle,
      which focus has already overridden and which therefore does nothing here. */
