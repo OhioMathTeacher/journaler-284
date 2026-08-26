@@ -2244,6 +2244,115 @@ async function runReflection(rf, text, hooks) {
     if(after) after();
   }
 
+  // ── Resize an inserted picture by dragging any corner ──────────────────────
+  //
+  // Chrome removed the native contenteditable image handles years ago (Firefox kept
+  // them), which is why the picker felt like the end of the story: you got whatever
+  // size the file happened to be. These are our own handles.
+  //
+  // Two things are load-bearing:
+  //   · The grips live in document.body, NOT inside .page. Anything inside .page is
+  //     part of page.innerHTML, which is exactly what gets saved to DB.freewrite and
+  //     poured into the printed sheet -- handles would be saved as content.
+  //   · The width is stored as a PERCENTAGE. The editor column and the print column are
+  //     different widths (.page is ~600px on screen, .op-body is a 680px sheet at 11pt),
+  //     so a pixel width that looked right on screen would print at a different share of
+  //     the line. A percentage occupies the same fraction of both.
+  // Only the width is ever set; height stays auto, so a corner drag cannot distort the
+  // picture no matter which corner it is.
+  let _opPick = null, _opGrips = null, _opDrag = null, _opSave = null;
+  function opGripsEl(){
+    if(_opGrips && _opGrips.isConnected) return _opGrips;
+    const g = document.createElement('div');
+    g.className = 'op-grips';
+    g.innerHTML = '<div class="op-ring"></div>'
+                + ['nw','ne','sw','se'].map(c => `<div class="op-grip" data-c="${c}"></div>`).join('')
+                + '<div class="op-size" hidden></div>';
+    document.body.appendChild(g);
+    g.querySelectorAll('.op-grip').forEach(h => h.addEventListener('pointerdown', opGripDown));
+    _opGrips = g;
+    return g;
+  }
+  function opPlaceGrips(){
+    if(!_opPick || !_opPick.isConnected){ opDeselect(); return; }
+    const g = opGripsEl(), r = _opPick.getBoundingClientRect();
+    // The picture scrolls inside .page; once it has left that box the handles must go
+    // with it rather than hover over the text above.
+    const box = _opPick.closest('.page');
+    const b = box ? box.getBoundingClientRect() : null;
+    if(b && (r.bottom < b.top + 4 || r.top > b.bottom - 4)){ g.classList.remove('on'); return; }
+    g.classList.add('on');
+    const ring = g.querySelector('.op-ring');
+    ring.style.left = r.left + 'px'; ring.style.top = r.top + 'px';
+    ring.style.width = r.width + 'px'; ring.style.height = r.height + 'px';
+    const at = { nw:[r.left,r.top], ne:[r.right,r.top], sw:[r.left,r.bottom], se:[r.right,r.bottom] };
+    // Per handle, not all-or-nothing. Enlarge a picture and its bottom corners drop out
+    // of the scrolling .page box; drawing them anyway put two grips over the text below
+    // the editor, where clicking them did nothing at all. Each one hides when it leaves
+    // the box, and comes back when the student scrolls it into view.
+    g.querySelectorAll('.op-grip').forEach(h => {
+      const [x,y] = at[h.dataset.c];
+      h.style.left = x + 'px'; h.style.top = y + 'px';
+      h.style.visibility = (b && (y < b.top + 2 || y > b.bottom - 2)) ? 'hidden' : '';
+    });
+    const lbl = g.querySelector('.op-size');
+    lbl.style.left = (r.left + r.width/2) + 'px';
+    lbl.style.top  = (r.top - 14) + 'px';
+  }
+  function opSelect(img, save){
+    opDeselect();
+    // ⚠ NOTHING is written onto the <img>. It lives inside .page, so a class on it is
+    // part of page.innerHTML and gets saved into the student's One-Pager -- which is
+    // exactly what op-picked did until this was caught. The ring is drawn by the overlay.
+    _opPick = img; _opSave = save;
+    opPlaceGrips();
+  }
+  function opDeselect(){
+    _opPick = null;
+    if(_opGrips){ _opGrips.classList.remove('on'); const l=_opGrips.querySelector('.op-size'); if(l) l.hidden = true; }
+  }
+  function opGripDown(e){
+    if(!_opPick) return;
+    e.preventDefault(); e.stopPropagation();
+    const r = _opPick.getBoundingClientRect();
+    const host = _opPick.parentElement ? _opPick.closest('.page') : null;
+    // Percent is measured against the CONTENT box: .page carries 40px of side padding,
+    // and measuring against the border box would let 100% overflow the column.
+    const cs = host ? getComputedStyle(host) : null;
+    const avail = host
+      ? host.clientWidth - parseFloat(cs.paddingLeft||0) - parseFloat(cs.paddingRight||0)
+      : r.width;
+    _opDrag = { corner:e.target.dataset.c, x0:e.clientX, w0:r.width, avail:Math.max(40, avail) };
+    e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
+    const lbl = _opGrips.querySelector('.op-size'); if(lbl) lbl.hidden = false;
+    window.addEventListener('pointermove', opGripMove);
+    window.addEventListener('pointerup', opGripUp, { once:true });
+  }
+  function opGripMove(e){
+    if(!_opDrag || !_opPick) return;
+    // Grab a left-hand corner and dragging LEFT should make it bigger; a right-hand one
+    // is the other way round. Without this, two of the four corners work backwards.
+    const dir = (_opDrag.corner === 'nw' || _opDrag.corner === 'sw') ? -1 : 1;
+    const w = _opDrag.w0 + dir * (e.clientX - _opDrag.x0);
+    const pct = Math.max(10, Math.min(100, Math.round(w / _opDrag.avail * 100)));
+    _opPick.style.width = pct + '%';
+    _opPick.style.height = 'auto';        // never distort, whichever corner is dragged
+    _opPick.dataset.w = pct;              // print CSS lifts its height cap off these
+    const lbl = _opGrips.querySelector('.op-size');
+    if(lbl) lbl.textContent = pct + '% of the column';
+    opPlaceGrips();
+  }
+  function opGripUp(){
+    window.removeEventListener('pointermove', opGripMove);
+    _opDrag = null;
+    const lbl = _opGrips && _opGrips.querySelector('.op-size'); if(lbl) lbl.hidden = true;
+    if(_opSave) _opSave();               // the width is part of page.innerHTML now
+    opPlaceGrips();
+  }
+  window.addEventListener('scroll', () => { if(_opPick) opPlaceGrips(); }, true);
+  window.addEventListener('resize', () => { if(_opPick) opPlaceGrips(); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape' && _opPick) opDeselect(); });
+
   // opKey is captured, not read off fwCur at event time: shrinking is async, so an
   // insert can land after the student has clicked away to another One-Pager.
   function wireComposer(opKey){
@@ -2288,12 +2397,27 @@ async function runReflection(rf, text, hooks) {
       }
       save();
     });
+    // Click a picture to get its corner handles; click anywhere else to put them away.
+    page.addEventListener('click', e => {
+      if(e.target && e.target.tagName === 'IMG') opSelect(e.target, save);
+      else opDeselect();
+    });
+    page.addEventListener('scroll', () => { if(_opPick) opPlaceGrips(); });
+    document.addEventListener('mousedown', e => {
+      if(!_opPick) return;
+      if(e.target.classList && e.target.classList.contains('op-grip')) return;
+      if(e.target !== _opPick) opDeselect();
+    });
+    // Typing moves the picture; stale handles pointing at where it used to be are worse
+    // than none. Re-place rather than hide, so a caret two lines up does not lose them.
+    page.addEventListener('input', () => { if(_opPick) opPlaceGrips(); });
     // Pasted images bypass the picker entirely, so shrink them once they have landed.
     page.addEventListener('paste',()=>{ setTimeout(()=>shrinkImagesIn(page,save),0); });
     // Sweep restored content once as well: anything inserted before this build is still
     // full-resolution in localStorage and in every PDF it exports. data-shrunk makes it
     // a one-time cost per image, not work repeated on every render.
     shrinkImagesIn(page, save);
+    opDeselect();      // a previous One-Pager's handles must not outlive its page
     upd();
   }
 

@@ -194,6 +194,23 @@
   .toolbar .wc { margin-left: auto; font-family: var(--sans); font-size: 14px; color: var(--muted); } .toolbar .wc.good { color: var(--go); font-weight: 600; }
   .page { background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; box-shadow: 0 1px 8px rgba(44,36,22,.06); width: 100%; height: 52vh; min-height: 320px; max-height: 600px; overflow-y: auto; margin: 0; padding: 32px 40px; font-family: var(--write); font-size: 18px; line-height: 1.65; }
   .page:empty:before { content: attr(data-ph); color: var(--muted); font-style: italic; } .page img { max-width: 100%; border-radius: 3px; margin: 6px 0; }
+  /* Drag a corner to resize. Chrome removed the native contenteditable image handles
+     (Firefox still has them), so these are ours -- and they live OUTSIDE .page on
+     purpose: anything inside it would be written into innerHTML and saved as part of
+     the student's One-Pager. */
+  .page img { cursor: pointer; }
+  .op-ring { position: fixed; border: 2px solid var(--go, #4a7c59); border-radius: 3px;
+    margin: -2px 0 0 -2px; pointer-events: none; }
+  .op-grips { position: fixed; inset: 0; pointer-events: none; z-index: 60; display: none; }
+  .op-grips.on { display: block; }
+  .op-grip { position: fixed; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 3px;
+    background: #fff; border: 2px solid var(--go, #4a7c59); box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    pointer-events: auto; touch-action: none; }
+  .op-grip[data-c="nw"], .op-grip[data-c="se"] { cursor: nwse-resize; }
+  .op-grip[data-c="ne"], .op-grip[data-c="sw"] { cursor: nesw-resize; }
+  .op-size { position: fixed; transform: translate(-50%, -50%); background: rgba(28,24,16,.86); color: #fff;
+    font-family: var(--sans); font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 4px;
+    pointer-events: none; white-space: nowrap; }
   .composer-foot { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; } .composer-foot .note { font-size: 14.5px; color: var(--muted); }
   .stems { margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .stem-chip { background: #fff; border: 1px dashed var(--accent-light); font-family: var(--write); font-size: 17px; padding: 8px 14px; border-radius: 999px; }
@@ -852,6 +869,12 @@ body.capturing .hl-mark:not(.preview) { display: none; }
 #printOnePager .op-body li { font-size: 11pt; line-height: 1.5; margin: 0 0 .2em; }
 /* A full-bleed photo would eat the sheet on its own; OP2 wants 2-3 of them. */
 #printOnePager .op-body img { max-width: 100%; max-height: 2.6in; height: auto; display: block; margin: .6em 0; }
+/* A student who has sized an image by dragging its corner gets that size in the PDF.
+   The 2.6in cap still governs anything they have not touched, and exportOnePagerPDF
+   already measures the sheet and warns if it runs past one page. Widths are stored as a
+   PERCENTAGE, so the same image occupies the same share of the column on screen (the
+   .page box) and in print (the narrower .op-body). */
+#printOnePager .op-body img[data-w] { max-height: none; }
 
 /* The session record — sheet two. Plainer than the One-Pager: this is evidence a
    grader reads, not a composed page. */
