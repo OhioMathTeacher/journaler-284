@@ -229,7 +229,7 @@
      white void. Capping the READER means the column never exceeds what a sensible scale
      fills, so the page fills its column and the leftover sits outside the box as ordinary
      page margin. minmax(0,1fr) so a wide page scrolls instead of blowing out the grid. */
-  .reader { display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto 1fr; gap: 0; border: 1px solid var(--comment-border); border-radius: 8px; overflow: hidden; min-height: 70vh; max-width: 1900px; margin: 0 auto; container-name: reader; container-type: inline-size; }
+  .reader { display: grid; grid-template-columns: 0 minmax(0, 1fr) 360px; grid-template-rows: auto 1fr; gap: 0; border: 1px solid var(--comment-border); border-radius: 8px; overflow: hidden; min-height: 70vh; max-width: 1900px; margin: 0 auto; container-name: reader; container-type: inline-size; }
   /* overflow-x too: at 150-200% zoom the page is deliberately wider than its column,
      and without this it was clipped with no way to scroll to the rest of the line. */
   /* min-height:0 — a grid item defaults to min-height:auto, which refuses to shrink
@@ -257,7 +257,45 @@
      acre of nothing. Focus now hides the CHROME -- top bar, shelf, page furniture --
      and keeps your notes. ◧ Hide notes still works inside focus for anyone who does
      want the page alone, which is the difference between a choice and a rule. */
-  .reader.notes-hidden { grid-template-columns: minmax(0, 1fr); }
+  .reader.notes-hidden { grid-template-columns: 0 minmax(0, 1fr); }
+
+  /* ── The chapter drawer ────────────────────────────────────────────────────
+     Todd's overhaul, 2026-08-27: the shelf bar above the frame carried a control a
+     student touches once a session and charged ~70px of every screen for it. The
+     list lives here now, VS Code fashion, and takes width only while it is open.
+     Explicit placement rather than auto-flow: the view bar spans every column, so
+     an auto-placed drawer would have landed beside it in row 1. */
+  .reader.drawer-open { grid-template-columns: 232px minmax(0, 1fr) 360px; }
+  .reader.notes-hidden.drawer-open { grid-template-columns: 232px minmax(0, 1fr); }
+  .reader .viewbar { grid-row: 1; }
+  .reader .drawer { grid-column: 1; grid-row: 2; }
+  .reader .doc    { grid-column: 2; grid-row: 2; }
+  .reader .notes  { grid-column: 3; grid-row: 2; }
+  /* Gone entirely, not squeezed to nothing: a 0-width column with content in it
+     still lays that content out, and the browser sizes the grid around it. */
+  .reader:not(.drawer-open) .drawer { display: none; }
+  .reader .drawer { background: var(--margin-bg); border-right: 1px solid var(--comment-border);
+    overflow-y: auto; min-height: 0; padding: 8px 0; }
+  .drawer-row { display: flex; align-items: stretch; gap: 0; }
+  .drawer-row + .drawer-row { border-top: 1px solid rgba(0,0,0,.05); }
+  .drawer-pick { flex: 1 1 auto; min-width: 0; text-align: left; background: none; border: 0;
+    font-family: var(--sans); font-size: 14.5px; line-height: 1.35; color: var(--ink);
+    padding: 10px 4px 10px 14px; cursor: pointer;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .drawer-row:hover { background: rgba(0,0,0,.04); }
+  .drawer-row.on { background: var(--comment-bg); box-shadow: inset 3px 0 0 var(--accent); }
+  .drawer-row.on .drawer-pick { font-weight: 700; color: var(--accent); }
+  /* Always visible, never hover-only: there is no hover on an iPad, and a control
+     that only appears to a mouse is a control half the class does not have. */
+  .drawer-x { flex: 0 0 auto; background: none; border: 0; cursor: pointer; opacity: .4;
+    font-size: 14px; padding: 0 12px; color: var(--ink); }
+  .drawer-x:hover { opacity: 1; }
+  .drawer-empty { font-family: var(--sans); font-size: 14px; color: var(--muted);
+    margin: 0; padding: 14px; line-height: 1.5; }
+  .vbtn.vb-drawer.on { background: var(--comment-bg); border-color: var(--accent); color: var(--accent); }
+  /* The drawer already names itself; below the width where the bar gets tight the
+     button keeps its glyph and drops the word. */
+  @container reader (max-width: 760px) { .vb-drawer .vb-word { display: none; } }
 
   /* One toolbar across the top of the frame. Everything that acts on the DOCUMENT is
      here — page, view mode, capture, zoom, notes — while the shelf above the frame is

@@ -19,7 +19,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-27-185">
+<link rel="stylesheet" href="app.css?v=2026-08-27-186">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -81,6 +81,8 @@
     </div>
   </div>
   <input type="file" id="workFileInput" accept=".json,.zip,application/json,application/zip" hidden>
+  <input type="file" id="readInput" accept=".pdf,.docx,.txt" multiple hidden>
+  <input type="file" id="readFolderInput" webkitdirectory hidden>
   <!-- The month, one click from anywhere. My Progress answers "where do I stand";
        this answers "what have I been doing, and how evenly". Icon-only: the bar is
        full, and a calendar glyph needs no word. It selects the By day lens inside
@@ -118,12 +120,21 @@
     </div>
 
     <div class="set-pane on" id="set-readings">
+      <h3>Add readings</h3>
+      <p>Pick chapter files one at a time, or point Journaler at a folder once and they reload every visit. Either way the files are read from your disk — nothing is uploaded.</p>
+      <div class="set-actions">
+        <button class="am-save" id="setLoadFiles">＋ Load readings</button>
+        <button class="am-cancel" id="setLoadFolder">＋ Load a folder</button>
+      </div>
+      <div id="setFolder"></div>
+      <h3>Keep a copy</h3>
+      <p>Every chapter you have loaded, as one <code>.zip</code> — for a thumb drive, or to carry to another computer.</p>
+      <div class="set-actions">
+        <button class="am-cancel" id="setZipReadings">⤓ Download all readings (.zip)</button>
+      </div>
       <h3>Your name</h3>
       <p>Typed once. It goes on the top of every PDF you export. Left blank, the export prints a rule to sign by hand — and asks you then.</p>
       <input type="text" id="nameField" class="namefield setfield" placeholder="your name" autocomplete="name" spellcheck="false">
-      <h3>Readings folder</h3>
-      <p>Point Journaler at a folder once and your chapters reload every visit. Files are read from your disk — nothing is uploaded, and nothing is copied into the browser.</p>
-      <div id="setFolder"></div>
       <h3>Appearance</h3>
       <p>Parchment is the default. Modern is a cooler, sans-serif look.</p>
       <button class="am-cancel" id="setThemeBtn">◑ Modern</button>
@@ -250,7 +261,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-27-185"></script>
-<script src="app.js?v=2026-08-27-185"></script>
+<script src="tips.js?v=2026-08-27-186"></script>
+<script src="app.js?v=2026-08-27-186"></script>
 </body>
 </html>

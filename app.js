@@ -2856,7 +2856,7 @@ async function runReflection(rf, text, hooks) {
   }
   // A folder sync can fire on load while the reader is on another tab; renderRead()
   // would overwrite that tab's DOM, so only repaint when Readings is on screen.
-  function rerenderReadIfVisible(){ if(document.getElementById('readingSelect')) renderRead(); }
+  function rerenderReadIfVisible(){ if(document.getElementById('drawerList')) renderRead(); }
 
   // Bytes for a reading: a built-in (shipped) reading fetches from its URL; a
   // folder-backed one is read from disk on demand; a picker-loaded one from IndexedDB.
@@ -4506,27 +4506,112 @@ You: Really. The first line only has to exist, not be good.`;
     const why = readingsDirState === 'missing' ? 'Folder not found — plug the drive back in?' : 'Reconnect to read from this folder again';
     return `<span class="dirchip off" title="${escHtml(why)}">📁 ${escHtml(nm)}<button class="dirchip-go" id="reconnectDir">Reconnect folder</button><button class="dirchip-x" id="forgetDir" title="Stop using this folder">✕</button></span>`;
   }
+  // Every chapter the student has loaded, as one archive. The bytes are already
+  // here -- in IndexedDB, or readable from the connected folder -- so this is a
+  // repackaging, not a download: it works with the network off.
+  // ⚠ Reads them one at a time on purpose. A term of scans is a few hundred MB, and
+  // asking IndexedDB for all of it at once is how a tab gets killed on an iPad.
+  async function zipReadings(btn){
+    const label = btn ? btn.textContent : '';
+    const say = t => { if(btn) btn.textContent = t; };
+    if(typeof JSZip === 'undefined'){ alert('Zip library not loaded.'); return; }
+    const mine = readings.filter(r => !r.builtin);
+    if(!mine.length){ alert('No chapters loaded yet.\n\nUse ＋ Load readings or ＋ Load a folder above.'); return; }
+    if(btn) btn.disabled = true;
+    try {
+      const zip = new JSZip();
+      let got = 0; const missing = [];
+      for(let i = 0; i < mine.length; i++){
+        const r = mine[i];
+        say('Packing ' + (i+1) + ' of ' + mine.length + '\u2026');
+        let bytes = null;
+        try { bytes = await readingBytesFor(r); } catch(e){ bytes = null; }
+        if(bytes){ zip.file(r.name, bytes); got++; }
+        else missing.push(r.name);   // a folder reading with the folder disconnected
+      }
+      if(!got){
+        alert('None of your chapters could be read just now.\n\nIf they came from a folder, reconnect it first.');
+        return;
+      }
+      say('Zipping\u2026');
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'journaler-284-readings-' + new Date().toISOString().slice(0,10) + '.zip';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+      logEvent('read', 'downloaded ' + got + ' reading(s) as a zip');
+      // Say what did NOT make it. A silently short archive is worse than none: it
+      // looks like a backup right up until the moment someone needs it.
+      if(missing.length) alert('Saved ' + got + ' of ' + mine.length + '.\n\nNot included:\n\u00b7 '
+        + missing.join('\n\u00b7 ') + '\n\nThose came from a folder that is not connected right now.');
+    } catch(e){
+      logEvent('error', 'zip readings failed', String(e && e.message || e));
+      alert('Could not build the zip: ' + (e && e.message || e));
+    } finally { if(btn){ btn.disabled = false; btn.textContent = label; } }
+  }
+
+  // ── The chapter drawer ───────────────────────────────────────────────────
+  // Todd, 2026-08-27: "instead of the dropdown reading list, what if we made that a
+  // side drawer on the left that can be hidden — think VS Code's leftmost panel."
+  // The list is a once-a-session control that was costing a permanent bar; here it
+  // takes width only while it is open, and the reading keeps the rest.
+  let drawerOpen = DB.drawerOpen !== false;
+  function setDrawerOpen(v){
+    drawerOpen = v; DB.drawerOpen = v; saveDB();
+    const r = document.querySelector('.reader');
+    if(r) r.classList.toggle('drawer-open', v);
+    const b = document.getElementById('drawerToggle');
+    if(b){ b.classList.toggle('on', v); b.setAttribute('aria-expanded', String(v)); }
+    // The pane just changed width, and the page is rendered at a scale measured for
+    // the old one. Same two-frame wait setFocus uses, and for the same reason.
+    if(tab === 'read') requestAnimationFrame(() => requestAnimationFrame(() => {
+      const rr = readings[activeReading];
+      if(rr && (rr.type === 'pdf' || rr.type === 'docx')) renderActiveDoc(rr);
+    }));
+  }
+  function pickReading(i){
+    if(i === activeReading || i < 0 || i >= readings.length) return;
+    activeReading = i; readPageNum = 1; _curPdf = { id:null, doc:null, labels:null };
+    persistReadings(); renderRead();
+  }
+  // Deliberately confirmed, unlike the old ✕ Remove: a trash can beside a title is a
+  // smaller, likelier misclick than a labelled button on a bar, and the highlights on
+  // that chapter go with it.
+  function removeReadingAt(i){
+    const r = readings[i];
+    if(!r) return;
+    if(!confirm('Remove “' + readingLabel(r) + '” from your shelf?\n\n'
+              + 'Your highlights and notes on it are removed with it. The file on your disk is untouched — load it again and you start fresh.')) return;
+    readings.splice(i, 1);
+    if(activeReading >= readings.length) activeReading = Math.max(0, readings.length - 1);
+    readPageNum = 1; _curPdf = { id:null, doc:null, labels:null };
+    logEvent('read', 'removed “' + r.name + '” from the shelf');
+    persistReadings(); renderRead();
+  }
+  function renderDrawer(){
+    const host = document.getElementById('drawerList');
+    if(!host) return;
+    host.innerHTML = readings.length
+      ? readings.map((r,i)=>
+          `<div class="drawer-row${i===activeReading?' on':''}">`
+          + `<button class="drawer-pick" data-i="${i}" title="${escHtml(r.name)}">${escHtml(readingLabel(r))}</button>`
+          + `<button class="drawer-x" data-x="${i}" title="Remove this chapter from your shelf" aria-label="Remove ${escHtml(readingLabel(r))}">🗑</button>`
+          + `</div>`).join('')
+      : `<p class="drawer-empty">No chapters yet.<br><br>Add them under ⚙ Settings → Readings.</p>`;
+    host.querySelectorAll('.drawer-pick').forEach(b => b.onclick = () => pickReading(+b.dataset.i));
+    host.querySelectorAll('.drawer-x').forEach(b => b.onclick = e => { e.stopPropagation(); removeReadingAt(+b.dataset.x); });
+  }
+
   function renderRead(){
     body.classList.add('bleed');
     sortReadings();
-    const options = readings.length
-      ? readings.map((r,i)=>`<option value="${i}" ${i===activeReading?'selected':''} title="${escHtml(r.name)}">${escHtml(readingLabel(r))}</option>`).join('')
-      : `<option value="-1">No readings loaded yet</option>`;
     const active = readings[activeReading];
     frame.innerHTML = `<div class="head"><h1>Readings</h1></div>
-      <div class="shelf">
-        <span class="shelf-lbl">Reading</span>
-        <select id="readingSelect" class="reading-select" ${readings.length?'':'disabled'}>${options}</select>
-        <button class="rchip-x" id="removeReading" title="Remove this reading from your shelf" ${readings.length<=1?'disabled':''}>✕ Remove</button>
-        <span class="shelf-spacer"></span>
-        ${folderChip()}
-        <button class="openbtn" id="openReading">＋ Load readings</button>
-        <button class="openbtn" id="openFolder">＋ Load a folder</button>
-        <input type="file" id="readInput" accept=".pdf,.docx,.txt" multiple hidden>
-        <input type="file" id="readFolderInput" webkitdirectory hidden>
-      </div>
-      <div class="reader">
+      <div class="reader${drawerOpen ? ' drawer-open' : ''}">
+        <aside class="drawer" id="readingDrawer"><div class="drawer-list" id="drawerList"></div></aside>
         <div class="viewbar">
+          <button class="vbtn vb-drawer${drawerOpen?' on':''}" id="drawerToggle"
+            title="Show or hide the list of chapters." aria-expanded="${drawerOpen}">▤<span class="vb-word"> Chapters</span></button>
           <span class="vb-group" id="pageNav"></span>
           <span class="vb-spacer"></span>
           ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single" title="One page at a time. Click again to read two pages side by side — useful on a wide screen.">${readPageMode==='single' && readSpread===2 ? 'Two pages' : 'Single page'}</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>
@@ -4547,15 +4632,9 @@ You: Really. The first line only has to exist, not be good.`;
     if(active && (active.type === 'pdf' || active.type === 'docx')) renderActiveDoc(active);
     const _cap = document.getElementById('vbCapture');
     if(_cap) _cap.onclick = () => setMarqueeArmed(!marqueeArmed);
-    const sel = document.getElementById('readingSelect');
-    sel.onchange = () => { const i = +sel.value; if(i>=0){ activeReading = i; readPageNum = 1; _curPdf = { id:null, doc:null, labels:null }; persistReadings(); renderRead(); } };
-    document.getElementById('removeReading').onclick = () => {
-      if(readings.length<=1) return;
-      readings.splice(activeReading, 1);
-      if(activeReading >= readings.length) activeReading = readings.length - 1;
-      readPageNum = 1; _curPdf = { id:null, doc:null, labels:null };
-      persistReadings(); renderRead();
-    };
+    renderDrawer();
+    const dt = document.getElementById('drawerToggle');
+    if(dt) dt.onclick = () => setDrawerOpen(!drawerOpen);
     frame.querySelectorAll('.vbtn[data-vm]').forEach(b => b.onclick = () => {
       // Already on single? The button cycles 1 ⇄ 2 pages. Otherwise it switches mode
       // and keeps whichever spread you last read in.
@@ -4578,18 +4657,6 @@ You: Really. The first line only has to exist, not be good.`;
     const dp = document.getElementById('docPane');
     if(dp){ trackDrag(dp); }
     watchPaneWidth(dp);
-    const input = document.getElementById('readInput');
-    const folderInput = document.getElementById('readFolderInput');
-    document.getElementById('openReading').onclick = () => input.click();
-    document.getElementById('openFolder').onclick = () => folderInput.click();
-    const pickBtn = document.getElementById('pickDir');
-    if(pickBtn) pickBtn.onclick = pickReadingsFolder;
-    const reBtn = document.getElementById('reconnectDir');
-    if(reBtn) reBtn.onclick = reconnectReadingsFolder;
-    const fgBtn = document.getElementById('forgetDir');
-    if(fgBtn) fgBtn.onclick = forgetReadingsFolder;
-    input.onchange = async () => { await addReadingFiles(input.files); input.value = ''; };
-    folderInput.onchange = async () => { await addReadingFiles(folderInput.files); folderInput.value = ''; };
   }
 
   // ---------- Notebook — kept pages, seen two ways (by day · by piece) ----------
@@ -6274,6 +6341,12 @@ You: Really. The first line only has to exist, not be good.`;
   });
 
   // Save / open the whole notebook of typed work as one file.
+  // Permanent, so Settings can open them from any tab. Wired once; the per-render
+  // wiring left with the shelf bar.
+  const _readIn = document.getElementById('readInput');
+  if(_readIn) _readIn.onchange = async () => { await addReadingFiles(_readIn.files); _readIn.value = ''; };
+  const _readDirIn = document.getElementById('readFolderInput');
+  if(_readDirIn) _readDirIn.onchange = async () => { await addReadingFiles(_readDirIn.files); _readDirIn.value = ''; };
   const _saveBtn = document.getElementById('saveWorkBtn');
   if(_saveBtn) _saveBtn.addEventListener('click', saveWork);
   const _chatBtn = document.getElementById('exportChatBtn');
@@ -6515,12 +6588,17 @@ You: Really. The first line only has to exist, not be good.`;
     renderAiTab();
     const f = document.getElementById('setFolder');
     if(f){
-      f.innerHTML = FS_OK ? (folderChip() || '') :
-        '<p>This browser cannot remember a folder between visits. Use <b>＋ Load a folder</b> on the Readings page instead — that works everywhere.</p>';
+      f.innerHTML = FS_OK ? (folderChip() || '') : '';
       const pick = document.getElementById('pickDir'); if(pick) pick.onclick = pickReadingsFolder;
       const re = document.getElementById('reconnectDir'); if(re) re.onclick = reconnectReadingsFolder;
       const fg = document.getElementById('forgetDir'); if(fg) fg.onclick = forgetReadingsFolder;
     }
+    const lf = document.getElementById('setLoadFiles');
+    if(lf) lf.onclick = () => document.getElementById('readInput').click();
+    const ld = document.getElementById('setLoadFolder');
+    if(ld) ld.onclick = () => document.getElementById('readFolderInput').click();
+    const zp = document.getElementById('setZipReadings');
+    if(zp) zp.onclick = () => zipReadings(zp);
     renderDiagnostics(); renderDiagSnapshot();
   }
   window.openSettings = openSettings;
