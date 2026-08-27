@@ -62,7 +62,26 @@
   .about-modal p, .settings-modal p { font-family: var(--sans); font-size: 15.5px; line-height: 1.6; color: #C9D3DE; margin: 0; }
   .about-modal p b, .settings-modal p b { color: #F0E6D2; font-weight: 700; }
   .about-modal .about-lead { font-family: var(--write); font-size: 17px; color: #DDD3C0; margin: -6px 0 4px; }
-  .about-links { display: flex; flex-direction: column; gap: 8px; margin: 20px 0 0; padding-top: 15px; border-top: 1px solid rgba(255,255,255,.10); }
+  /* Todd: too tall and narrow to fit an iPad in landscape. Five stacked sections of
+     prose in a 500px column is a ladder; the same prose in two columns at twice the
+     width is a page. Multi-column rather than a grid, so the sections flow into
+     whichever column has room instead of being assigned one each. */
+  .ai-modal.about-modal { width: min(940px, calc(100vw - 2rem));
+    max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem);
+    display: flex; flex-direction: column; }
+  .about-body { columns: 2; column-gap: 32px; overflow-y: auto; min-height: 0; margin-bottom: 4px; }
+  /* A heading must not be the last thing in a column, and a paragraph must not be
+     split down the middle of a sentence across the gutter. */
+  .about-body h3 { break-after: avoid; -webkit-column-break-after: avoid; margin-top: 16px; }
+  .about-body h3:first-child { margin-top: 0; }
+  .about-body p { break-inside: avoid; -webkit-column-break-inside: avoid; }
+  /* Below the width where two columns would each be too narrow to read, it is a
+     ladder again -- which is the right shape for a phone. */
+  @media (max-width: 760px) {
+    .ai-modal.about-modal { width: min(520px, calc(100vw - 2rem)); }
+    .about-body { columns: 1; }
+  }
+  .about-links { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 16px 0 0; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.10); }
   .about-links a { font-family: var(--sans); font-size: 15.5px; font-weight: 600; color: var(--cave-glow, #D4A843); text-decoration: none; }
   .about-links a:hover { text-decoration: underline; }
   .about-build { margin-top: 16px !important; font-family: ui-monospace, monospace; font-size: 12.5px; color: #7C8B9C !important; }

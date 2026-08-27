@@ -19,7 +19,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-27-195">
+<link rel="stylesheet" href="app.css?v=2026-08-27-196">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -217,6 +217,7 @@
     <h2>About Journaler-284</h2>
     <p class="about-lead">Where you write for <b>TCE 284</b>. Everything stays on your computer.</p>
 
+    <div class="about-body">
     <h3>Your work</h3>
     <p>Saved in this browser as you type. Clearing browser data erases it, and lab machines
       get wiped — so use <b>⤓ Save my work</b>, which downloads one file holding everything.</p>
@@ -233,6 +234,8 @@
     <h3>Our icon</h3>
     <p>A lotus roots in mud and blooms anyway. You go back to what you did not choose, and write
       forward from it. The book is where that happens.</p>
+
+    </div><!-- /.about-body -->
 
     <div class="about-links">
       <!-- #readme lands on the README itself; without it GitHub opens on the file list. -->
@@ -288,7 +291,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-27-195"></script>
-<script src="app.js?v=2026-08-27-195"></script>
+<script src="tips.js?v=2026-08-27-196"></script>
+<script src="app.js?v=2026-08-27-196"></script>
 </body>
 </html>
