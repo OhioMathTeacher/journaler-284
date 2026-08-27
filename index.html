@@ -2,18 +2,24 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Journaler · TCE 284</title>
 <!-- The app had no favicon at all — a blank tab for something students keep open all
      term. Same lotus-and-book mark as the About button, drawn from scratch. -->
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Journaler">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F8F4EC">
 <!-- ?v= is the cache buster. Bump ALL THREE tags — app.css here, and tips.js + app.js
      at the end of body — on every deploy: GitHub Pages will otherwise serve the cached
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-27-182">
+<link rel="stylesheet" href="app.css?v=2026-08-27-183">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -244,7 +250,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-27-182"></script>
-<script src="app.js?v=2026-08-27-182"></script>
+<script src="tips.js?v=2026-08-27-183"></script>
+<script src="app.js?v=2026-08-27-183"></script>
 </body>
 </html>

@@ -2994,11 +2994,41 @@ async function runReflection(rf, text, hooks) {
   // used to add a mousemove/mouseup pair each time without ever removing them —
   // a continuous-mode repaint of a 14-page chapter leaked 28 listeners.
   let _mq = null;            // live drag: { overlay, canvas, textLayerDiv, startX, startY, boxEl }
+  // A finger has one gesture and the page wants two of them. The capture overlay covers
+  // the whole sheet, so if it is listening a drag draws a box and the chapter cannot be
+  // scrolled at all -- and if it is not listening, no passage can be marked. A mouse
+  // never had this problem: it scrolls with a wheel and drags with a button.
+  // So on a touch screen the overlay is ARMED only when the reader asks: tap ▣ Mark
+  // passage, draw one box, and scrolling comes straight back. A pointing device keeps
+  // the always-on behaviour every existing reader already has in their hands.
+  // (Ported from journaler-318P build 37, where box capture on an iPad was not awkward
+  // but inert -- see the pointer-events note on attachMarquee below.)
+  const COARSE_POINTER = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  let marqueeArmed = !COARSE_POINTER;
+  // Everything that decides whether a drag draws a box or scrolls the page runs through
+  // here, so the three can never disagree: the CSS touch-action, the overlay's
+  // pointer-events, and the button's own label.
+  function setMarqueeArmed(v){
+    marqueeArmed = v;
+    document.body.classList.toggle('marquee-armed', v);
+    document.querySelectorAll('.marquee-overlay').forEach(o => {
+      o.style.pointerEvents = v ? 'auto' : 'none';
+    });
+    const b = document.getElementById('vbCapture');
+    if(b){ b.classList.toggle('on', v); b.textContent = v ? '✕ Cancel' : '▣ Mark passage'; }
+    let h = document.getElementById('marqueeHint');
+    if(!h && v){
+      h = document.createElement('div'); h.id = 'marqueeHint';
+      h.textContent = 'Drag a box around the passage';
+      document.body.appendChild(h);
+    }
+    if(h) h.style.display = v ? 'block' : 'none';
+  }
   let _mqWired = false;
   function wireMarqueeWindowListeners(){
     if(_mqWired) return;
     _mqWired = true;
-    window.addEventListener('mousemove', e => {
+    window.addEventListener('pointermove', e => {
       if(!_mq) return;
       const r = _mq.overlay.getBoundingClientRect();
       const cx = e.clientX - r.left, cy = e.clientY - r.top;
@@ -3007,7 +3037,7 @@ async function runReflection(rf, text, hooks) {
       _mq.boxEl.style.width  = Math.abs(cx - _mq.startX)+'px';
       _mq.boxEl.style.height = Math.abs(cy - _mq.startY)+'px';
     });
-    window.addEventListener('mouseup', e => {
+    window.addEventListener('pointerup', e => {
       if(!_mq) return;
       const m = _mq; _mq = null;
       const r = m.boxEl.getBoundingClientRect();
@@ -3015,14 +3045,33 @@ async function runReflection(rf, text, hooks) {
       // it. So the link runs both ways for free: no change to .hl-mark's pointer-events,
       // the bands stay click-through, and dragging a new box across an old highlight
       // keeps working. (Ported from journaler-318P, build 35.)
-      if(r.width < 6 || r.height < 6){ m.boxEl.remove(); markAt(e.clientX, e.clientY); return; }
+      if(r.width < 6 || r.height < 6){ m.boxEl.remove(); markAt(e.clientX, e.clientY);
+        if(COARSE_POINTER) setMarqueeArmed(false); return; }
       handleMarqueeCapture(r, m.canvas, m.textLayerDiv);
+      // One arming, one gesture. Left armed, the reader silently loses the ability to
+      // scroll the chapter and has no way to know why.
+      if(COARSE_POINTER) setMarqueeArmed(false);
+    });
+    // A touch drag can be TAKEN rather than finished -- iOS hands the gesture to its own
+    // scrolling or to the app switcher and sends pointercancel instead of pointerup.
+    // Without this the half-drawn box stays and _mq stays live, so the reader's next tap
+    // finishes a drag they abandoned a minute ago.
+    window.addEventListener('pointercancel', () => {
+      if(!_mq) return;
+      _mq.boxEl.remove(); _mq = null;
+      if(COARSE_POINTER) setMarqueeArmed(false);
     });
   }
+  // Pointer events, not mouse events. iOS synthesises mousedown/mouseup for a TAP and
+  // nothing whatever for a DRAG -- which is exactly what a marquee is -- so on a touch
+  // screen box capture was not awkward, it was inert. A touch pointer also gets implicit
+  // capture on the element the drag began on, which is what lets the window listeners
+  // above keep tracking when the finger slides off the page it started from.
   function attachMarquee(overlay, canvas, textLayerDiv){
     wireMarqueeWindowListeners();
-    overlay.addEventListener('mousedown', e => {
-      if(e.button!==0) return;
+    overlay.style.pointerEvents = marqueeArmed ? 'auto' : 'none';
+    overlay.addEventListener('pointerdown', e => {
+      if(!marqueeArmed || e.button!==0 || !e.isPrimary) return;
       document.querySelectorAll('.marquee-box').forEach(b=>b.remove());
       const r = overlay.getBoundingClientRect();
       const startX = e.clientX - r.left, startY = e.clientY - r.top;
@@ -4479,6 +4528,7 @@ You: Really. The first line only has to exist, not be good.`;
           <span class="vb-spacer"></span>
           ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single" title="One page at a time. Click again to read two pages side by side — useful on a wide screen.">${readPageMode==='single' && readSpread===2 ? 'Two pages' : 'Single page'}</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>
           <label class="zoomwrap">Zoom <select id="zoomSel" class="zoomsel">${ZOOMS.map(z=>`<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select></label>` : ''}
+          ${COARSE_POINTER ? `<button class="vbtn vb-capture${marqueeArmed?' on':''}" id="vbCapture" title="Tap, then drag a box around the passage you want to keep. Scrolling comes back as soon as the box is drawn.">${marqueeArmed ? '✕ Cancel' : '▣ Mark passage'}</button>` : ''}
           <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧ Hide notes' : '◨ Show notes'}<span class="hl-count" id="hlCount"></span></button>
         </div>
         <div class="doc" id="docPane">${docBody(active)}</div>
@@ -4492,6 +4542,8 @@ You: Really. The first line only has to exist, not be good.`;
         </aside>
       </div>`;
     if(active && (active.type === 'pdf' || active.type === 'docx')) renderActiveDoc(active);
+    const _cap = document.getElementById('vbCapture');
+    if(_cap) _cap.onclick = () => setMarqueeArmed(!marqueeArmed);
     const sel = document.getElementById('readingSelect');
     sel.onchange = () => { const i = +sel.value; if(i>=0){ activeReading = i; readPageNum = 1; _curPdf = { id:null, doc:null, labels:null }; persistReadings(); renderRead(); } };
     document.getElementById('removeReading').onclick = () => {
