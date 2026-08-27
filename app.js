@@ -4747,7 +4747,7 @@ You: Really. The first line only has to exist, not be good.`;
           + `<button class="drawer-pick" data-i="${i}" title="${escHtml(r.name)}">${escHtml(readingLabel(r))}</button>`
           + `<button class="drawer-x" data-x="${i}" title="Remove this chapter from your shelf" aria-label="Remove ${escHtml(readingLabel(r))}">🗑</button>`
           + `</div>`).join('')
-      : `<p class="drawer-empty">No chapters yet.<br><br>Add them under ⚙ Settings → Readings.</p>`;
+      : `<p class="drawer-empty">No chapters yet.<br><br>Use ＋ Load readings above, or point Journaler at a whole folder under ⚙ Settings → Readings.</p>`;
     host.querySelectorAll('.drawer-pick').forEach(b => b.onclick = () => pickReading(+b.dataset.i));
     host.querySelectorAll('.drawer-x').forEach(b => b.onclick = e => { e.stopPropagation(); removeReadingAt(+b.dataset.x); });
   }
@@ -4758,7 +4758,10 @@ You: Really. The first line only has to exist, not be good.`;
     const active = readings[activeReading];
     frame.innerHTML = `<div class="head"><h1>Readings</h1></div>
       <div class="reader${drawerOpen ? ' drawer-open' : ''}">
-        <aside class="drawer" id="readingDrawer"><div class="drawer-list" id="drawerList"></div></aside>
+        <aside class="drawer" id="readingDrawer">
+          <button class="drawer-add" id="drawerAdd" title="Add chapter files from your computer. A whole folder at once lives in ⚙ Settings → Readings.">＋ Load readings</button>
+          <div class="drawer-list" id="drawerList"></div>
+        </aside>
         <div class="viewbar">
           <button class="vbtn vb-drawer${drawerOpen?' on':''}" id="drawerToggle"
             title="Show or hide the list of chapters." aria-expanded="${drawerOpen}">📖<span class="vb-word"> Chapters</span></button>
@@ -4792,6 +4795,8 @@ You: Really. The first line only has to exist, not be good.`;
     renderDrawer();
     const dt = document.getElementById('drawerToggle');
     if(dt) dt.onclick = () => setDrawerOpen(!drawerOpen);
+    const da = document.getElementById('drawerAdd');
+    if(da) da.onclick = () => document.getElementById('readInput').click();
     const rb = document.getElementById('romanoBtn');
     if(rb) rb.onclick = () => openRomanoChat('', readPageNum);
     // Closes on choosing an item and on a click anywhere else: a popover left open
