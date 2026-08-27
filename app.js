@@ -4388,7 +4388,30 @@ You: Really. The first line only has to exist, not be good.`;
     { v:'1.5',  t:'150%' },
     { v:'2',    t:'200%' },
   ];
-  let readZoom = DB.readZoom || 'page';   // 'page' = the whole sheet, no sideways scroll
+  // Todd: landscape on an iPad wants 125% and a scroll, not a fitted page. Landscape
+  // is SHORT, so "the whole sheet" there means a small sheet -- the fit that helps in
+  // portrait works against you turned sideways.
+  function defaultZoom(){
+    return (COARSE_POINTER && window.innerWidth > window.innerHeight) ? '1.25' : 'page';
+  }
+  let readZoom = DB.readZoom || defaultZoom();
+  // Recomputed on rotation, not only at load: a student who opens in portrait and
+  // turns the iPad would otherwise keep portrait's answer, which is the exact case
+  // this exists for. Only ever while the zoom is still a DEFAULT -- the moment one is
+  // chosen it goes to DB and nothing here touches it again.
+  let _orientT = null;
+  window.addEventListener('resize', () => {
+    if(DB.readZoom) return;
+    clearTimeout(_orientT);
+    _orientT = setTimeout(() => {              // a rotation fires resize several times
+      const z = defaultZoom();
+      if(z === readZoom) return;
+      readZoom = z;
+      const zs = document.getElementById('zoomSel'); if(zs) zs.value = z;
+      const r = readings[activeReading];
+      if(r && (r.type === 'pdf' || r.type === 'docx')) renderActiveDoc(r);
+    }, 220);
+  });
   // Notes pane open/closed. The pane is HIDDEN, never removed: renderHighlightList and
   // renderQAList paint into #hlList / #newnote, so pulling the aside out of the DOM
   // would silently drop everything captured while it was away. Hidden keeps them
