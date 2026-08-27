@@ -13,7 +13,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-27-178">
+<link rel="stylesheet" href="app.css?v=2026-08-27-179">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -136,15 +136,28 @@
     </div>
 
     <div class="set-pane" id="set-diag">
-      <p>If something goes wrong, open this and send the whole thing — it says which version you loaded, how much space your work is using, and what the app did most recently.</p>
+      <h3>Something not working?</h3>
+      <p>Nothing you have written is included.</p>
+      <textarea class="diag-ta" id="diagComment" placeholder="What were you doing, and what happened instead?"></textarea>
       <div class="diag-actions">
-        <button class="am-cancel" id="diagCopy">⧉ Copy all</button>
-        <button class="am-cancel" id="diagDownload">⤓ Download</button>
-        <button class="am-cancel" id="diagClear">Clear log</button>
+        <button class="am-save" id="diagCopy" title="Opens an email with a summary already in it, and puts the full report on your clipboard to paste in.">Email Todd</button>
+        <button class="am-cancel" id="diagPdf" title="Prints the whole report so you can attach it. No browser can attach a file to an email on its own — that part is yours to do.">⤓ Save PDF diagnostic report</button>
       </div>
-      <div class="diag-snap" id="diagSnap"></div>
-      <p class="diag-count" id="diagCount"></p>
-      <div class="diag-body" id="diagBody"></div>
+
+      <button type="button" class="diag-toggle" id="diagToggle" aria-expanded="false" aria-controls="diagFold">
+        <span class="diag-caret" id="diagCaret">▸</span>
+        <span class="diag-toggle-title">Details &amp; event log</span>
+        <span class="diag-toggle-meta" id="diagToggleMeta"></span>
+      </button>
+      <div id="diagFold" style="display:none">
+        <div class="diag-snap" id="diagSnap"></div>
+        <div class="diag-actions">
+          <button class="am-cancel" id="diagDownload">⤓ Download the log</button>
+          <button class="am-cancel" id="diagClear">Clear log</button>
+        </div>
+        <p class="diag-count" id="diagCount"></p>
+        <div class="diag-body" id="diagBody"></div>
+      </div>
     </div>
 
     <div class="ai-modal-actions"><button class="am-cancel" onclick="closeSettings()">Close</button></div>
@@ -227,7 +240,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-27-178"></script>
-<script src="app.js?v=2026-08-27-178"></script>
+<script src="tips.js?v=2026-08-27-179"></script>
+<script src="app.js?v=2026-08-27-179"></script>
 </body>
 </html>

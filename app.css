@@ -1001,6 +1001,27 @@ body.focus .iconbtn { display: none !important; }
 .diag-data { color: #7C8B9C; }
 .diag-empty { font-family: var(--sans); font-size: 14.5px; color: #7C8B9C; margin: 0; }
 
+/* Report a problem + the folded log. Colours are for the dark .ai-modal panel,
+   same as everything else in here -- --ink and --muted are parchment darks and
+   vanish against it. */
+.diag-ta { width: 100%; box-sizing: border-box; min-height: 76px; resize: vertical;
+  margin: 10px 0 12px; padding: 9px 11px; border-radius: 7px;
+  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.12); color: #E8EDF3;
+  font-family: var(--sans); font-size: 15px; line-height: 1.55; }
+.diag-ta::placeholder { color: #7C8B9C; }
+.diag-ta:focus { outline: none; border-color: var(--cave-glow, #D4A843); }
+/* The log is a reference, not something to read: shut by default, with the header
+   carrying enough to say whether it is worth opening. */
+.diag-toggle { display: flex; align-items: baseline; gap: 9px; width: 100%; margin-top: 20px;
+  padding: 8px 0; background: none; border: 0; border-top: 1px solid rgba(255,255,255,.10);
+  cursor: pointer; text-align: left; }
+.diag-caret { flex: 0 0 auto; width: 11px; font-size: 12px; color: #7C8B9C; }
+.diag-toggle-title { font-family: var(--sans); font-size: 14px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .07em; color: #9FB0C4; }
+.diag-toggle:hover .diag-toggle-title { color: #C9D3DE; }
+.diag-toggle-meta { font-family: var(--sans); font-size: 13px; color: #7C8B9C; }
+.diag-toggle-meta .flagged { color: #E88; font-weight: 600; }
+
 /* ── AI tab, after Allegory's: sub-tabs, one-click model tiles, a custom URL row.
    Colours are for the dark .ai-modal panel. */
 .ai-sub { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0 10px; }

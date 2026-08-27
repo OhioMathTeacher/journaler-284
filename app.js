@@ -1010,19 +1010,152 @@ async function runReflection(rf, text, hooks) {
     body.innerHTML = rows || '<p class="diag-empty">No events yet. Use the app and they will appear here.</p>';
     const n = document.getElementById('diagCount');
     if(n) n.textContent = `${_log.length} event${_log.length===1?'':'s'} · newest first`;
+    renderDiagToggleMeta();
   }
+  // Kept from the last render, because building the report has to be SYNCHRONOUS:
+  // Copy details copies and then navigates to a mailto: in the same click, and an
+  // await between the two is where Safari stops trusting the gesture. The snapshot
+  // is refreshed whenever the Diagnostics tab opens, which is the only way to reach
+  // the button.
+  let _lastSnap = null;
   async function renderDiagSnapshot(){
+    const snap = await diagnosticsSnapshot();
+    _lastSnap = snap;
     const el = document.getElementById('diagSnap');
     if(!el) return;
-    const snap = await diagnosticsSnapshot();
     el.innerHTML = Object.keys(snap).map(k =>
       `<div class="diag-kv"><span>${escHtml(k)}</span><b>${escHtml(String(snap[k]))}</b></div>`).join('');
   }
-  async function diagnosticsText(){
-    const snap = await diagnosticsSnapshot();
+  function logLines(){
+    return _log.map(e => `${e.t.slice(11,19)}  ${e.kind.padEnd(8)} ${e.msg}${e.data===undefined?'':'  '+(typeof e.data==='string'?e.data:JSON.stringify(e.data))}`).join('\n');
+  }
+  // Synchronous, off the cached snapshot. diagnosticsText() stays async for the
+  // download button, which has no gesture to protect.
+  function diagnosticsTextSync(comment){
+    const snap = _lastSnap || {};
     const head = Object.keys(snap).map(k => `${k}: ${snap[k]}`).join('\n');
-    const log = _log.map(e => `${e.t.slice(11,19)}  ${e.kind.padEnd(8)} ${e.msg}${e.data===undefined?'':'  '+(typeof e.data==='string'?e.data:JSON.stringify(e.data))}`).join('\n');
-    return `Journaler-284 diagnostics\n${'='.repeat(48)}\n${head}\n\nEVENTS (oldest first)\n${'-'.repeat(48)}\n${log}\n`;
+    const said = (comment || '').trim();
+    return `Journaler-284 problem report — TCE 284\n${'='.repeat(48)}\n`
+         + `${new Date().toString()}\n\nWHAT HAPPENED\n${said || '(nothing written)'}\n\n`
+         + `${'-'.repeat(48)}\n${head}\n\nEVENTS (oldest first)\n${'-'.repeat(48)}\n${logLines()}\n`;
+  }
+  async function diagnosticsText(){
+    await renderDiagSnapshot();
+    return diagnosticsTextSync(diagComment());
+  }
+
+  function diagComment(){
+    const el = document.getElementById('diagComment');
+    return el ? el.value.trim() : '';
+  }
+  // "Flagged" rather than "errors": most of what lands in here is the app noticing
+  // something, not the app broken, and nobody should read this line and conclude
+  // their notebook is gone.
+  function diagCountLabel(){
+    if(!_log.length) return 'nothing recorded';
+    const bad = _log.filter(e => e.kind === 'error' || e.kind === 'warn').length;
+    return `${_log.length} event${_log.length===1?'':'s'}`
+         + (bad ? ` · <span class="flagged">${bad} flagged</span>` : '');
+  }
+  function renderDiagToggleMeta(){
+    const el = document.getElementById('diagToggleMeta');
+    if(el) el.innerHTML = diagCountLabel();
+  }
+
+  // Course, software, build, date and time — so the mail sorts itself in Todd's
+  // inbox and he knows what he is opening before he opens it.
+  function reportSubject(){
+    const d = new Date(), p = n => String(n).padStart(2,'0');
+    return `TCE 284 · Journaler-284 build ${BUILD} · problem report · `
+         + `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+  // Short enough to survive a mail client that truncates, long enough that the
+  // clipboard paste is usually a luxury rather than a requirement.
+  function reportDigest(){
+    const snap = _lastSnap || {};
+    const keep = ['Build (loaded)','Browser','Window','All site storage','Quota used',
+                  'Journal entries','Readings on shelf','Highlights','AI provider','Current reading'];
+    const lines = keep.filter(k => snap[k] !== undefined).map(k => `${k}: ${snap[k]}`);
+    const bad = _log.filter(e => e.kind === 'error' || e.kind === 'warn').slice(-4)
+      .map(e => `  · ${e.t.slice(11,19)} ${e.kind} — ${String(e.msg).slice(0,140)}`);
+    lines.push(bad.length ? 'Last problems recorded:' : 'Nothing recorded as going wrong.');
+    if(bad.length) lines.push(bad.join('\n'));
+    return lines.join('\n');
+  }
+  // Synchronous first: this runs one statement before a mailto: navigation, and the
+  // async clipboard resolves too late to be the primary. execCommand is deprecated
+  // and still the only synchronous copy there is; the Range dance is what iOS wants.
+  function copyTextBestEffort(text){
+    let ok = false;
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.contentEditable = 'true'; ta.readOnly = false;
+      ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px;pointer-events:none';
+      document.body.appendChild(ta);
+      const range = document.createRange(); range.selectNodeContents(ta);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      ta.setSelectionRange(0, text.length);
+      ok = document.execCommand('copy');
+      sel.removeAllRanges(); ta.remove();
+    } catch(e){}
+    if(!ok && navigator.clipboard && navigator.clipboard.writeText){
+      try { navigator.clipboard.writeText(text); ok = true; } catch(e){}
+    }
+    return ok;
+  }
+  // A page cannot attach a file to an email -- mailto: has no such field, in any
+  // browser -- so the whole report goes to the clipboard and the draft carries the
+  // short version. The PDF is there for when the whole thing is wanted.
+  function copyDetailsAndEmail(){
+    const said = diagComment();
+    const copied = copyTextBestEffort(diagnosticsTextSync(said));
+    const body = (said || '(Say what you were doing when it went wrong.)')
+      + '\n\n—— from the app, please leave these lines ——\n'
+      + reportDigest()
+      + (copied ? '\n\nThe full report is on my clipboard — paste it below if you need it.\n' : '\n');
+    location.href = 'mailto:edwardm2@miamioh.edu'
+      + '?subject=' + encodeURIComponent(reportSubject())
+      + '&body=' + encodeURIComponent(body);
+    toast(copied ? 'Copied — opening your email' : 'Opening your email');
+  }
+  function printReport(){
+    const text = diagnosticsTextSync(diagComment());
+    const w = window.open('', '_blank');
+    if(!w){ toast('Your browser blocked the report window — use Copy details instead'); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+      <title>Journaler-284 problem report</title><style>
+      body { font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+             color: #16202b; background: #fff; margin: 2.2rem auto; max-width: 46rem; padding: 0 1.2rem; }
+      h1 { font: 700 15px/1.3 -apple-system, "Segoe UI", sans-serif; letter-spacing: .04em;
+           text-transform: uppercase; margin: 0 0 .2rem; }
+      .sub { font: 12px/1.4 -apple-system, "Segoe UI", sans-serif; color: #667; margin-bottom: 1.4rem; }
+      pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
+      button { font: 600 13px/1 -apple-system, "Segoe UI", sans-serif; background: #1A2738; color: #fff;
+               border: 0; border-radius: 7px; padding: .6rem 1rem; cursor: pointer; margin-bottom: 1.4rem; }
+      @media print { .noprint { display: none } body { margin: 0 } }
+      </style></head><body>
+      <button class="noprint" onclick="window.print()">Save as PDF / Print</button>
+      <h1>Journaler-284 problem report</h1>
+      <div class="sub">TCE 284 · build ${escHtml(BUILD)} · ${escHtml(new Date().toString())}</div>
+      <pre>${escHtml(text)}</pre>
+      </body></html>`);
+    w.document.close();
+  }
+
+  // Flipped in place rather than by re-rendering the pane, so unfolding the log does
+  // not rebuild the comment box above it and take the caret out of a half-typed
+  // sentence.
+  let _diagFoldOpen = false;
+  function toggleDiagFold(){
+    _diagFoldOpen = !_diagFoldOpen;
+    const wrap = document.getElementById('diagFold');
+    const caret = document.getElementById('diagCaret');
+    const btn = document.getElementById('diagToggle');
+    if(wrap) wrap.style.display = _diagFoldOpen ? '' : 'none';
+    if(caret) caret.textContent = _diagFoldOpen ? '▾' : '▸';
+    if(btn) btn.setAttribute('aria-expanded', String(_diagFoldOpen));
+    if(_diagFoldOpen){ renderDiagnostics(); renderDiagSnapshot(); }
   }
 
   // The name printed on every export. Typed once into the topbar field and stored, so
@@ -6213,7 +6346,7 @@ You: Really. The first line only has to exist, not be good.`;
   document.querySelectorAll('#setTabs .set-tab').forEach(b => b.addEventListener('click', () => {
     document.querySelectorAll('#setTabs .set-tab').forEach(x => x.classList.toggle('on', x === b));
     document.querySelectorAll('.set-pane').forEach(x => x.classList.toggle('on', x.id === 'set-' + b.dataset.set));
-    if(b.dataset.set === 'diag'){ renderDiagnostics(); renderDiagSnapshot(); }
+    if(b.dataset.set === 'diag'){ renderDiagnostics(); renderDiagSnapshot(); renderDiagToggleMeta(); }
     if(b.dataset.set === 'ai') renderAiTab();
   }));
   document.querySelectorAll('#aiSubTabs .ai-subtab').forEach(b => b.addEventListener('click', () => {
@@ -6227,14 +6360,11 @@ You: Really. The first line only has to exist, not be good.`;
     logEvent('ai', 'provider → none'); updateAIBtn(); renderAiTab(); toast('AI disabled');
   });
   const _dCopy = document.getElementById('diagCopy');
-  if(_dCopy) _dCopy.addEventListener('click', async () => {
-    const t = await diagnosticsText();
-    try { await navigator.clipboard.writeText(t); toast('Diagnostics copied'); }
-    catch(e){ const ta = document.createElement('textarea'); ta.value = t;
-      ta.style.cssText='position:fixed;left:-9999px'; document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); toast('Diagnostics copied'); } catch(e2){ toast('Could not copy'); }
-      ta.remove(); }
-  });
+  if(_dCopy) _dCopy.addEventListener('click', copyDetailsAndEmail);
+  const _dPdf = document.getElementById('diagPdf');
+  if(_dPdf) _dPdf.addEventListener('click', printReport);
+  const _dTog = document.getElementById('diagToggle');
+  if(_dTog) _dTog.addEventListener('click', toggleDiagFold);
   const _dDown = document.getElementById('diagDownload');
   if(_dDown) _dDown.addEventListener('click', async () => {
     const blob = new Blob([await diagnosticsText()], { type:'text/plain' });
