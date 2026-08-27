@@ -3436,8 +3436,16 @@ async function runReflection(rf, text, hooks) {
   // requires the margin partner — one conditional sentence in the Week 1 Monday
   // outline is the only student-facing mention, the Writer's Notebook guidelines
   // never name AI, and Act II's required reflection partner is a different surface.
-  // Marking a passage is now note-taking and nothing else. Asking still exists, one
-  // step away, in the ask bar under the list — which calls askRomanoInto directly.
+  // Marking a passage is now note-taking and nothing else.
+  //
+  // 2026-08-27, Todd: BACK, deliberately, after 318P shipped the same door and it
+  // read well there — "when the user highlights text, give them the opportunity to
+  // ask." The 08-25 rule SURVIVES intact and is what makes this safe to reverse:
+  // Highlight is still the primary button, still what Enter does, and Ask is a third
+  // button of the same size beside it rather than the default path. A reader who
+  // never touches it is unaffected; the passage is kept either way.
+  // The ask bar under the list still works and still calls askRomanoInto directly --
+  // this is a second door onto that same per-reading conversation, not a new one.
   function ensureCapturePopup(){
     let pop = document.getElementById('capturePopup');
     if(pop) return pop;
@@ -3448,11 +3456,13 @@ async function runReflection(rf, text, hooks) {
       <div class="popup-quick"><button class="popup-chip" id="captureCopyBtn" title="Copy this passage (⌘C / Ctrl+C)">⧉ Copy</button><button class="popup-chip" id="captureNbBtn">📓 Keep in notebook</button><button class="popup-chip" id="captureFigBtn" style="display:none">↓ Save figure</button></div>
       <div class="popup-actions">
         <button class="popup-btn secondary" id="captureCancelBtn">Cancel</button>
+        <button class="popup-btn ask" id="captureAskBtn" title="Talk this passage over with ${AI_NAME}. Your note is kept first if you have written one.">🥫 Ask ${AI_NAME}</button>
         <button class="popup-btn primary" id="captureSaveBtn">✎ Highlight</button>
       </div>`;
     document.body.appendChild(pop);
     pop.querySelector('#captureCancelBtn').onclick = closeCapture;
     pop.querySelector('#captureSaveBtn').onclick = () => saveHighlight();
+    pop.querySelector('#captureAskBtn').onclick = askFromCapture;
     pop.querySelector('#captureNbBtn').onclick   = () => saveHighlight(true);
     pop.querySelector('#captureFigBtn').onclick = downloadCapture;
     pop.querySelector('#captureCopyBtn').onclick = copyCaptureText;
@@ -3617,6 +3627,28 @@ async function runReflection(rf, text, hooks) {
     closeCapture();
     if(toNotebook) elevateHighlight(rec);
   }
+  // A second door onto the SAME conversation the ask bar already opens -- one per
+  // reading, in DB.qa[readingId], with its own history and grounding. Nothing new is
+  // stored: this is a shortcut from the passage in front of you to the thread that
+  // already exists for that chapter.
+  //
+  // The passage is KEPT first, and that ordering is the whole point. Marking is not
+  // asking (below): a reader who marks something and then wants to talk about it
+  // should end up with both, not have the mark traded for the conversation.
+  function askFromCapture(){
+    const pop = document.getElementById('capturePopup');
+    const note = pop ? pop.querySelector('#captureInput').value.trim() : '';
+    const passage = captureText;
+    const page = (captureRects && captureRects[0] && captureRects[0].page) || capturePageHint || readPageNum;
+    if(!passage && !captureImage){ closeCapture(); return; }
+    saveHighlight();                       // closes the popup and clears capture state
+    openRomanoChat(passage, page);
+    // A note already typed IS the question. Without one, Romano opens on the passage
+    // himself rather than presenting an empty window and a blinking caret.
+    if(note){ const i = document.getElementById('rmInput'); if(i) i.value = note; sendRomano(); }
+    else if(passage) romanoOpenOnPassage();
+  }
+
   // Reading work counts toward the 50-pt Writer's Notebook, so a highlight can be
   // kept as a dated pass like any other piece. Carries its own citation, since the
   // notebook entry has to stand on its own away from the PDF.
@@ -3844,6 +3876,110 @@ You: Really. The first line only has to exist, not be good.`;
     if(note) reply = `${reply}\n\n${note}`;
     return reply;
   }
+  // ══ The Romano window ═════════════════════════════════════════════════════
+  // 318P's Todd-in-a-Can shape on this app's engine. The exchanges stay in
+  // DB.qa[readingId] and Romano still gets the surrounding page text, which is the
+  // thing 318P has no equivalent of and the reason its model was not copied whole.
+  let _rmPassage = '';   // the passage this window was opened ON, until it is used
+  let _rmPage = 0;
+  let _rmEditing = null; // { id, field } while a line is being edited
+
+  function openRomanoChat(passage, page){
+    _rmPassage = passage || '';
+    _rmPage = page || readPageNum;
+    _rmEditing = null;
+    const ab = document.getElementById('rmAbout');
+    if(ab){
+      ab.style.display = _rmPassage ? '' : 'none';
+      ab.innerHTML = _rmPassage ? '<b>About this passage</b>' + escHtml(_rmPassage) : '';
+    }
+    document.getElementById('romanoOverlay').classList.add('open');
+    renderRomanoLog();
+    // NOT focused on a touch screen. A programmatic focus() on iOS opens no keyboard
+    // while still taking focus, so the tap that WOULD have raised one does nothing --
+    // a box with a caret in it that cannot be typed into. (Learned in 318P, build 38.)
+    if(!COARSE_POINTER) setTimeout(() => { const i = document.getElementById('rmInput'); if(i) i.focus(); }, 60);
+  }
+  function closeRomanoChat(){
+    document.getElementById('romanoOverlay').classList.remove('open');
+    _rmEditing = null;
+  }
+  window.closeRomanoChat = closeRomanoChat;
+
+  function renderRomanoLog(){
+    const log = document.getElementById('rmLog');
+    if(!log) return;
+    const rows = getQA(currentReadingId());
+    if(!rows.length){
+      log.innerHTML = '<p class="rm-empty">Nothing asked yet about this chapter.</p>';
+      return;
+    }
+    let prev = null;
+    log.innerHTML = rows.map(r => {
+      const ctx = (r.passage && r.passage !== prev)
+        ? `<div class="rm-ctx">from your highlight: “${escHtml(r.passage.length>140 ? r.passage.slice(0,140)+'…' : r.passage)}”</div>` : '';
+      prev = r.passage || prev;
+      const asked = r.question || (r.passage ? 'Help me think about this passage.' : '');
+      const you = asked ? `<div class="rm-turn you"><span class="rm-who">You</span>`
+        + (_rmEditing && _rmEditing.id === r.id && _rmEditing.field === 'question'
+            ? `<textarea class="rm-edit" data-edit="${r.id}" data-field="question">${escHtml(asked)}</textarea>`
+            : `<div class="rm-say">${escHtml(asked)}</div>`)
+        + `<div class="rm-tools"><button class="rm-tool" data-ed="${r.id}" data-f="question" title="Edit this line">✎</button>`
+        + `<button class="rm-tool" data-del="${r.id}" title="Delete this exchange">🗑</button></div></div>` : '';
+      let say;
+      if(r.reply) say = _rmEditing && _rmEditing.id === r.id && _rmEditing.field === 'reply'
+        ? `<textarea class="rm-edit" data-edit="${r.id}" data-field="reply">${escHtml(r.reply)}</textarea>`
+        : `<div class="rm-say">${escHtml(r.reply)}</div>`;
+      else if(_qaPending.has(r.id)) say = '<div class="rm-say rm-wait">thinking…</div>';
+      else say = `<div class="rm-say rm-wait">${escHtml(r.error || 'Romano didn’t finish this one — ask again.')}</div>`;
+      const tools = r.reply ? `<div class="rm-tools"><button class="rm-tool" data-ed="${r.id}" data-f="reply" title="Edit this line">✎</button></div>` : '';
+      return `<div class="rm-ex" data-ex="${r.id}">${ctx}${you}<div class="rm-turn romano"><span class="rm-who">Romano</span>${say}${tools}</div></div>`;
+    }).join('');
+    log.querySelectorAll('.rm-tool[data-ed]').forEach(b => b.onclick = () => {
+      _rmEditing = { id: b.dataset.ed, field: b.dataset.f }; renderRomanoLog();
+      const t = log.querySelector('.rm-edit'); if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+    });
+    log.querySelectorAll('.rm-tool[data-del]').forEach(b => b.onclick = () => {
+      if(!confirm('Delete this exchange?')) return;
+      removeQA(b.dataset.del); renderConversation();
+    });
+    // Committed on blur as well as on Enter: a reader who edits a line and then taps
+    // Send would otherwise lose the edit to the re-render.
+    log.querySelectorAll('.rm-edit').forEach(t => {
+      const commit = () => {
+        const id = t.dataset.edit, field = t.dataset.field, v = t.value.trim();
+        _rmEditing = null;
+        updateQA(currentReadingId(), id, { [field]: v });
+        renderConversation();
+      };
+      t.onblur = commit;
+      t.onkeydown = e => {
+        if(e.key === 'Escape'){ e.preventDefault(); _rmEditing = null; t.onblur = null; renderRomanoLog(); }
+        if(e.key === 'Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); t.blur(); }
+        e.stopPropagation();
+      };
+    });
+    log.scrollTop = log.scrollHeight;   // the newest turn is what you came to read
+  }
+
+  function sendRomano(){
+    const inp = document.getElementById('rmInput');
+    if(!inp) return;
+    const q = inp.value.trim();
+    if(!q) return;
+    inp.value = '';
+    const passage = _rmPassage; _rmPassage = '';   // filed on this turn only
+    const ab = document.getElementById('rmAbout'); if(ab) ab.style.display = 'none';
+    askRomanoInto(passage, q, _rmPage);
+  }
+  // Romano's opening move when a passage was marked and nothing was typed: he speaks
+  // first, the way he does in 318P, rather than leaving a blank window.
+  function romanoOpenOnPassage(){
+    const passage = _rmPassage; _rmPassage = '';
+    const ab = document.getElementById('rmAbout'); if(ab) ab.style.display = 'none';
+    askRomanoInto(passage, '', _rmPage);
+  }
+
   // ── Romano Q&A, stored per reading in DB.qa[readingId] (same shape as the
   //    highlights above) so the conversation survives renderRead — switching
   //    reading, toggling Single↔Continuous, or leaving and returning to the tab.
@@ -3865,6 +4001,11 @@ You: Really. The first line only has to exist, not be good.`;
     persistQA(rid, getQA(rid).filter(r => r.id !== id));
     renderQAList();
   }
+  // The notes-pane list and the Romano window are two views of ONE conversation.
+  // Everything that changes it calls this, so they can never drift apart -- which is
+  // the bug you get for free if each surface repaints itself.
+  function renderConversation(){ renderQAList(); renderRomanoLog(); }
+
   function renderQAList(){
     const box = document.getElementById('newnote'); if(!box) return;
     // Read it as a conversation: the passage is quiet CONTEXT at the top, then
@@ -3936,7 +4077,7 @@ You: Really. The first line only has to exist, not be good.`;
     });
     if(!rec) return;
     _qaPending.add(rec.id);
-    renderQAList();
+    renderConversation();
     // Answered turns only, oldest first, capped so the prompt can't grow forever.
     const history = getQA(rid).filter(r => r.reply && r.id !== rec.id).slice(-6);
     // A bare follow-up from the ask bar carries no passage; keep the one the
@@ -3950,7 +4091,7 @@ You: Really. The first line only has to exist, not be good.`;
     _qaPending.delete(rec.id);
     // The reader may have switched readings while this was in flight; the answer
     // is saved either way, but only repaint if it belongs to what's on screen.
-    if(currentReadingId() === rid) renderQAList();
+    if(currentReadingId() === rid) renderConversation();
   }
 
   // ── Persistent highlights. Stored per reading in DB.highlights[readingId] as
@@ -4622,6 +4763,7 @@ You: Really. The first line only has to exist, not be good.`;
           ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single" title="One page at a time. Click again to read two pages side by side — useful on a wide screen.">${readPageMode==='single' && readSpread===2 ? 'Two pages' : 'Single page'}</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>
           <label class="zoomwrap">Zoom <select id="zoomSel" class="zoomsel">${ZOOMS.map(z=>`<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select></label>` : ''}
           ${COARSE_POINTER ? `<button class="vbtn vb-capture${marqueeArmed?' on':''}" id="vbCapture" title="Tap, then drag a box around the passage you want to keep. Scrolling comes back as soon as the box is drawn.">${marqueeArmed ? '✕ Cancel' : '▣ Mark passage'}</button>` : ''}
+          <button class="vbtn" id="romanoBtn" title="The conversation about this chapter.">🥫<span class="vb-word"> Romano</span></button>
           <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧ Hide notes' : '◨ Show notes'}<span class="hl-count" id="hlCount"></span></button>
         </div>
         <div class="doc" id="docPane">${docBody(active)}</div>
@@ -4640,6 +4782,8 @@ You: Really. The first line only has to exist, not be good.`;
     renderDrawer();
     const dt = document.getElementById('drawerToggle');
     if(dt) dt.onclick = () => setDrawerOpen(!drawerOpen);
+    const rb = document.getElementById('romanoBtn');
+    if(rb) rb.onclick = () => openRomanoChat('', readPageNum);
     frame.querySelectorAll('.vbtn[data-vm]').forEach(b => b.onclick = () => {
       // Already on single? The button cycles 1 ⇄ 2 pages. Otherwise it switches mode
       // and keeps whichever spread you last read in.
@@ -6346,6 +6490,21 @@ You: Really. The first line only has to exist, not be good.`;
   });
 
   // Save / open the whole notebook of typed work as one file.
+  const _rmSend = document.getElementById('rmSend');
+  if(_rmSend) _rmSend.onclick = sendRomano;
+  const _rmIn = document.getElementById('rmInput');
+  if(_rmIn) _rmIn.onkeydown = e => {
+    if(e.key === 'Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); sendRomano(); }
+    e.stopPropagation();          // Escape closes the window, not the reader's focus mode
+  };
+  const _rmEx = document.getElementById('rmExport');
+  if(_rmEx) _rmEx.onclick = () => exportTranscript(_rmEx);
+  document.addEventListener('keydown', e => {
+    if(e.key !== 'Escape') return;
+    const o = document.getElementById('romanoOverlay');
+    if(o && o.classList.contains('open')){ closeRomanoChat(); e.stopPropagation(); }
+  });
+
   // Permanent, so Settings can open them from any tab. Wired once; the per-render
   // wiring left with the shelf bar.
   const _readIn = document.getElementById('readInput');

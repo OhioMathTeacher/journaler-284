@@ -19,7 +19,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-27-187">
+<link rel="stylesheet" href="app.css?v=2026-08-27-188">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -185,6 +185,28 @@
   </div>
 </div>
 
+<!-- ROMANO — the conversation about one chapter, in its own window.
+     318P's Todd-in-a-Can shape (Todd, 2026-08-27: "I prefer 318P's method"), on this
+     app's engine: the exchanges are still DB.qa[readingId] and Romano is still handed
+     the surrounding page text, which 318P has no equivalent of. The notes-pane list is
+     the same conversation and stays in step -- renderConversation paints both. -->
+<div class="ai-modal-overlay" id="romanoOverlay" onclick="if(event.target===this)closeRomanoChat()">
+  <div class="ai-modal rm-modal">
+    <h2>🥫 Ask Romano</h2>
+    <p class="rm-sub">One conversation for each chapter. Nothing here is handed in — keep an exchange in your notebook if you want it counted.</p>
+    <div class="rm-about" id="rmAbout" style="display:none"></div>
+    <div class="rm-log" id="rmLog"></div>
+    <div class="rm-compose">
+      <textarea id="rmInput" rows="2" placeholder="Ask about this passage…"></textarea>
+      <button class="am-save rm-send" id="rmSend">Send</button>
+    </div>
+    <div class="ai-modal-actions">
+      <button class="am-cancel" id="rmExport" title="Save this conversation as a page you can print or keep.">⎙ Export</button>
+      <button class="am-cancel" onclick="closeRomanoChat()" title="Every exchange is saved as you go — this just closes the window.">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="ai-modal-overlay" id="aboutOverlay" onclick="if(event.target===this)closeAbout()">
   <div class="ai-modal about-modal">
     <h2>About Journaler-284</h2>
@@ -261,7 +283,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-27-187"></script>
-<script src="app.js?v=2026-08-27-187"></script>
+<script src="tips.js?v=2026-08-27-188"></script>
+<script src="app.js?v=2026-08-27-188"></script>
 </body>
 </html>

@@ -295,7 +295,7 @@
   .vbtn.vb-drawer.on { background: var(--comment-bg); border-color: var(--accent); color: var(--accent); }
   /* The drawer already names itself; below the width where the bar gets tight the
      button keeps its glyph and drops the word. */
-  @container reader (max-width: 760px) { .vb-drawer .vb-word { display: none; } }
+  @container reader (max-width: 760px) { .vb-drawer .vb-word, #romanoBtn .vb-word { display: none; } }
 
   /* One toolbar across the top of the frame. Everything that acts on the DOCUMENT is
      here — page, view mode, capture, zoom, notes — while the shelf above the frame is
@@ -793,6 +793,47 @@ body.marquee-armed .marquee-overlay { touch-action: none; }
 .vbtn.vb-capture.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .marquee-box { position: absolute; border: 1.5px solid #3a5a40; background: rgba(90,150,110,.16); pointer-events: none; z-index: 4; border-radius: 2px; }
 
+/* ── Ask Romano, in its own window ─────────────────────────────────────────
+   Colours are for the dark .ai-modal panel, like everything else that lives in
+   one. The log is the tall part and the only thing that scrolls; the composer
+   and the footer stay put, so Send is reachable on an iPad with the keyboard up. */
+.rm-modal { display: flex; flex-direction: column; max-height: min(760px, 88vh); }
+.rm-sub { font-family: var(--sans); font-size: 13.5px; color: #7C8B9C !important; margin: -4px 0 12px !important; }
+.rm-about { font-family: var(--sans); font-size: 13.5px; color: #C9D3DE; background: rgba(0,0,0,.22);
+  border-left: 3px solid var(--cave-glow, #D4A843); border-radius: 0 7px 7px 0;
+  padding: 8px 11px; margin-bottom: 10px; max-height: 88px; overflow: auto; }
+.rm-about b { display: block; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase;
+  color: #9FB0C4; font-weight: 700; margin-bottom: 3px; }
+.rm-log { flex: 1 1 auto; min-height: 120px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  background: rgba(0,0,0,.20); border: 1px solid rgba(255,255,255,.10); border-radius: 8px;
+  padding: 10px 12px; }
+.rm-turn { margin-bottom: 12px; }
+.rm-turn:last-child { margin-bottom: 0; }
+.rm-who { display: block; font-family: var(--sans); font-size: 11.5px; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase; color: #9FB0C4; margin-bottom: 3px; }
+.rm-turn.romano .rm-who { color: var(--cave-glow, #D4A843); }
+.rm-say { font-family: var(--serif); font-size: 15.5px; line-height: 1.6; color: #E8EDF3;
+  white-space: pre-wrap; overflow-wrap: anywhere; }
+.rm-turn.you .rm-say { color: #C9D3DE; }
+.rm-wait { color: #7C8B9C; font-style: italic; }
+.rm-tools { display: flex; gap: 2px; margin-top: 3px; }
+/* Always shown, never hover-only: there is no hover on an iPad. */
+.rm-tool { background: none; border: 0; cursor: pointer; color: #7C8B9C; font-size: 13px;
+  padding: 3px 7px; border-radius: 5px; }
+.rm-tool:hover { background: rgba(255,255,255,.10); color: #E8EDF3; }
+.rm-edit { width: 100%; box-sizing: border-box; background: rgba(0,0,0,.30);
+  border: 1px solid var(--cave-glow, #D4A843); border-radius: 6px; color: #E8EDF3;
+  font-family: var(--serif); font-size: 15.5px; line-height: 1.6; padding: 7px 9px; }
+.rm-ctx { font-family: var(--sans); font-size: 12.5px; color: #7C8B9C; margin-bottom: 4px; }
+.rm-empty { font-family: var(--sans); font-size: 14.5px; color: #7C8B9C; margin: 0; padding: 8px 2px; }
+.rm-compose { display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; }
+.rm-compose textarea { flex: 1 1 auto; box-sizing: border-box; resize: vertical; min-height: 52px;
+  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.12); border-radius: 7px;
+  color: #E8EDF3; font-family: var(--sans); font-size: 15px; line-height: 1.5; padding: 9px 11px; }
+.rm-compose textarea:focus { outline: none; border-color: var(--cave-glow, #D4A843); }
+.rm-compose textarea::placeholder { color: #7C8B9C; }
+.rm-send { flex: 0 0 auto; }
+
 /* Passage-capture popup (highlight / Ask Romano). */
 .selection-popup { position: fixed; z-index: 1500; width: 340px; max-width: calc(100vw - 16px); background: #2b2a26; color: #f4efe6; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: .55rem .6rem; box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: 0.943rem; }
 .selection-popup .popup-passage { max-height: 66px; overflow: auto; line-height: 1.4; margin-bottom: .4rem; font-size: 0.897rem; color: #cfc7b8; }
@@ -809,12 +850,16 @@ body.marquee-armed .marquee-overlay { touch-action: none; }
   resize: vertical; margin-bottom: .45rem; display: block; }
 .selection-popup textarea::placeholder { color: #8a8272; }
 .selection-popup textarea:focus { outline: none; border-color: #c69a5c; box-shadow: 0 0 0 2px rgba(198,154,92,.35); }
-.popup-quick { display: flex; gap: .35rem; margin-bottom: .45rem; }
-.popup-chip { background: rgba(255,255,255,.08); color: #e7e0d4; border: 1px solid rgba(255,255,255,.14); border-radius: 6px; padding: .28rem .5rem; font: inherit; cursor: pointer; }
-.popup-actions { display: flex; gap: .35rem; }
-.popup-btn { border: 0; border-radius: 6px; padding: .32rem .55rem; font: inherit; cursor: pointer; }
-.popup-btn.primary { background: #c69a5c; color: #2b2a26; flex: 1; font-weight: 600; }
+.popup-quick { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .45rem; }
+.popup-chip, .popup-btn { border-radius: 6px; padding: .3rem .6rem; font: inherit;
+  font-size: .86rem; line-height: 1.35; cursor: pointer; white-space: nowrap; }
+.popup-chip { background: rgba(255,255,255,.08); color: #e7e0d4; border: 1px solid rgba(255,255,255,.14); }
+.popup-actions { display: flex; flex-wrap: wrap; gap: .3rem; justify-content: flex-end; }
+.popup-btn { border: 1px solid transparent; }
+.popup-btn.primary { background: #c69a5c; color: #2b2a26; font-weight: 600; }
 .popup-btn.primary:hover { background: #d8ac6a; }
+.popup-btn.ask { background: rgba(255,255,255,.08); color: #e7e0d4; border-color: rgba(255,255,255,.14); }
+.popup-btn.ask:hover { background: rgba(255,255,255,.16); }
 .popup-btn.secondary { background: rgba(255,255,255,.08); color: #cfc7b8; }
 .popup-btn.secondary:hover { background: rgba(255,255,255,.14); }
 
