@@ -4761,11 +4761,11 @@ You: Really. The first line only has to exist, not be good.`;
         <aside class="drawer" id="readingDrawer"><div class="drawer-list" id="drawerList"></div></aside>
         <div class="viewbar">
           <button class="vbtn vb-drawer${drawerOpen?' on':''}" id="drawerToggle"
-            title="Show or hide the list of chapters." aria-expanded="${drawerOpen}">▤<span class="vb-word"> Chapters</span></button>
+            title="Show or hide the list of chapters." aria-expanded="${drawerOpen}">📖<span class="vb-word"> Chapters</span></button>
           <span class="vb-group" id="pageNav"></span>
           <span class="vb-spacer"></span>
           ${active && active.type === 'pdf' ? `<span class="vb-viewwrap" id="viewWrap">
-            <button class="vbtn" id="viewBtn" aria-haspopup="true" aria-expanded="false" title="How the page is laid out — one page or two, continuous, and how large.">⛶<span class="vb-word"> View</span></button>
+            <button class="vbtn" id="viewBtn" aria-haspopup="true" aria-expanded="false" title="How the page is laid out — one page or two, continuous, and how large.">🔍<span class="vb-word"> View</span></button>
             <div class="vb-pop" id="viewPop" hidden>
               <div class="vb-pop-lbl">Pages</div>
               <span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single" title="One page at a time. Click again to read two pages side by side — useful on a wide screen.">${readPageMode==='single' && readSpread===2 ? 'Two pages' : 'Single page'}</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>
@@ -4773,7 +4773,7 @@ You: Really. The first line only has to exist, not be good.`;
               <select id="zoomSel" class="zoomsel">${ZOOMS.map(z=>`<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select>
             </div></span>` : ''}
           ${COARSE_POINTER ? `<button class="vbtn vb-capture${marqueeArmed?' on':''}" id="vbCapture" title="Tap, then drag a box around the passage you want to keep. Scrolling comes back as soon as the box is drawn.">${marqueeArmed ? '✕<span class="vb-word"> Cancel</span>' : '💬<span class="vb-word"> Mark passage</span>'}</button>` : ''}
-          <button class="vbtn" id="romanoBtn" title="The conversation about this chapter.">🥫<span class="vb-word"> Romano</span></button>
+          <button class="vbtn" id="romanoBtn" title="Ask Romano about this chapter." aria-label="Ask Romano">🥫</button>
           <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧<span class="vb-word"> Hide notes</span>' : '◨<span class="vb-word"> Show notes</span>'}<span class="hl-count" id="hlCount"></span></button>
         </div>
         <div class="doc" id="docPane">${docBody(active)}</div>
