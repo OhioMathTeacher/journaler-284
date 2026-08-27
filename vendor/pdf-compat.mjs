@@ -34,3 +34,49 @@ for (const Ctor of [Map, WeakMap]) {
     });
   }
 }
+
+/* ReadableStream async iteration — polyfill for pdf.js 6.0.227.
+ *
+ * pdf.js reads a page's words with `for await (const chunk of streamTextContent())`,
+ * iterating a ReadableStream directly. Chrome and Firefox implement async iteration on
+ * ReadableStream; WebKit does not, and has not for years. So on Safari — Mac exactly as
+ * much as iPad — getTextContent threw on every page, the text layer stayed empty, and
+ * every marquee capture came back as "a figure" with no text, while the page itself
+ * rendered perfectly. Nothing surfaced: the throw is caught into a console.warn that no
+ * student can read.
+ *
+ * Found in the 318P app on 2026-08-27 and ported here the same day. The two apps vendor
+ * the same pdf.js and have each missed a fix the other had — 284 fixed
+ * getOrInsertComputed on 2026-07-31 and 318P went four weeks without it, until a student
+ * lost a class to a white screen. When a compat fix lands in one, apply it to the other.
+ *
+ * Guarded, so it is a no-op wherever the engine already has it. Delete when WebKit ships.
+ */
+if (typeof ReadableStream !== 'undefined' && !ReadableStream.prototype[Symbol.asyncIterator]) {
+  const values = function ({ preventCancel = false } = {}) {
+    const reader = this.getReader();
+    return {
+      async next() {
+        try {
+          const { done, value } = await reader.read();
+          if (done) { reader.releaseLock(); return { done: true, value: undefined }; }
+          return { done: false, value };
+        } catch (err) { reader.releaseLock(); throw err; }
+      },
+      // Honour early exit: a `break` out of the loop must cancel and release, or the
+      // next getTextContent on that page waits forever on a lock nobody holds.
+      async return(value) {
+        if (preventCancel) { reader.releaseLock(); return { done: true, value }; }
+        const cancelled = reader.cancel(value);
+        reader.releaseLock();
+        await cancelled;
+        return { done: true, value };
+      },
+      [Symbol.asyncIterator]() { return this; }
+    };
+  };
+  Object.defineProperty(ReadableStream.prototype, Symbol.asyncIterator,
+    { value: values, writable: true, configurable: true });
+  Object.defineProperty(ReadableStream.prototype, 'values',
+    { value: values, writable: true, configurable: true });
+}
