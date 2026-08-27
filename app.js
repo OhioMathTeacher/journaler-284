@@ -2998,7 +2998,7 @@ async function runReflection(rf, text, hooks) {
   // the whole sheet, so if it is listening a drag draws a box and the chapter cannot be
   // scrolled at all -- and if it is not listening, no passage can be marked. A mouse
   // never had this problem: it scrolls with a wheel and drags with a button.
-  // So on a touch screen the overlay is ARMED only when the reader asks: tap ▣ Mark
+  // So on a touch screen the overlay is ARMED only when the reader asks: tap 💬 Mark
   // passage, draw one box, and scrolling comes straight back. A pointing device keeps
   // the always-on behaviour every existing reader already has in their hands.
   // (Ported from journaler-318P build 37, where box capture on an iPad was not awkward
@@ -3015,7 +3015,8 @@ async function runReflection(rf, text, hooks) {
       o.style.pointerEvents = v ? 'auto' : 'none';
     });
     const b = document.getElementById('vbCapture');
-    if(b){ b.classList.toggle('on', v); b.textContent = v ? '✕ Cancel' : '▣ Mark passage'; }
+    if(b){ b.classList.toggle('on', v); b.innerHTML = v ? '✕<span class="vb-word"> Cancel</span>'
+                                                          : '💬<span class="vb-word"> Mark passage</span>'; }
     let h = document.getElementById('marqueeHint');
     if(!h && v){
       h = document.createElement('div'); h.id = 'marqueeHint';
@@ -4254,7 +4255,7 @@ You: Really. The first line only has to exist, not be good.`;
       el.innerHTML = scope + (all.length
         ? `<p class="hl-empty">Nothing marked on ${vis && vis.length > 1 ? 'these pages' : 'this page'} yet. Drag a box around a passage, then choose ✎ Highlight.</p>`
         : '<p class="hl-empty">Nothing marked yet. '
-          + (COARSE_POINTER ? 'Tap ▣ Mark passage, then drag a box around a passage'
+          + (COARSE_POINTER ? 'Tap 💬 Mark passage, then drag a box around a passage'
                             : 'Drag a box around a passage')
           + ', then choose ✎ Highlight.</p>');
       return;
@@ -4771,9 +4772,9 @@ You: Really. The first line only has to exist, not be good.`;
               <div class="vb-pop-lbl">Zoom</div>
               <select id="zoomSel" class="zoomsel">${ZOOMS.map(z=>`<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select>
             </div></span>` : ''}
-          ${COARSE_POINTER ? `<button class="vbtn vb-capture${marqueeArmed?' on':''}" id="vbCapture" title="Tap, then drag a box around the passage you want to keep. Scrolling comes back as soon as the box is drawn.">${marqueeArmed ? '✕ Cancel' : '▣ Mark passage'}</button>` : ''}
+          ${COARSE_POINTER ? `<button class="vbtn vb-capture${marqueeArmed?' on':''}" id="vbCapture" title="Tap, then drag a box around the passage you want to keep. Scrolling comes back as soon as the box is drawn.">${marqueeArmed ? '✕<span class="vb-word"> Cancel</span>' : '💬<span class="vb-word"> Mark passage</span>'}</button>` : ''}
           <button class="vbtn" id="romanoBtn" title="The conversation about this chapter.">🥫<span class="vb-word"> Romano</span></button>
-          <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧ Hide notes' : '◨ Show notes'}<span class="hl-count" id="hlCount"></span></button>
+          <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧<span class="vb-word"> Hide notes</span>' : '◨<span class="vb-word"> Show notes</span>'}<span class="hl-count" id="hlCount"></span></button>
         </div>
         <div class="doc" id="docPane">${docBody(active)}</div>
         <aside class="notes">
@@ -4815,7 +4816,7 @@ You: Really. The first line only has to exist, not be good.`;
     const nt = document.getElementById('notesToggle');
     if(nt) nt.onclick = () => {
       notesOpen = !notesOpen; DB.notesOpen = notesOpen; saveDB();
-      nt.innerHTML = (notesOpen ? '◧ Hide notes' : '◨ Show notes') + '<span class="hl-count" id="hlCount"></span>';
+      nt.innerHTML = (notesOpen ? '◧<span class="vb-word"> Hide notes</span>' : '◨<span class="vb-word"> Show notes</span>') + '<span class="hl-count" id="hlCount"></span>';
       applyNotesPane(); renderHighlightList();
     };
     renderHighlightList();

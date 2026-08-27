@@ -428,12 +428,12 @@
   body.focus.reading { overflow: hidden; }
   body.focus.reading .frame { max-width: 1900px; padding: 0; height: 100vh;
     display: flex; flex-direction: column; }
-  /* The shelf is the top row in focus now that it is no longer hidden, so it -- not the
-     viewbar -- is what .exitfocus (position:fixed, top 14px right 16px) floats over. It
-     landed straight on ＋ Load a folder. The reservation moves with the button. And the
-     frame is a column so the shelf can take its own height without pushing the reader
-     past the bottom of the screen, which would bring the outer scrollbar back. */
-  body.focus.reading .shelf { flex: 0 0 auto; padding: 10px 172px 0 16px; margin-bottom: 8px; }
+  /* ⚠ .exitfocus is position:fixed (top 14px, right 16px), so whatever is the top row
+     in focus mode has to hold a gap for it. That used to be the shelf. The shelf was
+     deleted in build 186 and this reservation went with it, which dropped the exit
+     button straight onto 🥫 Romano and ◧ Hide notes. The reservation belongs to
+     whatever is underneath, and that is now the view bar. */
+  body.focus.reading .viewbar { padding-right: 172px; }
   /* ⚠ width:100% IS LOAD-BEARING (Todd, 2026-08-26): "focus still makes the pages
      disappear... no matter what setting". .reader carries `margin: 0 auto`, and an
      AUTO CROSS-AXIS MARGIN cancels align-items:stretch in a flex column -- so once the
@@ -470,6 +470,28 @@
      column stays narrow, since 1180px of one-line-per-paragraph is unreadable. */
   body.focus.wide:not(.gushing) .frame { max-width: 1560px; }
   .exitfocus { display: none; position: fixed; top: 14px; right: 16px; z-index: 20; }
+
+  /* ── Focus mode: the bar goes to icons ────────────────────────────────────
+     Todd, 2026-08-27: "maybe the trick is to change the buttons in focus mode only."
+     It is the right trick. Outside focus every control carries its word, which is
+     where a student learns what the glyph means; inside focus the words go and the
+     reading takes the room. Nothing is hidden, only shortened. */
+  body.focus .viewbar .vb-word { display: none; }
+  body.focus .viewbar .vbtn { padding-left: 11px; padding-right: 11px; }
+
+  /* A fingertip is about 44px and these were sized for a cursor. Todd on ⛶ View:
+     "that's difficult to press." Applies everywhere on a touch screen, not just in
+     focus -- a small target is no easier to hit outside it. */
+  @media (pointer: coarse) {
+    .reader .viewbar .vbtn, .reader .viewbar .zoomsel, .pdfnav-btn {
+      min-height: 44px; padding-top: 8px; padding-bottom: 8px; font-size: 15px; }
+    .reader .viewbar .vbtn { padding-left: 14px; padding-right: 14px; }
+    /* ✕ alone: "(Esc)" is advice for a device with an Esc key. The button STAYS --
+       focus mode hides the top bar, so this is the only exit that needs no keyboard. */
+    .exitfocus .vb-word { display: none; }
+    .exitfocus { min-height: 44px; padding: 9px 14px; font-size: 17px; }
+    body.focus.reading .viewbar { padding-right: 84px; }
+  }
   body.focus .exitfocus { display: inline-flex; }
 
   @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } .spine { position: static; } .reader { grid-template-columns: 1fr; } .reader .notes { border-left: none; border-top: 1px solid var(--comment-border); display: block; overflow: visible; } .reader .notes .notes-scroll { overflow: visible; max-height: none; } }
