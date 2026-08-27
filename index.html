@@ -13,7 +13,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-27-179">
+<link rel="stylesheet" href="app.css?v=2026-08-27-180">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -136,6 +136,7 @@
     </div>
 
     <div class="set-pane" id="set-diag">
+      <div id="diagUpdate"></div>
       <h3>Something not working?</h3>
       <p>Nothing you have written is included.</p>
       <textarea class="diag-ta" id="diagComment" placeholder="What were you doing, and what happened instead?"></textarea>
@@ -240,7 +241,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-27-179"></script>
-<script src="app.js?v=2026-08-27-179"></script>
+<script src="tips.js?v=2026-08-27-180"></script>
+<script src="app.js?v=2026-08-27-180"></script>
 </body>
 </html>

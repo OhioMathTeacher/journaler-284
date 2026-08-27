@@ -982,6 +982,29 @@ body.focus .iconbtn { display: none !important; }
 /* Separator before the modal footer, matching .about-links. */
 .settings-modal .ai-modal-actions { margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,.10); }
 
+/* Software updates, after Allegory's, on the dark panel. Nothing to do is one
+   line: only "an update is waiting" has anything to say or a button to press. */
+.diag-box { border: 1px solid rgba(255,255,255,.12); border-radius: 9px;
+  background: rgba(0,0,0,.20); padding: 12px 14px; margin: 4px 0 18px; }
+.diag-box.one-line { display: flex; align-items: center; gap: 11px; padding: 7px 8px 7px 14px; }
+.diag-box-label { font-family: var(--sans); font-size: 12px; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase; color: #9FB0C4; margin-bottom: 8px; }
+.diag-box.one-line .diag-box-label { margin: 0; flex: 0 0 auto; }
+.diag-line { font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: #C9D3DE; }
+.diag-line.ok { color: #8CC8A0; }
+.diag-line.new { color: var(--cave-glow, #D4A843); }
+.diag-line.warn { color: #E0B84E; }
+.diag-sub { font-family: var(--sans); font-size: 13px; color: #7C8B9C; line-height: 1.5; }
+.diag-box.one-line .diag-sub { flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.diag-ico { background: none; border: 0; border-radius: 6px; cursor: pointer; color: #9FB0C4;
+  font-size: 15px; line-height: 1; padding: 7px 9px; }
+.diag-ico:hover { background: rgba(255,255,255,.10); color: #E8EDF3; }
+.diag-box.one-line .diag-ico { margin-left: auto; }
+.diag-box .diag-sub { margin-top: 5px; }
+.diag-upd-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.spin { display: inline-block; animation: diagspin 1s linear infinite; }
+@keyframes diagspin { to { transform: rotate(360deg); } }
 .diag-kv { display: flex; justify-content: space-between; gap: 14px; font-family: var(--sans);
   font-size: 14px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
 .diag-kv span { color: #9FB0C4; flex: 0 0 auto; }

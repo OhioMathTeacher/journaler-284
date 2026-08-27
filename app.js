@@ -1143,6 +1143,81 @@ async function runReflection(rf, text, hooks) {
     w.document.close();
   }
 
+  // ═══ Software updates ═════════════════════════════════════════════════════
+  // There is no server to ask, so ask the published page. 284 already has exactly
+  // one string that moves on every deploy -- the ?v= hung on app.js to bust the
+  // cache -- and BUILD is read from that same tag at load, so this compares the
+  // deployed marker against the loaded one with nothing new to keep in step. The
+  // page is ~18KB, small enough to just fetch.
+  let _update = { state: 'checking' }, _updateCheckedAt = 0;
+
+  async function checkForUpdate(force){
+    if(/^dev/.test(BUILD)){ _update = { state: 'dev' }; renderUpdateBox(); return; }
+    if(!force && _updateCheckedAt && Date.now() - _updateCheckedAt < 60000){ renderUpdateBox(); return; }
+    _update = { state: 'checking' }; renderUpdateBox();
+    try {
+      const url = new URL('index.html', location.href);
+      url.searchParams.set('probe', String(Date.now()));    // never answerable from a cache
+      const res = await fetch(url.toString(), { cache: 'no-store' });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const m = /app\.js\?v=([^"'>\s]+)/i.exec(await res.text());
+      if(!m) throw new Error('no build found on the published page');
+      _updateCheckedAt = Date.now();
+      _update = (m[1] === BUILD) ? { state:'current' } : { state:'available', latest: m[1] };
+      logEvent('ui', _update.state === 'available'
+        ? 'a newer build is published: ' + m[1] : 'up to date (' + m[1] + ')');
+    } catch(e){
+      _updateCheckedAt = Date.now();
+      _update = { state:'error', message: (e && e.message) || 'could not reach the site' };
+      logEvent('error', 'update check failed', String(e && e.message || e));
+    }
+    renderUpdateBox();
+  }
+
+  // A plain reload can be answered with the very bytes it is replacing: Pages sends
+  // max-age=600 and Safari honours it. A URL the cache has never seen cannot be.
+  // Same origin, so every entry and highlight stays put.
+  function applyUpdate(){
+    const url = new URL(location.href);
+    url.searchParams.delete('probe');
+    url.searchParams.set('v', _update.latest || String(Date.now()));
+    logEvent('ui', 'updating to ' + (_update.latest || 'the published build'));
+    location.replace(url.toString());
+  }
+
+  function renderUpdateBox(){
+    const host = document.getElementById('diagUpdate');
+    if(!host) return;
+    const u = _update;
+    const again = '<button class="diag-ico" id="updAgain" title="Check again" aria-label="Check again">\u27f3</button>';
+    const label = '<span class="diag-box-label">Software updates</span>';
+    if(u.state === 'available'){
+      // The one state with something to say and something to press.
+      host.innerHTML = `<div class="diag-box">${label}
+        <div class="diag-upd-row">
+          <span class="diag-line new">\u2191 A newer version is published.</span>${again}
+        </div>
+        <div class="diag-sub">Running ${escHtml(BUILD)}<br>Published ${escHtml(u.latest)}<br>
+          Updating reloads the page. Nothing you have written is touched.</div>
+        <div class="diag-actions" style="margin:12px 0 0"><button class="am-save" id="updNow">Update now</button></div>
+      </div>`;
+    } else {
+      let line;
+      if(u.state === 'checking') line = '<span class="diag-line"><span class="spin">\u27f3</span> Checking\u2026</span>';
+      else if(u.state === 'dev')  line = '<span class="diag-line">Local build</span>'
+                                       + `<span class="diag-sub">${escHtml(BUILD)} \u2014 nothing to compare against</span>`;
+      else if(u.state === 'error') line = '<span class="diag-line warn">Couldn\u2019t check</span>'
+                                       + `<span class="diag-sub">${escHtml(u.message)} \u00b7 running ${escHtml(BUILD)}</span>`;
+      else line = '<span class="diag-line ok">\u2713 Up to date</span>'
+                + `<span class="diag-sub">${escHtml(BUILD)}</span>`;
+      host.innerHTML = `<div class="diag-box one-line">${label}${line}${again}</div>`;
+    }
+    // Wired rather than inline: these live in the module closure, where an
+    // onclick attribute cannot reach them.
+    const a = document.getElementById('updAgain'); if(a) a.addEventListener('click', () => checkForUpdate(true));
+    const n = document.getElementById('updNow');   if(n) n.addEventListener('click', applyUpdate);
+  }
+
   // Flipped in place rather than by re-rendering the pane, so unfolding the log does
   // not rebuild the comment box above it and take the caret out of a half-typed
   // sentence.
@@ -6346,7 +6421,8 @@ You: Really. The first line only has to exist, not be good.`;
   document.querySelectorAll('#setTabs .set-tab').forEach(b => b.addEventListener('click', () => {
     document.querySelectorAll('#setTabs .set-tab').forEach(x => x.classList.toggle('on', x === b));
     document.querySelectorAll('.set-pane').forEach(x => x.classList.toggle('on', x.id === 'set-' + b.dataset.set));
-    if(b.dataset.set === 'diag'){ renderDiagnostics(); renderDiagSnapshot(); renderDiagToggleMeta(); }
+    if(b.dataset.set === 'diag'){ renderDiagnostics(); renderDiagSnapshot(); renderDiagToggleMeta();
+                                  renderUpdateBox(); checkForUpdate(false); }
     if(b.dataset.set === 'ai') renderAiTab();
   }));
   document.querySelectorAll('#aiSubTabs .ai-subtab').forEach(b => b.addEventListener('click', () => {
