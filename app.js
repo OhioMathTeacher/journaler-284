@@ -4555,9 +4555,14 @@ You: Really. The first line only has to exist, not be good.`;
   // side drawer on the left that can be hidden — think VS Code's leftmost panel."
   // The list is a once-a-session control that was costing a permanent bar; here it
   // takes width only while it is open, and the reading keeps the rest.
-  let drawerOpen = DB.drawerOpen !== false;
+  // Todd: open with it hidden. Not "remember whether it was open" -- every session
+  // starts closed. The drawer is a pick-a-chapter tool rather than a table of
+  // contents: you open it, choose, and want the width back. Persisting it would mean
+  // arriving at a reading with a column of titles beside it most mornings, which is
+  // the thing this overhaul was for.
+  let drawerOpen = false;
   function setDrawerOpen(v){
-    drawerOpen = v; DB.drawerOpen = v; saveDB();
+    drawerOpen = v;
     const r = document.querySelector('.reader');
     if(r) r.classList.toggle('drawer-open', v);
     const b = document.getElementById('drawerToggle');
