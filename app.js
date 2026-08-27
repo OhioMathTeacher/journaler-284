@@ -2747,7 +2747,7 @@ async function runReflection(rf, text, hooks) {
   }
 
   // Reading view state.
-  let readPageMode = DB.readPageMode || 'single';   // 'single' | 'continuous'
+  let readPageMode = DB.readPageMode || 'continuous';   // 'single' | 'continuous'
   let readSpread = (DB.readSpread === 2) ? 2 : 1;   // pages shown at once in 'single'
   // What the reader ASKED for is readSpread; what the pane can actually SHOW is
   // _effSpread. They come apart at a fixed zoom, and everything that renders, labels
@@ -4388,7 +4388,7 @@ You: Really. The first line only has to exist, not be good.`;
     { v:'1.5',  t:'150%' },
     { v:'2',    t:'200%' },
   ];
-  let readZoom = DB.readZoom || 'fit';
+  let readZoom = DB.readZoom || 'page';   // 'page' = the whole sheet, no sideways scroll
   // Notes pane open/closed. The pane is HIDDEN, never removed: renderHighlightList and
   // renderQAList paint into #hlList / #newnote, so pulling the aside out of the DOM
   // would silently drop everything captured while it was away. Hidden keeps them

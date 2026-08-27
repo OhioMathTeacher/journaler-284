@@ -4,6 +4,7 @@
   :root {
     --parchment: #F8F4EC; --ink: #2C2416; --margin-bg: #EFEBE2;
     --accent: #7A3B10; --accent-light: #C69A5C; --highlight-soft: rgba(198,154,92,.18);
+    color-scheme: light;
     --comment-bg: #FFFCF5; --comment-border: #D8CBAF; --muted: #8A7C6C;
     --danger: #8B3333; --go: #2A5A3A;
     --sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
