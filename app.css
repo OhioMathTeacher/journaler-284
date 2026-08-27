@@ -701,31 +701,32 @@
 /* ⚠ The 720px stacking rule for .layout sits EARLIER in this file, so this wider
    rail quietly won on phones and pushed the page 63px past the viewport — the
    whole app scrolled sideways on Tips and nowhere else. Restated here. */
+/* ── Tips, folded by act ───────────────────────────────────────────────────
+   27 tips in one column made this tab scroll, and a scrolling page on an iPad
+   rubber-bands a gap above the toolbar. One act open at a time and it fits. */
+.tipact { margin-bottom: 4px; }
+.tipact-h { display: flex; align-items: baseline; gap: 7px; width: 100%; text-align: left;
+  background: none; border: 0; cursor: pointer; padding: 8px 6px; border-radius: 6px;
+  font-family: var(--sans); }
+.tipact-h:hover { background: rgba(0,0,0,.05); }
+.tipact-caret { flex: 0 0 auto; width: .8rem; font-size: 12px; color: var(--muted); }
+.tipact-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+.tipact-when { font-size: 12px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+.tipact-body { display: none; padding-left: 4px; }
+.tipact.open .tipact-body { display: block; }
+.tipact.open .tipact-name { color: var(--accent); }
+@media (pointer: coarse) { .tipact-h { min-height: 44px; } }
+/* iOS bounces a scrollable page past its own end, which on a sticky topbar shows
+   as a gap above it. Nothing here scrolls the PAGE by design -- panes scroll -- so
+   the bounce is never wanted. */
+html, body { overscroll-behavior-y: none; }
+
 @media (max-width: 720px){
   .poemlayout { grid-template-columns: 1fr; column-gap: 0; }
   /* ⚠ And the tip comes FIRST. Stacked in source order the rail put twenty-seven
      rows above the thing the page exists to show, so on a phone you scrolled the
      whole term to read today's. The list is the index; it belongs underneath. */
   .poemlayout .stage { order: 1; }
-  /* ── Tips, folded by act ───────────────────────────────────────────────────
-     27 tips in one column made this tab scroll, and a scrolling page on an iPad
-     rubber-bands a gap above the toolbar. One act open at a time and it fits. */
-  .tipact { margin-bottom: 4px; }
-  .tipact-h { display: flex; align-items: baseline; gap: 7px; width: 100%; text-align: left;
-    background: none; border: 0; cursor: pointer; padding: 8px 6px; border-radius: 6px;
-    font-family: var(--sans); }
-  .tipact-h:hover { background: rgba(0,0,0,.05); }
-  .tipact-caret { flex: 0 0 auto; width: .8rem; font-size: 12px; color: var(--muted); }
-  .tipact-name { font-size: 14px; font-weight: 700; color: var(--ink); }
-  .tipact-when { font-size: 12px; color: var(--muted); margin-left: auto; white-space: nowrap; }
-  .tipact-body { display: none; padding-left: 4px; }
-  .tipact.open .tipact-body { display: block; }
-  .tipact.open .tipact-name { color: var(--accent); }
-  @media (pointer: coarse) { .tipact-h { min-height: 44px; } }
-  /* iOS bounces a scrollable page past its own end, which on a sticky topbar shows
-     as a gap above it. Nothing here scrolls the PAGE by design -- panes scroll -- so
-     the bounce is never wanted. */
-  html, body { overscroll-behavior-y: none; }
   .poemrail { order: 2; position: static; margin-top: 26px;
     border-top: 1px solid var(--comment-border); padding-top: 16px; }
 }
