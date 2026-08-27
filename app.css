@@ -124,10 +124,11 @@
   body.bleed .frame { max-width: none; }   /* width only — the padding must match, or
      Notebook starts 8px left of Freewrite and the page still twitches on tab change */
 
-  .head h1 { font-family: var(--write); font-weight: 600; font-size: 30px; margin: 0 0 4px; }
+  .head h1 { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
   /* Todd: "can we remove the width constraint on the summary sentence?" — 70ch
      wrapped a one-line subtitle onto two with the whole window to spare. */
-  .head p { margin: 0 0 18px; color: var(--muted); font-size: 16.5px; }
+  .head p { margin: 2px 0 14px; color: var(--muted); font-size: 16.5px; }
 
   /* The gap is the breathing room between the rail and the pane. At 24px the pane
      read as glued to the list it was launched from. */
