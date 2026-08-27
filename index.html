@@ -13,7 +13,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-27-181">
+<link rel="stylesheet" href="app.css?v=2026-08-27-182">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -52,19 +52,19 @@
     <button data-t="cur" title="The four moments of the currere — Regressive, Progressive, Analytical, Synthetical. Same gush-then-shape rhythm, loosening as you go.">Currere</button>
     <button data-t="note" title="Everything you have kept, by day or by piece, plus where you stand on the 50-point Writer’s Notebook.">Notebook</button>
   </div>
-  <label class="namewrap" for="nameField" title="Type your name once. It goes on every PDF you export.">
-    <span>Name</span>
-    <input type="text" id="nameField" class="namefield" placeholder="your name" autocomplete="name" spellcheck="false">
-  </label>
+  <!-- The name field used to live here. It is typed ONCE a term and then never
+       touched, and it was costing ~150px of a bar that already wraps on an iPad.
+       It moved into Settings; the export still asks outright when it is blank
+       (ensureName), so nobody has to go looking for it. -->
   <!-- Where you stand on the notebook. It was a lens inside Notebook and nothing else
        pointed at it; a student who never found that row never saw their own progress. -->
-  <button class="focusbtn" id="myProgressBtn" title="Where you stand on the Writer's Notebook — the four scored rows, what is tagged, and the bundle">▤ My Progress</button>
+  <button class="focusbtn" id="myProgressBtn" title="Where you stand on the Writer's Notebook — the four scored rows, what is tagged, and the bundle">▤ <span class="btn-my">My </span>Progress</button>
   <!-- ⤓ Save · ⤒ Open · ⎙ Conversations were three labelled buttons in a bar that had
        run out of room. They are the once-a-term actions, so they go behind one opener
        and the frequent things (My Progress, Focus) keep their words. Same ids, same
        handlers -- only the packaging moved. -->
   <div class="menuwrap" id="myWorkWrap">
-    <button class="focusbtn" id="myWorkBtn" aria-haspopup="true" aria-expanded="false" title="Your writing as a file — save it, reopen it elsewhere, or print your conversations">⤓ My work ▾</button>
+    <button class="focusbtn" id="myWorkBtn" aria-haspopup="true" aria-expanded="false" title="Your writing as a file — save it, reopen it elsewhere, or print your conversations">⤓ <span class="btn-my">My </span>work ▾</button>
     <div class="menu" id="myWorkMenu" hidden role="menu" aria-labelledby="myWorkBtn">
       <button role="menuitem" id="saveWorkBtn">⤓ Save my work
         <em>Everything — writing, readings, highlights, conversations — as one file to reopen on another computer.</em></button>
@@ -112,6 +112,9 @@
     </div>
 
     <div class="set-pane on" id="set-readings">
+      <h3>Your name</h3>
+      <p>Typed once. It goes on the top of every PDF you export. Left blank, the export prints a rule to sign by hand — and asks you then.</p>
+      <input type="text" id="nameField" class="namefield setfield" placeholder="your name" autocomplete="name" spellcheck="false">
       <h3>Readings folder</h3>
       <p>Point Journaler at a folder once and your chapters reload every visit. Files are read from your disk — nothing is uploaded, and nothing is copied into the browser.</p>
       <div id="setFolder"></div>
@@ -241,7 +244,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-27-181"></script>
-<script src="app.js?v=2026-08-27-181"></script>
+<script src="tips.js?v=2026-08-27-182"></script>
+<script src="app.js?v=2026-08-27-182"></script>
 </body>
 </html>
