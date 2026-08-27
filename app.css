@@ -481,11 +481,7 @@
      where a student learns what the glyph means; inside focus the words go and the
      reading takes the room. Nothing is hidden, only shortened. */
   body.focus .viewbar .vb-word { display: none; }
-  body.focus .viewbar .vbtn { background: none; border-radius: 8px;
-    font-size: 21px; line-height: 1; padding: 6px 10px; color: var(--ink); }
-  body.focus .viewbar .vbtn + .vbtn { border-left: 0; }
-  body.focus .viewbar .vbtn:hover { background: rgba(0,0,0,.06); }
-  body.focus .viewbar .vbtn.on { background: rgba(0,0,0,.09); color: var(--accent); }
+  body.focus .viewbar .vbtn { font-size: 21px; line-height: 1; padding: 6px 10px; color: var(--ink); }
   body.focus .viewbar .vb-capture.on { background: var(--accent); color: #fff; }
 
   /* A fingertip is about 44px and these were sized for a cursor. Todd on ⛶ View:
@@ -798,18 +794,23 @@
 
 /* ===== Reading view: single/continuous toggle + page nav ===== */
 .viewseg { display: inline-flex; border: 1px solid var(--comment-border); border-radius: 7px; overflow: hidden; }
-.vbtn { font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: var(--muted); background: #fff; border: none; padding: 7px 12px; cursor: pointer; }
-.vbtn + .vbtn { border-left: 1px solid var(--comment-border); }
-.vbtn:hover { background: var(--comment-bg); }
-.vbtn.on { color: var(--accent); background: var(--comment-bg); }
+.vbtn { font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: var(--muted);
+  background: none; border: none; border-radius: 7px; padding: 7px 12px; cursor: pointer; }
+.vbtn:hover { background: rgba(0,0,0,.06); color: var(--ink); }
+.vbtn.on { color: var(--accent); background: rgba(0,0,0,.08); }
+/* A segmented pair is one control in two halves, so it keeps its box and its seam. */
+.viewseg .vbtn { border-radius: 0; background: var(--parchment); }
+.viewseg .vbtn + .vbtn { border-left: 1px solid var(--comment-border); }
+.viewseg .vbtn:hover { background: var(--comment-bg); }
+.viewseg .vbtn.on { background: var(--comment-bg); }
 /* Three tracks, NOT absolute positioning. The zoom control was pinned right with a
    viewport media query as the escape hatch, but this bar is narrow because its COLUMN
    is narrow — focus mode, a small window, the notes pane — and the viewport can be wide
    the whole time. So the query never fired and the zoom sat on top of Prev/Next. Grid
    tracks cannot overlap at any width; they only squeeze. Empty first track keeps the
    page controls centred, which is where the eye returns while reading. */
-.pdfnav-btn { font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--accent); background: #fff; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 13px; cursor: pointer; }
-.pdfnav-btn:hover:not(:disabled) { background: var(--comment-bg); }
+.pdfnav-btn { font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--accent); background: none; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 13px; cursor: pointer; }
+.pdfnav-btn:hover:not(:disabled) { background: rgba(0,0,0,.06); }
 .pdfnav-btn:disabled { opacity: .4; cursor: default; }
 .pdfnav-lbl { font-family: var(--sans); font-size: 15px; color: var(--muted); font-weight: 600; }
 
