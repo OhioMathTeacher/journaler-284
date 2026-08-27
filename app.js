@@ -4392,7 +4392,7 @@ You: Really. The first line only has to exist, not be good.`;
   // is SHORT, so "the whole sheet" there means a small sheet -- the fit that helps in
   // portrait works against you turned sideways.
   function defaultZoom(){
-    return (COARSE_POINTER && window.innerWidth > window.innerHeight) ? '1.25' : 'page';
+    return (COARSE_POINTER && window.innerWidth > window.innerHeight) ? '1' : 'page';
   }
   let readZoom = DB.readZoom || defaultZoom();
   // Recomputed on rotation, not only at load: a student who opens in portrait and
@@ -6366,6 +6366,18 @@ You: Really. The first line only has to exist, not be good.`;
   function allTips(){
     return (window.DAILY_TIPS || []).slice().sort((a,b) => a.date.localeCompare(b.date));
   }
+  const TIP_ACTS = [
+    { n: 'I',   from: 1,  to: 5,  title: 'Become a Writer',             when: 'Aug 24 – Sep 23' },
+    { n: 'II',  from: 6,  to: 10, title: 'The Currere',                 when: 'Sep 28 – Oct 30' },
+    { n: 'III', from: 11, to: 15, title: 'Multimodal Research Project', when: 'Nov 2 – Dec 2' },
+  ];
+  function actOf(t){
+    const w = +t.week || 1;
+    return TIP_ACTS.find(a => w >= a.from && w <= a.to) || TIP_ACTS[TIP_ACTS.length - 1];
+  }
+  // Which act is open. Follows the tip on screen rather than defaulting to I blindly:
+  // opening on Act I in November would fold away the very tip being read.
+  let tipActOpen = null;
   function todaysTip(){
     const all = allTips();
     if(!all.length) return null;
@@ -6388,12 +6400,25 @@ You: Really. The first line only has to exist, not be good.`;
     if(!t){ frame.innerHTML = `<div class="poempage"><p class="empty">No tips yet — run
       <code>tools/build-tips.py</code>.</p></div>`; return; }
 
+    const openAct = tipActOpen || actOf(t).n;   // 'none' folds them all
     const rail = `<nav class="poemrail">
       <p class="lead">Every tip this term</p>
-      ${all.map(q => `<button class="pmlink ${q.date === t.date ? 'on' : ''}"
-        data-tip="${q.date}" title="${escHtml(q.chapter + ' — ' + q.author)}"
-        ><span class="pmwhen">${escHtml(shortDate(q.date))}</span
-        ><span class="pmwhat">${escHtml(q.chapter)}</span></button>`).join('')}
+      ${TIP_ACTS.map(a => {
+        const mine = all.filter(q => actOf(q).n === a.n);
+        if(!mine.length) return '';
+        const open = a.n === openAct;
+        return `<div class="tipact${open ? ' open' : ''}">
+          <button class="tipact-h" data-act="${a.n}" aria-expanded="${open}">
+            <span class="tipact-caret">${open ? '▾' : '▸'}</span>
+            <span class="tipact-name">Act ${a.n} — ${escHtml(a.title)}</span>
+            <span class="tipact-when">${escHtml(a.when)}</span>
+          </button>
+          <div class="tipact-body">${mine.map(q => `<button class="pmlink ${q.date === t.date ? 'on' : ''}"
+            data-tip="${q.date}" title="${escHtml(q.chapter + ' — ' + q.author)}"
+            ><span class="pmwhen">${escHtml(shortDate(q.date))}</span
+            ><span class="pmwhat">${escHtml(q.chapter)}</span></button>`).join('')}</div>
+        </div>`;
+      }).join('')}
     </nav>`;
 
     // The chapter title IS a bad idea, stated flat for the chapter to take apart.
@@ -6419,7 +6444,18 @@ You: Really. The first line only has to exist, not be good.`;
 
     frame.innerHTML = `<div class="layout poemlayout">${rail}<main class="stage plain">${page}</main></div>`;
     frame.querySelectorAll('[data-tip]').forEach(b => b.onclick = () => {
-      tipSel = b.dataset.tip; renderTip();
+      // Picking a tip pins its act open, so choosing one from Act III does not fold
+      // itself away on the re-render.
+      tipSel = b.dataset.tip;
+      const q = all.find(x => x.date === tipSel);
+      if(q) tipActOpen = actOf(q).n;
+      renderTip();
+    });
+    frame.querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
+      // One open at a time -- two acts expanded is the scrolling list again.
+      tipActOpen = (b.dataset.act === openAct) ? null : b.dataset.act;
+      if(tipActOpen === null) tipActOpen = 'none';
+      renderTip();
     });
     const here = frame.querySelector('[data-tip].on');
     if(here && here.scrollIntoView) here.scrollIntoView({ block: 'nearest' });

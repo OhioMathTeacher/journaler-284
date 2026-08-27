@@ -579,11 +579,11 @@
   margin-bottom: 1.1rem;
 }
 .ai-provider-card {
-  background: rgba(255,255,255,0.04); border: 1.5px solid rgba(255,255,255,0.08);
+  background: var(--panel-fill); border: 1.5px solid var(--panel-line);
   border-radius: 8px; padding: 0.85rem 0.75rem; cursor: pointer;
   transition: all 0.18s; position: relative;
 }
-.ai-provider-card:hover { background: rgba(255,255,255,0.07); border-color: rgba(212,168,67,0.3); }
+.ai-provider-card:hover { background: var(--panel-fill-hi); border-color: var(--panel-accent); }
 .ai-provider-card.selected { border-color: var(--cave-glow); background: rgba(212,168,67,0.08); }
 .ai-card-title {
   font-family: 'DM Sans', sans-serif; font-weight: 600;
@@ -591,7 +591,7 @@
 }
 .ai-card-desc {
   font-family: 'DM Sans', sans-serif; font-size: 0.828rem;
-  color: #7A7A6A; line-height: 1.45;
+  color: var(--panel-dim); line-height: 1.45;
 }
 .ai-card-badge {
   font-family: 'DM Sans', sans-serif; font-size: 0.713rem; font-weight: 600;
@@ -639,17 +639,18 @@
 }
 .am-save { background: var(--panel-accent); color: var(--panel-bg); flex: 1; }
 .am-save:hover { background: var(--panel-accent); }
-.am-cancel { background: var(--panel-fill); color: var(--panel-dim); }
+.am-cancel { background: none; color: var(--panel-accent); font-weight: 600;
+  border: 1px solid var(--panel-accent) !important; }
 /* Past the "one model" default. Quiet on purpose: a student has no reason to want
    it, and the person who does knows it is there. */
 .ai-more { display: block; width: 100%; margin: 8px 0 0; padding: 6px 2px; background: none;
   border: 0; font-family: var(--sans); font-size: 13px; color: var(--panel-dim); cursor: pointer;
   text-align: left; text-decoration: underline; text-underline-offset: 2px; }
 .ai-more:hover { color: var(--panel-accent); }
-.am-cancel:hover { background: var(--panel-fill-hi); }
+.am-cancel:hover { background: var(--panel-fill-hi); color: var(--panel-accent); }
   .ai-preset-row{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.55rem}
-  .ai-preset{background:rgba(255,255,255,.08);color:#e8dcc8;border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:.32rem .62rem;font-size: 0.897rem;cursor:pointer;font-family:'DM Sans',sans-serif}
-  .ai-preset:hover{background:rgba(212,168,67,.18)}
+  .ai-preset{background:var(--panel-fill);color:var(--panel-ink);border:1px solid var(--panel-line);border-radius:5px;padding:.32rem .62rem;font-size: 0.897rem;cursor:pointer;font-family:'DM Sans',sans-serif}
+  .ai-preset:hover{background:var(--panel-fill-hi)}
 
 /* ── AI status: a dot on the gear ─────────────────────────────────────────────
    This used to be its own topbar button reading "AI: Groq ✓" — a word for the
@@ -706,6 +707,25 @@
      rows above the thing the page exists to show, so on a phone you scrolled the
      whole term to read today's. The list is the index; it belongs underneath. */
   .poemlayout .stage { order: 1; }
+  /* ── Tips, folded by act ───────────────────────────────────────────────────
+     27 tips in one column made this tab scroll, and a scrolling page on an iPad
+     rubber-bands a gap above the toolbar. One act open at a time and it fits. */
+  .tipact { margin-bottom: 4px; }
+  .tipact-h { display: flex; align-items: baseline; gap: 7px; width: 100%; text-align: left;
+    background: none; border: 0; cursor: pointer; padding: 8px 6px; border-radius: 6px;
+    font-family: var(--sans); }
+  .tipact-h:hover { background: rgba(0,0,0,.05); }
+  .tipact-caret { flex: 0 0 auto; width: .8rem; font-size: 12px; color: var(--muted); }
+  .tipact-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+  .tipact-when { font-size: 12px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+  .tipact-body { display: none; padding-left: 4px; }
+  .tipact.open .tipact-body { display: block; }
+  .tipact.open .tipact-name { color: var(--accent); }
+  @media (pointer: coarse) { .tipact-h { min-height: 44px; } }
+  /* iOS bounces a scrollable page past its own end, which on a sticky topbar shows
+     as a gap above it. Nothing here scrolls the PAGE by design -- panes scroll -- so
+     the bounce is never wanted. */
+  html, body { overscroll-behavior-y: none; }
   .poemrail { order: 2; position: static; margin-top: 26px;
     border-top: 1px solid var(--comment-border); padding-top: 16px; }
 }
@@ -1266,9 +1286,9 @@ body.focus .iconbtn { display: none !important; }
 .ai-getkey:hover { text-decoration: underline; }
 .ai-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; padding-right: 6px; }
 .ai-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
-  text-align: left; background: rgba(255,255,255,.05); border: 1px solid transparent; border-radius: 8px;
+  text-align: left; background: var(--panel-fill); border: 1px solid transparent; border-radius: 8px;
   padding: 10px 12px; cursor: pointer; }
-.ai-card:hover { background: rgba(255,255,255,.09); }
+.ai-card:hover { background: var(--panel-fill-hi); }
 /* Selected was rgba(255,255,255,.10) against a .09 hover -- one percent apart, so you
    could not tell what was in use. It now carries an accent bar, a real background shift,
    and a tick, none of which hover does. */
@@ -1284,10 +1304,10 @@ body.focus .iconbtn { display: none !important; }
 .ai-card-main small { font-family: var(--sans); font-size: 13px; color: var(--panel-dim); word-break: break-all; }
 .ai-badge { flex: 0 0 auto; font-family: var(--sans); font-size: 12px; color: #9FC5E8;
   background: rgba(159,197,232,.14); border-radius: 4px; padding: 2px 7px; }
-.ai-add { border: 1px dashed rgba(255,255,255,.18); border-radius: 8px; padding: 10px 12px; }
+.ai-add { border: 1px dashed var(--panel-line); border-radius: 8px; padding: 10px 12px; }
 .ai-add b { display: block; font-family: var(--sans); font-size: 15px; color: var(--panel-ink); }
 .ai-add small { display: block; font-family: var(--sans); font-size: 13px; color: var(--panel-dim); margin-bottom: 6px; }
-.ai-add input { width: 100%; box-sizing: border-box; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.14);
+.ai-add input { width: 100%; box-sizing: border-box; background: var(--panel-recess); border: 1px solid var(--panel-line);
   color: #F0E6D2; border-radius: 6px; padding: 6px 8px; font: 12px var(--sans); }
 .ai-scan { font-family: var(--sans); font-size: 14.5px; color: var(--panel-dim); margin: 0; }
 .ai-foot { font-family: var(--sans); font-size: 12.5px; color: #6B7A8A; margin: 12px 0 6px; }
