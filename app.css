@@ -295,7 +295,7 @@
   .vbtn.vb-drawer.on { background: var(--comment-bg); border-color: var(--accent); color: var(--accent); }
   /* The drawer already names itself; below the width where the bar gets tight the
      button keeps its glyph and drops the word. */
-  @container reader (max-width: 760px) { .vb-drawer .vb-word, #romanoBtn .vb-word { display: none; } }
+  @container reader (max-width: 900px) { .vb-drawer .vb-word, #viewBtn .vb-word { display: none; } }
 
   /* One toolbar across the top of the frame. Everything that acts on the DOCUMENT is
      here — page, view mode, capture, zoom, notes — while the shelf above the frame is
@@ -305,6 +305,20 @@
   .reader .viewbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px;
     padding: 7px 10px; background: var(--comment-bg); border-bottom: 1px solid var(--comment-border); flex-wrap: wrap; }
   .reader .viewbar .vb-group { display: flex; align-items: center; gap: 10px; }
+  /* The set-once controls, folded. Anchored to its button rather than the bar, so it
+     opens under ⛶ View wherever the bar has pushed it. */
+  .vb-viewwrap { position: relative; display: inline-flex; }
+  .vb-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 210px;
+    background: var(--comment-bg); border: 1px solid var(--comment-border); border-radius: 9px;
+    box-shadow: 0 10px 28px rgba(44,36,22,.20); padding: 10px; }
+  .vb-pop[hidden] { display: none; }
+  .vb-pop-lbl { font-family: var(--sans); font-size: 11.5px; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 5px; }
+  .vb-pop-lbl + * { margin-bottom: 10px; display: flex; }
+  .vb-pop .zoomsel { width: 100%; }
+  .vb-pop > :last-child { margin-bottom: 0; }
+  /* Right-aligned near the right edge, so it cannot open off-screen on a narrow pane. */
+  @container reader (max-width: 620px) { .vb-pop { left: auto; right: 0; } }
   .reader .viewbar .vb-spacer { flex: 1 1 auto; }
   .reader .viewbar .zoomwrap { display: flex; align-items: center; gap: 6px; font-family: var(--sans);
     font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }

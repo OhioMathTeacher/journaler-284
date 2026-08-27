@@ -19,7 +19,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-27-188">
+<link rel="stylesheet" href="app.css?v=2026-08-27-189">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -65,21 +65,10 @@
   <!-- Where you stand on the notebook. It was a lens inside Notebook and nothing else
        pointed at it; a student who never found that row never saw their own progress. -->
   <button class="focusbtn" id="myProgressBtn" title="Where you stand on the Writer's Notebook — the four scored rows, what is tagged, and the bundle">▤ <span class="btn-my">My </span>Progress</button>
-  <!-- ⤓ Save · ⤒ Open · ⎙ Conversations were three labelled buttons in a bar that had
-       run out of room. They are the once-a-term actions, so they go behind one opener
-       and the frequent things (My Progress, Focus) keep their words. Same ids, same
-       handlers -- only the packaging moved. -->
-  <div class="menuwrap" id="myWorkWrap">
-    <button class="focusbtn" id="myWorkBtn" aria-haspopup="true" aria-expanded="false" title="Your writing as a file — save it, reopen it elsewhere, or print your conversations">⤓ <span class="btn-my">My </span>work ▾</button>
-    <div class="menu" id="myWorkMenu" hidden role="menu" aria-labelledby="myWorkBtn">
-      <button role="menuitem" id="saveWorkBtn">⤓ Save my work
-        <em>Everything — writing, readings, highlights, conversations — as one file to reopen on another computer.</em></button>
-      <button role="menuitem" id="openWorkBtn">⤒ Open my file
-        <em>Pick up where you left off, on any computer.</em></button>
-      <button role="menuitem" id="exportChatBtn">⎙ Conversations → page
-        <em>Every exchange with Romano as a readable page, your words and his counted separately.</em></button>
-    </div>
-  </div>
+  <!-- ⤓ Save · ⤒ Open · ⎙ Conversations lived here behind one opener. Todd,
+       2026-08-27: they are once-a-term actions and the bar is the most contested
+       space in the app, so they moved into Settings → My work. Same ids, same
+       handlers; only the packaging moved, again. -->
   <input type="file" id="workFileInput" accept=".json,.zip,application/json,application/zip" hidden>
   <input type="file" id="readInput" accept=".pdf,.docx,.txt" multiple hidden>
   <input type="file" id="readFolderInput" webkitdirectory hidden>
@@ -116,6 +105,7 @@
     <div class="set-tabs" id="setTabs">
       <button class="set-tab on" data-set="readings">Readings</button>
       <button class="set-tab" data-set="ai">AI</button>
+      <button class="set-tab" data-set="work">My work</button>
       <button class="set-tab" data-set="diag">Diagnostics</button>
     </div>
 
@@ -153,6 +143,21 @@
       <div class="ai-list" id="aiList"></div>
       <p class="ai-foot" id="aiFoot"></p>
       <button class="ai-disable" id="aiDisable">Disable AI</button>
+    </div>
+
+    <div class="set-pane" id="set-work">
+      <h3>Your writing as a file</h3>
+      <p>Everything you have written — pieces, readings, highlights, conversations — travels as one file. Save it as you go, and open it again on any computer.</p>
+      <div class="set-actions">
+        <button class="am-save" id="saveWorkBtn">⤓ Save my work</button>
+        <button class="am-cancel" id="openWorkBtn">⤒ Open my file</button>
+      </div>
+      <p class="rm-sub">On a shared or public computer this browser may forget your work when you log out. Save a file as you go, and open it again each time.</p>
+      <h3>Conversations</h3>
+      <p>Every exchange with Romano as a readable page, your words and his counted separately.</p>
+      <div class="set-actions">
+        <button class="am-cancel" id="exportChatBtn">⎙ Conversations → page</button>
+      </div>
     </div>
 
     <div class="set-pane" id="set-diag">
@@ -283,7 +288,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-27-188"></script>
-<script src="app.js?v=2026-08-27-188"></script>
+<script src="tips.js?v=2026-08-27-189"></script>
+<script src="app.js?v=2026-08-27-189"></script>
 </body>
 </html>

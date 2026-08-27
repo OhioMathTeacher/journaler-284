@@ -4473,13 +4473,16 @@ You: Really. The first line only has to exist, not be good.`;
     if(navHost) navHost.innerHTML = single
       ? (() => {
           const last = Math.min(readPageNum + _effSpread - 1, doc.numPages);
+          // "Page 5 of 8" is 250px of a bar that has none to give on an iPad. The
+          // words go and the numbers stay, below the width where it matters.
+          const tight = window.innerWidth <= 1000;
           const shown = last > readPageNum
-            ? `Pages ${pageLabelFor(readPageNum)}–${pageLabelFor(last)}`
-            : `Page ${pageLabelFor(readPageNum)}`;
+            ? `${tight ? '' : 'Pages '}${pageLabelFor(readPageNum)}–${pageLabelFor(last)}`
+            : `${tight ? '' : 'Page '}${pageLabelFor(readPageNum)}`;
           const squeezed = readSpread === 2 && _effSpread === 1
             ? `<span class="pdfnav-note">Two pages needs a wider window, or a smaller zoom.</span>` : '';
           return `<button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button>`
-            + `<span class="pdfnav-lbl">${shown} of ${pageLabelFor(doc.numPages)}</span>`
+            + `<span class="pdfnav-lbl">${shown}${tight ? '/' : ' of '}${pageLabelFor(doc.numPages)}</span>`
             + `<button class="pdfnav-btn" id="pgNext" ${last>=doc.numPages?'disabled':''}>Next ›</button>`
             + squeezed;
         })()
@@ -4760,8 +4763,14 @@ You: Really. The first line only has to exist, not be good.`;
             title="Show or hide the list of chapters." aria-expanded="${drawerOpen}">▤<span class="vb-word"> Chapters</span></button>
           <span class="vb-group" id="pageNav"></span>
           <span class="vb-spacer"></span>
-          ${active && active.type === 'pdf' ? `<span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single" title="One page at a time. Click again to read two pages side by side — useful on a wide screen.">${readPageMode==='single' && readSpread===2 ? 'Two pages' : 'Single page'}</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>
-          <label class="zoomwrap">Zoom <select id="zoomSel" class="zoomsel">${ZOOMS.map(z=>`<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select></label>` : ''}
+          ${active && active.type === 'pdf' ? `<span class="vb-viewwrap" id="viewWrap">
+            <button class="vbtn" id="viewBtn" aria-haspopup="true" aria-expanded="false" title="How the page is laid out — one page or two, continuous, and how large.">⛶<span class="vb-word"> View</span></button>
+            <div class="vb-pop" id="viewPop" hidden>
+              <div class="vb-pop-lbl">Pages</div>
+              <span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single" title="One page at a time. Click again to read two pages side by side — useful on a wide screen.">${readPageMode==='single' && readSpread===2 ? 'Two pages' : 'Single page'}</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>
+              <div class="vb-pop-lbl">Zoom</div>
+              <select id="zoomSel" class="zoomsel">${ZOOMS.map(z=>`<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select>
+            </div></span>` : ''}
           ${COARSE_POINTER ? `<button class="vbtn vb-capture${marqueeArmed?' on':''}" id="vbCapture" title="Tap, then drag a box around the passage you want to keep. Scrolling comes back as soon as the box is drawn.">${marqueeArmed ? '✕ Cancel' : '▣ Mark passage'}</button>` : ''}
           <button class="vbtn" id="romanoBtn" title="The conversation about this chapter.">🥫<span class="vb-word"> Romano</span></button>
           <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧ Hide notes' : '◨ Show notes'}<span class="hl-count" id="hlCount"></span></button>
@@ -4784,6 +4793,14 @@ You: Really. The first line only has to exist, not be good.`;
     if(dt) dt.onclick = () => setDrawerOpen(!drawerOpen);
     const rb = document.getElementById('romanoBtn');
     if(rb) rb.onclick = () => openRomanoChat('', readPageNum);
+    // Closes on choosing an item and on a click anywhere else: a popover left open
+    // over the page is worse than the two controls it replaced.
+    const vBtn = document.getElementById('viewBtn'), vPop = document.getElementById('viewPop');
+    if(vBtn && vPop){
+      const setPop = open => { vPop.hidden = !open; vBtn.setAttribute('aria-expanded', String(open)); vBtn.classList.toggle('on', open); };
+      vBtn.onclick = e => { e.stopPropagation(); setPop(vPop.hidden); };
+      document.addEventListener('click', e => { const w = document.getElementById('viewWrap'); if(w && !w.contains(e.target)) setPop(false); });
+    }
     frame.querySelectorAll('.vbtn[data-vm]').forEach(b => b.onclick = () => {
       // Already on single? The button cycles 1 ⇄ 2 pages. Otherwise it switches mode
       // and keeps whichever spread you last read in.
@@ -6520,17 +6537,6 @@ You: Really. The first line only has to exist, not be good.`;
   if(_openBtn && _wfi){ _openBtn.addEventListener('click', ()=>_wfi.click()); _wfi.addEventListener('change', ()=>{ if(_wfi.files[0]) openWork(_wfi.files[0]); _wfi.value=''; }); }
 
   // The three of them live behind one opener now. Closing on outside-click, on Escape
-  // and on choosing an item: a menu that stays open over the writing surface is worse
-  // than the three buttons it replaced.
-  const _mwBtn = document.getElementById('myWorkBtn'), _mwMenu = document.getElementById('myWorkMenu');
-  if(_mwBtn && _mwMenu){
-    const setMenu = open => { _mwMenu.hidden = !open; _mwBtn.setAttribute('aria-expanded', String(open)); };
-    _mwBtn.addEventListener('click', e => { e.stopPropagation(); setMenu(_mwMenu.hidden); });
-    _mwMenu.addEventListener('click', () => setMenu(false));
-    document.addEventListener('click', e => { if(!document.getElementById('myWorkWrap').contains(e.target)) setMenu(false); });
-    document.addEventListener('keydown', e => { if(e.key === 'Escape') setMenu(false); });
-  }
-
   // My Progress was a lens inside Notebook and nothing outside Notebook pointed at it.
   // From the topbar it is reachable from wherever the student happens to be writing.
   const _mpBtn = document.getElementById('myProgressBtn');
