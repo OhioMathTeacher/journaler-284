@@ -4797,6 +4797,8 @@ You: Really. The first line only has to exist, not be good.`;
               <span class="viewseg"><button class="vbtn ${readPageMode==='single'?'on':''}" data-vm="single" title="One page at a time. Click again to read two pages side by side — useful on a wide screen.">${readPageMode==='single' && readSpread===2 ? 'Two pages' : 'Single page'}</button><button class="vbtn ${readPageMode==='continuous'?'on':''}" data-vm="continuous">Continuous</button></span>
               <div class="vb-pop-lbl">Zoom</div>
               <select id="zoomSel" class="zoomsel">${ZOOMS.map(z=>`<option value="${z.v}" ${String(readZoom)===String(z.v)?'selected':''}>${z.t}</option>`).join('')}</select>
+              <div class="vb-pop-lbl">Appearance</div>
+              <button class="vbtn vb-theme" id="viewThemeBtn">◑ Modern</button>
             </div></span>` : ''}
           ${COARSE_POINTER ? `<button class="vbtn vb-capture${marqueeArmed?' on':''}" id="vbCapture" title="Tap, then drag a box around the passage you want to keep. Scrolling comes back as soon as the box is drawn.">${marqueeArmed ? '✕<span class="vb-word"> Cancel</span>' : '💬<span class="vb-word"> Mark passage</span>'}</button>` : ''}
           <button class="vbtn" id="romanoBtn" title="Ask Romano about this chapter." aria-label="Ask Romano">🥫</button>
@@ -4818,6 +4820,8 @@ You: Really. The first line only has to exist, not be good.`;
     renderDrawer();
     const dt = document.getElementById('drawerToggle');
     if(dt) dt.onclick = () => setDrawerOpen(!drawerOpen);
+    const vt = document.getElementById('viewThemeBtn');
+    if(vt){ vt.onclick = toggleTheme; paintTheme(); }
     const da = document.getElementById('drawerAdd');
     if(da) da.onclick = () => document.getElementById('readInput').click();
     const rb = document.getElementById('romanoBtn');
@@ -6579,13 +6583,13 @@ You: Really. The first line only has to exist, not be good.`;
 
   // Theme. The class lives on <html>, set pre-paint by the inline script in index.html;
   // this only has to keep the button and DB in step with it.
-  const _themeBtn = document.getElementById('themeBtn');
   const _setThemeBtn = document.getElementById('setThemeBtn');
   function paintTheme(){
     const modern = document.documentElement.classList.contains('theme-modern');
     const label = modern ? '◐ Parchment' : '◑ Modern';
-    if(_themeBtn) _themeBtn.textContent = label;
     if(_setThemeBtn) _setThemeBtn.textContent = label;
+    const v = document.getElementById('viewThemeBtn');
+    if(v) v.textContent = label;
   }
   if(DB.theme === 'modern') document.documentElement.classList.add('theme-modern');
   paintTheme();
@@ -6596,7 +6600,6 @@ You: Really. The first line only has to exist, not be good.`;
     paintTheme();
     logEvent('ui', 'theme → ' + (modern ? 'modern' : 'parchment'));
   }
-  if(_themeBtn) _themeBtn.addEventListener('click', toggleTheme);
   if(_setThemeBtn) _setThemeBtn.addEventListener('click', toggleTheme);
 
   // ── Settings modal. Tabs, and the folder control rendered into the Readings tab

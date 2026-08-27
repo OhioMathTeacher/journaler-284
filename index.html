@@ -19,7 +19,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-27-196">
+<link rel="stylesheet" href="app.css?v=2026-08-27-197">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -101,6 +101,7 @@
 
 <div class="ai-modal-overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
   <div class="ai-modal settings-modal">
+    <button class="modal-x" onclick="closeSettings()" aria-label="Close" title="Close">✕</button>
     <h2>Settings</h2>
     <div class="set-tabs" id="setTabs">
       <button class="set-tab on" data-set="readings">Readings</button>
@@ -186,7 +187,7 @@
       </div>
     </div>
 
-    <div class="ai-modal-actions"><button class="am-cancel" onclick="closeSettings()">Close</button></div>
+    
   </div>
 </div>
 
@@ -197,6 +198,7 @@
      the same conversation and stays in step -- renderConversation paints both. -->
 <div class="ai-modal-overlay" id="romanoOverlay" onclick="if(event.target===this)closeRomanoChat()">
   <div class="ai-modal rm-modal">
+    <button class="modal-x" onclick="closeRomanoChat()" aria-label="Close" title="Close">✕</button>
     <h2>🥫 Ask Romano</h2>
     <p class="rm-sub">One conversation for each chapter. Nothing here is handed in — keep an exchange in your notebook if you want it counted.</p>
     <div class="rm-about" id="rmAbout" style="display:none"></div>
@@ -207,13 +209,13 @@
     </div>
     <div class="ai-modal-actions">
       <button class="am-cancel" id="rmExport" title="Save this conversation as a page you can print or keep.">⎙ Export</button>
-      <button class="am-cancel" onclick="closeRomanoChat()" title="Every exchange is saved as you go — this just closes the window.">Close</button>
     </div>
   </div>
 </div>
 
 <div class="ai-modal-overlay" id="aboutOverlay" onclick="if(event.target===this)closeAbout()">
   <div class="ai-modal about-modal">
+    <button class="modal-x" onclick="closeAbout()" aria-label="Close" title="Close">✕</button>
     <h2>About Journaler-284</h2>
     <p class="about-lead">Where you write for <b>TCE 284</b>. Everything stays on your computer.</p>
 
@@ -246,12 +248,13 @@
 
     <p class="about-build">Build <span id="aboutBuild">—</span></p>
 
-    <div class="ai-modal-actions"><button class="am-cancel" id="themeBtn">◑ Modern</button><button class="am-cancel" onclick="closeAbout()">Close</button></div>
+    
   </div>
 </div>
 
 <div class="ai-modal-overlay" id="aiModalOverlay" onclick="if(event.target===this)closeAIModal()">
   <div class="ai-modal">
+    <button class="modal-x" onclick="closeAIModal()" aria-label="Close" title="Close">✕</button>
     <!-- This modal used to be the app's whole AI chooser, with its own flat grid of
          provider cards. Settings → AI is now that chooser, with the three cost tabs
          the other apps use, and two panels that could each write the provider was a
@@ -291,7 +294,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-27-196"></script>
-<script src="app.js?v=2026-08-27-196"></script>
+<script src="tips.js?v=2026-08-27-197"></script>
+<script src="app.js?v=2026-08-27-197"></script>
 </body>
 </html>

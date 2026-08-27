@@ -19,7 +19,7 @@
     /* The measure for a writing surface. 680 was set against a 1180 frame; with
        the cap gone the gush sat in the middle of a pane twice its width. */
     --writecol: 920px;
-    --cave-dark: #1A2A40; --cave-glow: #D4A843;
+    --cave-dark: #1A2A40; --cave-glow: var(--panel-accent);
   }
 
   /* ── Modern theme. Cool neutrals, sans throughout, tighter accent. Everything here is
@@ -51,17 +51,17 @@
     body.focus .brand { display: none !important; }
   /* Narrow bars keep the mark and drop the word rather than crowding the tabs. */
 
-  /* .ai-modal is the DARK panel harvested from 318P (#1A2738). These colours are for
+  /* .ai-modal is the DARK panel harvested from 318P (var(--panel-bg)). These colours are for
      that background — do not reach for --ink or --muted here, both are parchment-theme
      darks and vanish against it. */
   /* Shared by the About and Settings panes — one set of rules for the dark panel,
      so the two cannot drift. Settings first shipped with its own h3 and inherited
      the parchment accent instead, which is near-invisible on this background. */
-  .about-modal h3, .settings-modal h3 { font-family: var(--sans); font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #9FB0C4; margin: 20px 0 6px; }
+  .about-modal h3, .settings-modal h3 { font-family: var(--sans); font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--panel-lbl); margin: 20px 0 6px; }
   .about-modal h3:first-of-type, .settings-modal h3:first-of-type { margin-top: 4px; }
-  .about-modal p, .settings-modal p { font-family: var(--sans); font-size: 15.5px; line-height: 1.6; color: #C9D3DE; margin: 0; }
-  .about-modal p b, .settings-modal p b { color: #F0E6D2; font-weight: 700; }
-  .about-modal .about-lead { font-family: var(--write); font-size: 17px; color: #DDD3C0; margin: -6px 0 4px; }
+  .about-modal p, .settings-modal p { font-family: var(--sans); font-size: 15.5px; line-height: 1.6; color: var(--panel-ink); margin: 0; }
+  .about-modal p b, .settings-modal p b { color: var(--panel-ink); font-weight: 700; }
+  .about-modal .about-lead { font-family: var(--write); font-size: 17px; color: var(--panel-ink); margin: -6px 0 4px; }
   /* Todd: too tall and narrow to fit an iPad in landscape. Five stacked sections of
      prose in a 500px column is a ladder; the same prose in two columns at twice the
      width is a page. Multi-column rather than a grid, so the sections flow into
@@ -81,10 +81,10 @@
     .ai-modal.about-modal { width: min(520px, calc(100vw - 2rem)); }
     .about-body { columns: 1; }
   }
-  .about-links { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 16px 0 0; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.10); }
-  .about-links a { font-family: var(--sans); font-size: 15.5px; font-weight: 600; color: var(--cave-glow, #D4A843); text-decoration: none; }
+  .about-links { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--panel-line); }
+  .about-links a { font-family: var(--sans); font-size: 15.5px; font-weight: 600; color: var(--panel-accent); text-decoration: none; }
   .about-links a:hover { text-decoration: underline; }
-  .about-build { margin-top: 16px !important; font-family: ui-monospace, monospace; font-size: 12.5px; color: #7C8B9C !important; }
+  .about-build { margin-top: 16px !important; font-family: ui-monospace, monospace; font-size: 12.5px; color: var(--panel-dim) !important; }
 
   .topbar { padding-top: env(safe-area-inset-top); display: flex; align-items: center; flex-wrap: wrap; row-gap: 6px; gap: 7px; border-bottom: 2px solid var(--comment-border); padding: 0 clamp(12px,3vw,24px); position: sticky; top: 0; background: var(--parchment); z-index: 5; }
   /* The five tabs run in course order: the day's tip, the write, the reading behind it,
@@ -536,18 +536,43 @@
 /* ===== AI provider modal (harvested from 318P source) ===== */
 .ai-modal-overlay {
   display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,0.65); z-index: 1000;
+  background: rgba(44,36,22,0.42); z-index: 1000;
   align-items: center; justify-content: center;
 }
 .ai-modal-overlay.open { display: flex; }
+/* ── The dialog palette ────────────────────────────────────────────────────
+   Todd: "the dark blue doesn't match the theme of the app." It did not -- #1A2738
+   was harvested from 318P's cave and dropped into a parchment app, so every dialog
+   read as a visitor from somewhere else. Defined as tokens rather than swapped by
+   hand in ninety places: the panel is one palette now, and changing it again means
+   editing this block and nothing else. */
+/* One ✕ in the corner instead of a Close button in every footer (Todd). Sized for a
+   fingertip; the modal is position:relative so it can anchor here. */
+.modal-x { position: absolute; top: 10px; right: 12px; z-index: 2;
+  background: none; border: 0; cursor: pointer; color: var(--panel-dim);
+  font-size: 19px; line-height: 1; padding: 8px 10px; border-radius: 8px; }
+.modal-x:hover { background: var(--panel-fill); color: var(--panel-ink); }
+@media (pointer: coarse) { .modal-x { min-width: 44px; min-height: 44px; font-size: 21px; } }
+.vb-pop .vb-theme { width: 100%; justify-content: flex-start; text-align: left;
+  border: 1px solid var(--comment-border); border-radius: 7px; }
 .ai-modal {
-  background: #1A2738; border: 1px solid rgba(212,168,67,0.2);
+  --panel-bg: #FFFDF7;
+  --panel-ink: var(--ink);
+  --panel-dim: #6B6152;
+  --panel-lbl: #6B6152;
+  --panel-accent: var(--accent);
+  --panel-line: var(--comment-border);
+  --panel-fill: rgba(44,36,22,.055);
+  --panel-fill-hi: rgba(44,36,22,.11);
+  --panel-recess: rgba(44,36,22,.035);
+  background: var(--panel-bg); border: 1px solid var(--panel-line);
   border-radius: 12px; padding: 1.8rem; width: 500px; max-width: calc(100vw - 2rem);
-  box-shadow: 0 24px 64px rgba(0,0,0,0.55);
+  position: relative;
+  box-shadow: 0 24px 64px rgba(44,36,22,0.28);
 }
 .ai-modal h2 {
   font-family: 'Crimson Pro', serif; font-weight: 400;
-  color: #DDD3C0; font-size: 1.495rem; margin-bottom: 1.1rem;
+  color: var(--panel-ink); font-size: 1.495rem; margin-bottom: 1.1rem;
 }
 .ai-provider-cards {
   display: grid; grid-template-columns: repeat(2,1fr); gap: 0.6rem;
@@ -581,15 +606,15 @@
 .ai-key-section { margin-bottom: 1.1rem; }
 .ai-key-section input {
   width: 100%; padding: 0.6rem 0.75rem;
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(212,168,67,0.2);
-  border-radius: 5px; color: #DDD3C0; font-family: monospace;
+  background: var(--panel-fill); border: 1px solid var(--panel-line);
+  border-radius: 5px; color: var(--panel-ink); font-family: monospace;
   font-size: 0.943rem; outline: none; margin-bottom: 0.35rem;
 }
 .ai-key-section input:focus { border-color: rgba(212,168,67,0.5); }
 .ai-key-section select {
   width: 100%; padding: 0.6rem 0.75rem;
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(212,168,67,0.2);
-  border-radius: 5px; color: #DDD3C0;
+  background: var(--panel-fill); border: 1px solid var(--panel-line);
+  border-radius: 5px; color: var(--panel-ink);
   font-family: 'DM Sans', sans-serif; font-size: 1.012rem; outline: none;
   cursor: pointer; appearance: none; -webkit-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23D4A843' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
@@ -601,7 +626,7 @@
   font-family: 'DM Sans', sans-serif; font-size: 0.805rem;
   color: #555A50; line-height: 1.4;
 }
-.ai-key-hint a { color: var(--cave-glow); text-decoration: none; }
+.ai-key-hint a { color: var(--panel-accent); text-decoration: none; }
 .ai-key-hint a:hover { text-decoration: underline; }
 .ai-modal-actions { display: flex; gap: 0.5rem; }
 /* Buttons inside a settings pane are the same object as the modal footer's, so
@@ -612,16 +637,16 @@
   padding: 0.5rem 1.1rem; border-radius: 5px; border: none; cursor: pointer;
   transition: background 0.15s;
 }
-.am-save { background: var(--cave-glow); color: var(--cave-dark); flex: 1; }
-.am-save:hover { background: #E0B84E; }
-.am-cancel { background: rgba(255,255,255,0.06); color: #9A9083; }
+.am-save { background: var(--panel-accent); color: var(--panel-bg); flex: 1; }
+.am-save:hover { background: var(--panel-accent); }
+.am-cancel { background: var(--panel-fill); color: var(--panel-dim); }
 /* Past the "one model" default. Quiet on purpose: a student has no reason to want
    it, and the person who does knows it is there. */
 .ai-more { display: block; width: 100%; margin: 8px 0 0; padding: 6px 2px; background: none;
-  border: 0; font-family: var(--sans); font-size: 13px; color: #8FA2B8; cursor: pointer;
+  border: 0; font-family: var(--sans); font-size: 13px; color: var(--panel-dim); cursor: pointer;
   text-align: left; text-decoration: underline; text-underline-offset: 2px; }
-.ai-more:hover { color: #D4A843; }
-.am-cancel:hover { background: rgba(255,255,255,0.12); }
+.ai-more:hover { color: var(--panel-accent); }
+.am-cancel:hover { background: var(--panel-fill-hi); }
   .ai-preset-row{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.55rem}
   .ai-preset{background:rgba(255,255,255,.08);color:#e8dcc8;border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:.32rem .62rem;font-size: 0.897rem;cursor:pointer;font-family:'DM Sans',sans-serif}
   .ai-preset:hover{background:rgba(212,168,67,.18)}
@@ -876,40 +901,40 @@ body.marquee-armed .marquee-overlay { touch-action: none; }
    one. The log is the tall part and the only thing that scrolls; the composer
    and the footer stay put, so Send is reachable on an iPad with the keyboard up. */
 .rm-modal { display: flex; flex-direction: column; max-height: min(760px, 88vh); }
-.rm-sub { font-family: var(--sans); font-size: 13.5px; color: #7C8B9C !important; margin: -4px 0 12px !important; }
-.rm-about { font-family: var(--sans); font-size: 13.5px; color: #C9D3DE; background: rgba(0,0,0,.22);
-  border-left: 3px solid var(--cave-glow, #D4A843); border-radius: 0 7px 7px 0;
+.rm-sub { font-family: var(--sans); font-size: 13.5px; color: var(--panel-dim) !important; margin: -4px 0 12px !important; }
+.rm-about { font-family: var(--sans); font-size: 13.5px; color: var(--panel-ink); background: var(--panel-recess);
+  border-left: 3px solid var(--panel-accent); border-radius: 0 7px 7px 0;
   padding: 8px 11px; margin-bottom: 10px; max-height: 88px; overflow: auto; }
 .rm-about b { display: block; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase;
-  color: #9FB0C4; font-weight: 700; margin-bottom: 3px; }
+  color: var(--panel-lbl); font-weight: 700; margin-bottom: 3px; }
 .rm-log { flex: 1 1 auto; min-height: 120px; overflow-y: auto; -webkit-overflow-scrolling: touch;
-  background: rgba(0,0,0,.20); border: 1px solid rgba(255,255,255,.10); border-radius: 8px;
+  background: var(--panel-recess); border: 1px solid var(--panel-line); border-radius: 8px;
   padding: 10px 12px; }
 .rm-turn { margin-bottom: 12px; }
 .rm-turn:last-child { margin-bottom: 0; }
 .rm-who { display: block; font-family: var(--sans); font-size: 11.5px; font-weight: 700;
-  letter-spacing: .07em; text-transform: uppercase; color: #9FB0C4; margin-bottom: 3px; }
-.rm-turn.romano .rm-who { color: var(--cave-glow, #D4A843); }
-.rm-say { font-family: var(--serif); font-size: 15.5px; line-height: 1.6; color: #E8EDF3;
+  letter-spacing: .07em; text-transform: uppercase; color: var(--panel-lbl); margin-bottom: 3px; }
+.rm-turn.romano .rm-who { color: var(--panel-accent); }
+.rm-say { font-family: var(--serif); font-size: 15.5px; line-height: 1.6; color: var(--panel-ink);
   white-space: pre-wrap; overflow-wrap: anywhere; }
-.rm-turn.you .rm-say { color: #C9D3DE; }
-.rm-wait { color: #7C8B9C; font-style: italic; }
+.rm-turn.you .rm-say { color: var(--panel-ink); }
+.rm-wait { color: var(--panel-dim); font-style: italic; }
 .rm-tools { display: flex; gap: 2px; margin-top: 3px; }
 /* Always shown, never hover-only: there is no hover on an iPad. */
-.rm-tool { background: none; border: 0; cursor: pointer; color: #7C8B9C; font-size: 13px;
+.rm-tool { background: none; border: 0; cursor: pointer; color: var(--panel-dim); font-size: 13px;
   padding: 3px 7px; border-radius: 5px; }
-.rm-tool:hover { background: rgba(255,255,255,.10); color: #E8EDF3; }
-.rm-edit { width: 100%; box-sizing: border-box; background: rgba(0,0,0,.30);
-  border: 1px solid var(--cave-glow, #D4A843); border-radius: 6px; color: #E8EDF3;
+.rm-tool:hover { background: var(--panel-line); color: var(--panel-ink); }
+.rm-edit { width: 100%; box-sizing: border-box; background: var(--panel-recess);
+  border: 1px solid var(--panel-accent); border-radius: 6px; color: var(--panel-ink);
   font-family: var(--serif); font-size: 15.5px; line-height: 1.6; padding: 7px 9px; }
-.rm-ctx { font-family: var(--sans); font-size: 12.5px; color: #7C8B9C; margin-bottom: 4px; }
-.rm-empty { font-family: var(--sans); font-size: 14.5px; color: #7C8B9C; margin: 0; padding: 8px 2px; }
+.rm-ctx { font-family: var(--sans); font-size: 12.5px; color: var(--panel-dim); margin-bottom: 4px; }
+.rm-empty { font-family: var(--sans); font-size: 14.5px; color: var(--panel-dim); margin: 0; padding: 8px 2px; }
 .rm-compose { display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; }
 .rm-compose textarea { flex: 1 1 auto; box-sizing: border-box; resize: vertical; min-height: 52px;
-  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.12); border-radius: 7px;
-  color: #E8EDF3; font-family: var(--sans); font-size: 15px; line-height: 1.5; padding: 9px 11px; }
-.rm-compose textarea:focus { outline: none; border-color: var(--cave-glow, #D4A843); }
-.rm-compose textarea::placeholder { color: #7C8B9C; }
+  background: var(--panel-recess); border: 1px solid var(--panel-line); border-radius: 7px;
+  color: var(--panel-ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; padding: 9px 11px; }
+.rm-compose textarea:focus { outline: none; border-color: var(--panel-accent); }
+.rm-compose textarea::placeholder { color: var(--panel-dim); }
 .rm-send { flex: 0 0 auto; }
 
 /* Passage-capture popup (highlight / Ask Romano). */
@@ -1140,60 +1165,60 @@ body.capturing .hl-mark:not(.preview) { display: none; }
 body.focus .iconbtn { display: none !important; }
 
 .settings-modal { max-width: 620px; width: min(620px, calc(100vw - 32px)); }
-.set-tabs { display: flex; gap: 2px; margin: -4px 0 16px; border-bottom: 1px solid rgba(255,255,255,.12); }
-.set-tab { font-family: var(--sans); font-size: 15px; font-weight: 600; color: #9FB0C4;
+.set-tabs { display: flex; gap: 2px; margin: -4px 0 16px; border-bottom: 1px solid var(--panel-line); }
+.set-tab { font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--panel-lbl);
   background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
   padding: 8px 12px; cursor: pointer; }
-.set-tab:hover { color: #C9D3DE; }
-.set-tab.on { color: var(--cave-glow, #D4A843); border-bottom-color: var(--cave-glow, #D4A843); }
+.set-tab:hover { color: var(--panel-ink); }
+.set-tab.on { color: var(--panel-accent); border-bottom-color: var(--panel-accent); }
 .set-pane { display: none; }
 .set-pane.on { display: block; }
 .set-pane > p { margin-bottom: 12px; }
 .set-pane > button.am-cancel { margin-top: 6px; }
 /* Separator before the modal footer, matching .about-links. */
-.settings-modal .ai-modal-actions { margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,.10); }
+.settings-modal .ai-modal-actions { margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--panel-line); }
 
 /* Software updates, after Allegory's, on the dark panel. Nothing to do is one
    line: only "an update is waiting" has anything to say or a button to press. */
-.diag-box { border: 1px solid rgba(255,255,255,.12); border-radius: 9px;
-  background: rgba(0,0,0,.20); padding: 12px 14px; margin: 4px 0 18px; }
+.diag-box { border: 1px solid var(--panel-line); border-radius: 9px;
+  background: var(--panel-recess); padding: 12px 14px; margin: 4px 0 18px; }
 .diag-box.one-line { display: flex; align-items: center; gap: 11px; padding: 7px 8px 7px 14px; }
 .diag-box-label { font-family: var(--sans); font-size: 12px; font-weight: 700;
-  letter-spacing: .09em; text-transform: uppercase; color: #9FB0C4; margin-bottom: 8px; }
+  letter-spacing: .09em; text-transform: uppercase; color: var(--panel-lbl); margin-bottom: 8px; }
 .diag-box.one-line .diag-box-label { margin: 0; flex: 0 0 auto; }
-.diag-line { font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: #C9D3DE; }
+.diag-line { font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: var(--panel-ink); }
 .diag-line.ok { color: #8CC8A0; }
-.diag-line.new { color: var(--cave-glow, #D4A843); }
-.diag-line.warn { color: #E0B84E; }
-.diag-sub { font-family: var(--sans); font-size: 13px; color: #7C8B9C; line-height: 1.5; }
+.diag-line.new { color: var(--panel-accent); }
+.diag-line.warn { color: var(--panel-accent); }
+.diag-sub { font-family: var(--sans); font-size: 13px; color: var(--panel-dim); line-height: 1.5; }
 .diag-box.one-line .diag-sub { flex: 1 1 auto; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.diag-ico { background: none; border: 0; border-radius: 6px; cursor: pointer; color: #9FB0C4;
+.diag-ico { background: none; border: 0; border-radius: 6px; cursor: pointer; color: var(--panel-lbl);
   font-size: 15px; line-height: 1; padding: 7px 9px; }
-.diag-ico:hover { background: rgba(255,255,255,.10); color: #E8EDF3; }
+.diag-ico:hover { background: var(--panel-line); color: var(--panel-ink); }
 .diag-box.one-line .diag-ico { margin-left: auto; }
 .diag-box .diag-sub { margin-top: 5px; }
 .diag-upd-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .spin { display: inline-block; animation: diagspin 1s linear infinite; }
 @keyframes diagspin { to { transform: rotate(360deg); } }
 .diag-kv { display: flex; justify-content: space-between; gap: 14px; font-family: var(--sans);
-  font-size: 14px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
-.diag-kv span { color: #9FB0C4; flex: 0 0 auto; }
-.diag-kv b { color: #F0E6D2; font-weight: 600; text-align: right; word-break: break-word; }
+  font-size: 14px; padding: 4px 0; border-bottom: 1px solid var(--panel-line); }
+.diag-kv span { color: var(--panel-lbl); flex: 0 0 auto; }
+.diag-kv b { color: var(--panel-ink); font-weight: 600; text-align: right; word-break: break-word; }
 .diag-snap { max-height: 190px; overflow: auto; margin-bottom: 12px; }
 .diag-actions { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-.diag-count { font-family: var(--sans); font-size: 12.5px; color: #7C8B9C; margin: 0 0 6px; }
+.diag-count { font-family: var(--sans); font-size: 12.5px; color: var(--panel-dim); margin: 0 0 6px; }
 /* Monospace, because this gets pasted into an email and has to stay legible. */
-.diag-body { max-height: 260px; overflow: auto; background: rgba(0,0,0,.28); border-radius: 6px;
+.diag-body { max-height: 260px; overflow: auto; background: var(--panel-recess); border-radius: 6px;
   padding: 8px 10px; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
-.diag-row { display: flex; gap: 8px; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
-.diag-time { color: #7C8B9C; flex: 0 0 auto; }
-.diag-kind { flex: 0 0 auto; min-width: 58px; color: #9FB0C4; }
+.diag-row { display: flex; gap: 8px; padding: 2px 0; border-bottom: 1px solid var(--panel-line); }
+.diag-time { color: var(--panel-dim); flex: 0 0 auto; }
+.diag-kind { flex: 0 0 auto; min-width: 58px; color: var(--panel-lbl); }
 .diag-kind.k-error { color: #E88; } .diag-kind.k-save { color: #8CC8A0; }
-.diag-kind.k-read { color: #D4A843; } .diag-kind.k-ai { color: #9FC5E8; }
-.diag-msg { color: #C9D3DE; word-break: break-word; }
-.diag-data { color: #7C8B9C; }
-.diag-empty { font-family: var(--sans); font-size: 14.5px; color: #7C8B9C; margin: 0; }
+.diag-kind.k-read { color: var(--panel-accent); } .diag-kind.k-ai { color: #9FC5E8; }
+.diag-msg { color: var(--panel-ink); word-break: break-word; }
+.diag-data { color: var(--panel-dim); }
+.diag-empty { font-family: var(--sans); font-size: 14.5px; color: var(--panel-dim); margin: 0; }
 
 /* Report a problem + the folded log. Colours are for the dark .ai-modal panel,
    same as everything else in here -- --ink and --muted are parchment darks and
@@ -1201,39 +1226,39 @@ body.focus .iconbtn { display: none !important; }
 /* The name field on the dark Settings panel: the topbar's parchment colours are
    invisible against it. */
 .settings-modal .setfield { display: block; margin: 10px 0 4px; width: min(320px, 100%);
-  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.12); color: #E8EDF3;
+  background: var(--panel-recess); border: 1px solid var(--panel-line); color: var(--panel-ink);
   font-family: var(--sans); font-size: 15px; padding: 9px 11px; border-radius: 7px; }
-.settings-modal .setfield::placeholder { color: #7C8B9C; }
-.settings-modal .setfield:focus { outline: none; border-color: var(--cave-glow, #D4A843); }
+.settings-modal .setfield::placeholder { color: var(--panel-dim); }
+.settings-modal .setfield:focus { outline: none; border-color: var(--panel-accent); }
 .diag-ta { width: 100%; box-sizing: border-box; min-height: 76px; resize: vertical;
   margin: 10px 0 12px; padding: 9px 11px; border-radius: 7px;
-  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.12); color: #E8EDF3;
+  background: var(--panel-recess); border: 1px solid var(--panel-line); color: var(--panel-ink);
   font-family: var(--sans); font-size: 15px; line-height: 1.55; }
-.diag-ta::placeholder { color: #7C8B9C; }
-.diag-ta:focus { outline: none; border-color: var(--cave-glow, #D4A843); }
+.diag-ta::placeholder { color: var(--panel-dim); }
+.diag-ta:focus { outline: none; border-color: var(--panel-accent); }
 /* The log is a reference, not something to read: shut by default, with the header
    carrying enough to say whether it is worth opening. */
 .diag-toggle { display: flex; align-items: baseline; gap: 9px; width: 100%; margin-top: 20px;
-  padding: 8px 0; background: none; border: 0; border-top: 1px solid rgba(255,255,255,.10);
+  padding: 8px 0; background: none; border: 0; border-top: 1px solid var(--panel-line);
   cursor: pointer; text-align: left; }
-.diag-caret { flex: 0 0 auto; width: 11px; font-size: 12px; color: #7C8B9C; }
+.diag-caret { flex: 0 0 auto; width: 11px; font-size: 12px; color: var(--panel-dim); }
 .diag-toggle-title { font-family: var(--sans); font-size: 14px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .07em; color: #9FB0C4; }
-.diag-toggle:hover .diag-toggle-title { color: #C9D3DE; }
-.diag-toggle-meta { font-family: var(--sans); font-size: 13px; color: #7C8B9C; }
+  text-transform: uppercase; letter-spacing: .07em; color: var(--panel-lbl); }
+.diag-toggle:hover .diag-toggle-title { color: var(--panel-ink); }
+.diag-toggle-meta { font-family: var(--sans); font-size: 13px; color: var(--panel-dim); }
 .diag-toggle-meta .flagged { color: #E88; font-weight: 600; }
 
 /* ── AI tab, after Allegory's: sub-tabs, one-click model tiles, a custom URL row.
    Colours are for the dark .ai-modal panel. */
 .ai-sub { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0 10px; }
 .ai-subtabs { display: flex; gap: 2px; }
-.ai-subtab { font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: #9FB0C4;
+.ai-subtab { font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: var(--panel-lbl);
   background: none; border: 0; border-bottom: 2px solid transparent; padding: 5px 10px; cursor: pointer; }
-.ai-subtab:hover { color: #C9D3DE; }
-.ai-subtab.on { color: #2b2a26; background: var(--cave-glow, #D4A843); border-bottom-color: transparent;
+.ai-subtab:hover { color: var(--panel-ink); }
+.ai-subtab.on { color: #fff; background: var(--panel-accent); border-bottom-color: transparent;
   border-radius: 5px 5px 0 0; padding-left: 10px; padding-right: 10px; }
-.ai-selected { font-family: var(--sans); font-size: 13px; color: #7C8B9C; }
-.ai-selected b { color: #F0E6D2; font-weight: 600; }
+.ai-selected { font-family: var(--sans); font-size: 13px; color: var(--panel-dim); }
+.ai-selected b { color: var(--panel-ink); font-weight: 600; }
 /* "Get a key ↗" inside a provider card. Keys are collected with prompt(), which
    cannot carry a link, so the card has to be where the student finds one. */
 .ai-getkey { display: inline-block; margin-top: 4px; font-family: var(--sans);
@@ -1256,17 +1281,17 @@ body.focus .iconbtn { display: none !important; }
 .ai-card.on .ai-badge { display: none; }   /* the tick replaces "Local" on the chosen one */
 .ai-card-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ai-card-main b { font-family: var(--sans); font-size: 15.5px; color: #F0E6D2; font-weight: 600; }
-.ai-card-main small { font-family: var(--sans); font-size: 13px; color: #7C8B9C; word-break: break-all; }
+.ai-card-main small { font-family: var(--sans); font-size: 13px; color: var(--panel-dim); word-break: break-all; }
 .ai-badge { flex: 0 0 auto; font-family: var(--sans); font-size: 12px; color: #9FC5E8;
   background: rgba(159,197,232,.14); border-radius: 4px; padding: 2px 7px; }
 .ai-add { border: 1px dashed rgba(255,255,255,.18); border-radius: 8px; padding: 10px 12px; }
-.ai-add b { display: block; font-family: var(--sans); font-size: 15px; color: #C9D3DE; }
-.ai-add small { display: block; font-family: var(--sans); font-size: 13px; color: #7C8B9C; margin-bottom: 6px; }
+.ai-add b { display: block; font-family: var(--sans); font-size: 15px; color: var(--panel-ink); }
+.ai-add small { display: block; font-family: var(--sans); font-size: 13px; color: var(--panel-dim); margin-bottom: 6px; }
 .ai-add input { width: 100%; box-sizing: border-box; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.14);
   color: #F0E6D2; border-radius: 6px; padding: 6px 8px; font: 12px var(--sans); }
-.ai-scan { font-family: var(--sans); font-size: 14.5px; color: #7C8B9C; margin: 0; }
+.ai-scan { font-family: var(--sans); font-size: 14.5px; color: var(--panel-dim); margin: 0; }
 .ai-foot { font-family: var(--sans); font-size: 12.5px; color: #6B7A8A; margin: 12px 0 6px; }
-.ai-disable { font-family: var(--sans); font-size: 14px; color: #9A9083; background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; }
+.ai-disable { font-family: var(--sans); font-size: 14px; color: var(--panel-dim); background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; }
 .ai-disable:hover { color: #E88; }
 
 /* Lift-from-gush. Live once the buzzer has gone, hidden while the clock runs — during a
