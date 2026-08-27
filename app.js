@@ -4112,7 +4112,10 @@ You: Really. The first line only has to exist, not be good.`;
     if(!list.length){
       el.innerHTML = scope + (all.length
         ? `<p class="hl-empty">Nothing marked on ${vis && vis.length > 1 ? 'these pages' : 'this page'} yet. Drag a box around a passage, then choose ✎ Highlight.</p>`
-        : '<p class="hl-empty">Nothing marked yet. Drag a box around a passage, then choose ✎ Highlight.</p>');
+        : '<p class="hl-empty">Nothing marked yet. '
+          + (COARSE_POINTER ? 'Tap ▣ Mark passage, then drag a box around a passage'
+                            : 'Drag a box around a passage')
+          + ', then choose ✎ Highlight.</p>');
       return;
     }
     el.innerHTML = scope + list.map(h => {
@@ -4510,7 +4513,7 @@ You: Really. The first line only has to exist, not be good.`;
       ? readings.map((r,i)=>`<option value="${i}" ${i===activeReading?'selected':''} title="${escHtml(r.name)}">${escHtml(readingLabel(r))}</option>`).join('')
       : `<option value="-1">No readings loaded yet</option>`;
     const active = readings[activeReading];
-    frame.innerHTML = `<div class="head"><h1>Readings</h1><p>Open a chapter, read closely, think in the margin. Full width — the reading fills the page, your notes sit off to the side.</p></div>
+    frame.innerHTML = `<div class="head"><h1>Readings</h1></div>
       <div class="shelf">
         <span class="shelf-lbl">Reading</span>
         <select id="readingSelect" class="reading-select" ${readings.length?'':'disabled'}>${options}</select>
@@ -6231,8 +6234,32 @@ You: Really. The first line only has to exist, not be good.`;
   // debounce. So the recipe was fit + focus: the page sat at a size measured for the
   // other layout while several width changes raced each other through the observer.
   // Ask directly, two frames later, once the new layout has actually been laid out.
+  // Focus hides the app's own chrome. The browser's -- URL bar, bookmarks, tabs -- is
+  // not ours to hide except through the Fullscreen API, which needs the click that
+  // called this and so cannot be done anywhere else.
+  // ⚠ iOS and iPadOS Safari do not implement Fullscreen for page elements at ALL (only
+  // for <video>), so this is a no-op there by design, not a bug to chase later. The
+  // answer on an iPad is Add to Home Screen, which has no chrome to begin with.
+  // Every call is guarded: a refusal must leave focus mode working, just with the
+  // browser still showing.
+  function requestChromeless(){
+    try {
+      const el = document.documentElement;
+      if(document.fullscreenElement) return;
+      const go = el.requestFullscreen || el.webkitRequestFullscreen;
+      if(go) Promise.resolve(go.call(el, { navigationUI: 'hide' })).catch(()=>{});
+    } catch(e){}
+  }
+  function releaseChromeless(){
+    try {
+      if(!document.fullscreenElement) return;
+      const out = document.exitFullscreen || document.webkitExitFullscreen;
+      if(out) Promise.resolve(out.call(document)).catch(()=>{});
+    } catch(e){}
+  }
   function setFocus(on){
     body.classList.toggle('focus', on);
+    if(on) requestChromeless(); else releaseChromeless();
     if(tab !== 'read') return;
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const r = readings[activeReading];
@@ -6242,6 +6269,9 @@ You: Really. The first line only has to exist, not be good.`;
   document.getElementById('focusToggle').addEventListener('click',()=>setFocus(!body.classList.contains('focus')));
   document.getElementById('exitFocus').addEventListener('click',()=>setFocus(false));
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!G.running) setFocus(false); });
+  document.addEventListener('fullscreenchange', () => {
+    if(!document.fullscreenElement && body.classList.contains('focus')) setFocus(false);
+  });
 
   // Save / open the whole notebook of typed work as one file.
   const _saveBtn = document.getElementById('saveWorkBtn');
