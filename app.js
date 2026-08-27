@@ -2749,11 +2749,17 @@ async function runReflection(rf, text, hooks) {
   // Reading view state.
   let readPageMode = DB.readPageMode || 'single';   // 'single' | 'continuous'
   let readSpread = (DB.readSpread === 2) ? 2 : 1;   // pages shown at once in 'single'
+  // What the reader ASKED for is readSpread; what the pane can actually SHOW is
+  // _effSpread. They come apart at a fixed zoom, and everything that renders, labels
+  // or turns a page uses the effective one -- so a spread that will not fit degrades
+  // to one page rather than to two pages with their outer edges cut off, and Next
+  // then steps by one instead of skipping the page it never showed.
+  let _effSpread = readSpread;
   // The pages on screen right now. null means "all of them" (continuous), which the
   // margin reads as "do not filter".
   function visiblePages(){
     if(readPageMode !== 'single') return null;
-    return Array.from({ length: readSpread }, (_, i) => readPageNum + i);
+    return Array.from({ length: _effSpread }, (_, i) => readPageNum + i);
   }
   let readPageNum = 1;                               // current page in single mode
   let _curPdf = { id:null, doc:null, labels:null };  // cache the parsed doc so paging doesn't reparse
@@ -4241,16 +4247,48 @@ You: Really. The first line only has to exist, not be good.`;
     if(readPageNum < 1) readPageNum = 1;
     // The page controls live in the toolbar above the frame, not inside this scrolling
     // pane. Splitting them across two strips was the thing that read as "wrong".
+    // Measured here rather than beside the render loop, because the page label and the
+    // Next button are built below and have to agree with what is about to be drawn.
+    const _cs0 = getComputedStyle(pane);
+    const _availW0 = Math.max(320, pane.clientWidth
+      - (parseFloat(_cs0.paddingLeft) || 0) - (parseFloat(_cs0.paddingRight) || 0));
+    const _availH0 = Math.max(280, pane.clientHeight
+      - (parseFloat(_cs0.paddingTop) || 0) - (parseFloat(_cs0.paddingBottom) || 0));
+    // At a fixed zoom the scale ignores the column -- 150% is 150% however narrow the
+    // pane -- so two pages can want more width than there is. The flex row then shrinks
+    // each .pdf-page while its canvas keeps the width it was rendered at, and
+    // .pdf-page's overflow:hidden quietly slices the right-hand edge off BOTH pages:
+    // the reading looks like a bad scan rather than a window too small. Fit and Fit-page
+    // cannot hit this, because they derive the scale FROM the column.
+    _effSpread = readSpread;
+    if(single && readSpread === 2 && doc.numPages > 1){
+      try {
+        const probe = await doc.getPage(Math.min(readPageNum, doc.numPages));
+        if(token !== _readToken) return;
+        const unit0 = probe.getViewport({ scale: 1 });
+        const half = Math.max(280, Math.floor((_availW0 - 18) / 2));
+        const s0 = zoomScale(unit0, half, _availH0);
+        if(unit0.width * s0 * 2 + 18 > _availW0 + 1){
+          _effSpread = 1;
+          logEvent('ui', 'two-page view needs more width than there is — showing one page',
+                   { zoom: String(readZoom), pane: Math.round(_availW0) + 'px',
+                     wanted: Math.round(unit0.width * s0 * 2 + 18) + 'px' });
+        }
+      } catch(e){ /* cannot measure -- let it try rather than refuse to render */ }
+    }
     const navHost = document.getElementById('pageNav');
     if(navHost) navHost.innerHTML = single
       ? (() => {
-          const last = Math.min(readPageNum + readSpread - 1, doc.numPages);
+          const last = Math.min(readPageNum + _effSpread - 1, doc.numPages);
           const shown = last > readPageNum
             ? `Pages ${pageLabelFor(readPageNum)}–${pageLabelFor(last)}`
             : `Page ${pageLabelFor(readPageNum)}`;
+          const squeezed = readSpread === 2 && _effSpread === 1
+            ? `<span class="pdfnav-note">Two pages needs a wider window, or a smaller zoom.</span>` : '';
           return `<button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button>`
             + `<span class="pdfnav-lbl">${shown} of ${pageLabelFor(doc.numPages)}</span>`
-            + `<button class="pdfnav-btn" id="pgNext" ${last>=doc.numPages?'disabled':''}>Next ›</button>`;
+            + `<button class="pdfnav-btn" id="pgNext" ${last>=doc.numPages?'disabled':''}>Next ›</button>`
+            + squeezed;
         })()
       : `<span class="pdfnav-lbl">${doc.numPages} pages · scroll to read</span>`;
     // ⚠ NEVER BLANK THE PANE FOR A RENDER THAT MAY NOT FINISH (Todd, 2026-08-26):
@@ -4278,8 +4316,8 @@ You: Really. The first line only has to exist, not be good.`;
       // would keep showing the page you just left.
       // Step by the spread: a two-page view turns two pages, or the reader re-reads
       // the page they just finished every time they click Next.
-      if(pv) pv.onclick = ()=>{ if(readPageNum>1){ readPageNum = Math.max(1, readPageNum - readSpread); renderActiveDoc(r); renderHighlightList(); } };
-      if(nx) nx.onclick = ()=>{ if(readPageNum + readSpread - 1 < doc.numPages){ readPageNum += readSpread; renderActiveDoc(r); renderHighlightList(); } };
+      if(pv) pv.onclick = ()=>{ if(readPageNum>1){ readPageNum = Math.max(1, readPageNum - _effSpread); renderActiveDoc(r); renderHighlightList(); } };
+      if(nx) nx.onclick = ()=>{ if(readPageNum + _effSpread - 1 < doc.numPages){ readPageNum += _effSpread; renderActiveDoc(r); renderHighlightList(); } };
     }
     const _cs = getComputedStyle(pane);
     const _padX = (parseFloat(_cs.paddingLeft) || 0) + (parseFloat(_cs.paddingRight) || 0);
@@ -4292,7 +4330,7 @@ You: Really. The first line only has to exist, not be good.`;
       ? (visiblePages() || []).filter(n => n >= 1 && n <= doc.numPages)
       : Array.from({length:doc.numPages}, (_,i)=>i+1);
     // Two portrait pages side by side need half the width each, less the gap between.
-    const twoUp = single && readSpread === 2 && pages.length > 1;
+    const twoUp = single && _effSpread === 2 && pages.length > 1;
     const colW = twoUp ? Math.max(280, Math.floor((avail - 18) / 2)) : avail;
     if(twoUp) wrap.classList.add('two-up');
     for(const n of pages){
