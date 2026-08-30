@@ -2846,7 +2846,18 @@ async function runReflection(rf, text, hooks) {
   // is swallowed rather than reported.
   function releasePdf(d, keep){
     if(!d || d === keep) return;
-    try { const p = d.destroy(); if(p && p.catch) p.catch(() => {}); } catch(e){}
+    stopPageObservers();
+    // ⚠ IT IS THE LOADING TASK THAT HAS destroy(), NOT THE DOCUMENT. In pdf.js 6.0.227
+    // PDFDocumentProxy exposes cleanup(), loadingTask and no destroy at all — so
+    // `d.destroy()` threw a TypeError that this very try/catch swallowed, and build 205
+    // freed NOTHING while reporting that it did. Found 2026-08-30 only because a probe
+    // counted the calls instead of trusting the code. Never silently accept "no way to
+    // destroy" again: say so, loudly, so the next pdf.js bump cannot repeat this.
+    const task = (d.loadingTask && typeof d.loadingTask.destroy === 'function') ? d.loadingTask
+               : (typeof d.destroy === 'function' ? d : null);
+    if(!task){ console.warn('releasePdf: this pdf.js build exposes no destroy() — nothing was freed'); return; }
+    // destroy() rejects when a render is still in flight, which is ordinary here.
+    try { const p = task.destroy(); if(p && p.catch) p.catch(() => {}); } catch(e){ console.warn('releasePdf', e); }
   }
   function dropPdf(){ stopPageObservers(); const d = _curPdf.doc; _curPdf = { id:null, doc:null, labels:null }; releasePdf(d); }
   // ── Which pages currently hold a canvas is decided by two IntersectionObservers set

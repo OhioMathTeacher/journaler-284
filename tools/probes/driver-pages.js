@@ -11,27 +11,28 @@
 //     readings." → bands and cards come from the DB, and no render path touches them.
 (function(){
   var OUT = [], ERRS = [];
-  var RID = 'f:_p_probe.pdf', NPAGES = 30, NHL = 12;
+  var RID = 'f:_p_probe.pdf', RID2 = 'f:_p_probe2.pdf', NPAGES = 30, NHL = 12;
   window.addEventListener('error', function(e){ ERRS.push('error: ' + (e.message || e)); });
   window.addEventListener('unhandledrejection', function(e){ ERRS.push('reject: ' + (e.reason && e.reason.message || e.reason)); });
   function ok(n, p, d){ OUT.push({ n: n, p: !!p, d: d === undefined ? '' : String(d) }); }
   function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
 
-  function idbSeed(buf){
+  function idbSeed(buf, key){
     return new Promise(function(res, rej){
       var req = indexedDB.open('cr284_readings', 2);
       req.onupgradeneeded = function(){ var db = req.result;
         if(!db.objectStoreNames.contains('files')) db.createObjectStore('files');
         if(!db.objectStoreNames.contains('handles')) db.createObjectStore('handles'); };
       req.onsuccess = function(){ var tx = req.result.transaction('files', 'readwrite');
-        tx.objectStore('files').put(buf, RID);
+        tx.objectStore('files').put(buf, key || RID);
         tx.oncomplete = function(){ res(); }; tx.onerror = function(){ rej(tx.error); }; };
       req.onerror = function(){ rej(req.error); };
     });
   }
 
   async function seedAndReload(){
-    await idbSeed(await (await fetch('./_p_probe.pdf')).arrayBuffer());
+    var _buf = await (await fetch('./_p_probe.pdf')).arrayBuffer();
+    await idbSeed(_buf); await idbSeed(_buf.slice(0), RID2);
     // One highlight every other page, spread the length of the chapter and far enough
     // apart that the margin never has to push a card off its own band — so a drift
     // measurement means what it says.
@@ -45,7 +46,8 @@
     var db = { v: 2, name: 'Probe Reader', freewrite: {}, currere: {}, notebook: {},
       _journalMigrated: true, _readingIdsV2: true, journal: [], qa: {}, highlights: {},
       readPageMode: 'continuous', notesOpen: true, activeReading: 0,
-      readings: [{ id: RID, name: '_p_probe.pdf', type: 'pdf' }] };
+      readings: [{ id: RID, name: '_p_probe.pdf', type: 'pdf' },
+                 { id: RID2, name: '_p_probe2.pdf', type: 'pdf' }] };
     db.highlights[RID] = hls;
     localStorage.setItem('cr284_state', JSON.stringify(db));
     sessionStorage.setItem('probePass', '2');
@@ -198,6 +200,44 @@
     var grew = (localStorage.getItem('cr284_state') || '').length - before;
     ok('I8 it cost bytes, not kilobytes', grew > 0 && grew < 2000, 'DB grew by ' + grew + ' bytes');
     ok('I9 the band is painted on the page it was drawn on', !!document.querySelector('#docPane .hl-mark[data-hl="' + (made && made.id) + '"]'));
+
+    // ── J · switching chapters must DESTROY the document, not walk away from it.
+    //
+    // ⚠ IT IS THE LOADING TASK THAT OWNS destroy(). PDFDocumentProxy in pdf.js 6.0.227
+    // has cleanup() and loadingTask and NO destroy at all, so the obvious doc.destroy()
+    // throws a TypeError straight into releasePdf's catch and frees nothing, silently.
+    // Build 205 shipped exactly that and reported success. This counts the calls.
+    var destroyed = 0, wrapped = false;
+    try {
+      var lt = pdfjsLib.getDocument({ data: (await (await fetch('./_p_probe.pdf')).arrayBuffer()) });
+      await lt.promise;
+      var proto = Object.getPrototypeOf(lt);
+      ok('J1 the teardown call exists on this pdf.js build',
+         typeof proto.destroy === 'function',
+         (proto.constructor && proto.constructor.name) + '.destroy = ' + typeof proto.destroy);
+      if(typeof proto.destroy === 'function'){
+        var orig = proto.destroy;
+        proto.destroy = function(){ destroyed++; return orig.apply(this, arguments); };
+        wrapped = true;
+      }
+      await lt.destroy();          // counts 1 — our own, not the app's
+    } catch(e){ ok('J1 the teardown call exists on this pdf.js build', false, String(e && e.message || e)); }
+    var mine = destroyed;
+
+    // switch chapters through the shelf, the way a reader does
+    var picks = document.querySelectorAll('.drawer-pick');
+    ok('J2 the shelf offers both chapters', picks.length >= 2, picks.length + ' entries');
+    if(wrapped && picks.length >= 2){
+      for(var sw = 0; sw < 3; sw++){
+        document.querySelectorAll('.drawer-pick')[sw % 2 === 0 ? 1 : 0].click();
+        for(var w = 0; w < 40 && !document.querySelector('#docPane .pdf-page > canvas'); w++) await sleep(250);
+        await sleep(800);
+      }
+    }
+    ok('J3 every chapter switched away from was destroyed', destroyed - mine >= 3,
+       (destroyed - mine) + ' destroy() calls across 3 switches');
+    ok('J4 and a chapter is still readable after all that', pageDivs() > 0 && canvases().length > 0,
+       pageDivs() + ' divs, ' + canvases().length + ' canvases');
 
     finish();
   }

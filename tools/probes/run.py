@@ -41,10 +41,16 @@ def make_page(suite):
     """The probe page IS index.html, with one script tag added. Nothing about the app
     is stubbed or reimplemented — a suite that tests a copy tests the copy."""
     src = open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
-    tag = '<script src="tools/probes/driver-%s.js"></script>\n</body>' % suite
+    tag = '<script src="tools/probes/driver-%s.js"></script>\n' % suite
     assert '</body>' in src, 'index.html has no </body>'
+    # ⚠ THE LAST </body>, NOT THE FIRST. 318P's own script writes a whole HTML document
+    # into a print window from a template literal, so the first '</body>' in the file is
+    # inside a JavaScript STRING — injecting there lands the driver tag mid-literal and
+    # the app dies with "Unexpected end of input" a thousand lines from anything real.
+    assert '</body>' in src, 'index.html has no </body>'
+    head, tail = src.rsplit('</body>', 1)
     out = os.path.join(ROOT, '_p_%s.html' % suite)
-    open(out, 'w', encoding='utf-8').write(src.replace('</body>', tag, 1))
+    open(out, 'w', encoding='utf-8').write(head + tag + tail)
     return out
 
 
