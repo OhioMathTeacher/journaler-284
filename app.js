@@ -1521,7 +1521,32 @@ async function runReflection(rf, text, hooks) {
   // is only a claim that something happened. With an action the toast stays up long
   // enough to be clicked and is the only pointer-events:auto thing on screen; without
   // one it behaves exactly as it always did.
-  function toast(msg, action){
+  // ⚠ NO NATIVE DIALOG ON A DESTRUCTIVE PATH (Todd, 2026-08-30, in Firefox: "I
+  // accidentally clicked do not allow local host to prompt me. Now I can't delete
+  // things. Help!"). A suppressed confirm() does not throw and does not warn — it
+  // returns FALSE, instantly, which every caller here read as "the reader pressed
+  // Cancel". One browser checkbox silently disabled every delete in the app, with no
+  // way for the app to tell and no way for the reader to tell either.
+  //
+  // Ask-first was never the only option. Do the thing, say what was done, and hold the
+  // old value for as long as the toast is up: one click instead of two when it was
+  // meant, and genuinely reversible when it was not — which is more than a confirm ever
+  // offered. Nothing here can be switched off by a browser setting.
+  // ⚠ NO TIMER ON THIS ONE (Todd, 2026-08-30): "I just don't want them to delete the
+  // wrong thing on accident and not be able to get back. I think offering the deletion
+  // back should happen until they make a decision (not only for a few seconds)."
+  // Four seconds is the wrong shape for the mistake it is meant to catch — "that was
+  // the wrong one" is a thought that arrives AFTER the thing has gone, when the reader
+  // looks up and the passage they wanted is not in the margin. So the offer waits.
+  function undoably(said, undo){
+    toast(said, { label: 'Undo', onClick: undo }, { decide: true });
+  }
+
+  // action = { label, onClick } — a passing offer, taken or missed in a few seconds.
+  // opts.decide = true — the offer WAITS. Nothing fades out from under the reader; it
+  // stands until they take it or dismiss it.
+  function toast(msg, action, opts){
+    opts = opts || {};
     let el = document.getElementById('cr284Toast');
     if(!el){ el = document.createElement('div'); el.id = 'cr284Toast'; el.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--parchment);font-family:var(--sans);font-size:15px;padding:9px 16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;display:flex;align-items:center;gap:14px'; document.body.appendChild(el); }
     const hide = () => { el.style.opacity = '0'; el.style.pointerEvents = 'none'; };
@@ -1533,9 +1558,17 @@ async function runReflection(rf, text, hooks) {
       b.type = 'button'; b.className = 'toastact'; b.textContent = action.label;
       b.onclick = () => { clearTimeout(_toastT); hide(); action.onClick(); };
       el.appendChild(b);
+      if(opts.decide){
+        // The other half of the decision, and it has to be here: a message that never
+        // goes away on its own needs a way to be sent away.
+        const d = document.createElement('button');
+        d.type = 'button'; d.className = 'toastact toastdismiss'; d.textContent = 'Dismiss';
+        d.onclick = () => { clearTimeout(_toastT); hide(); };
+        el.appendChild(d);
+      }
     }
     el.style.opacity = '1'; clearTimeout(_toastT);
-    _toastT = setTimeout(hide, action ? 4200 : 1700);
+    if(!opts.decide) _toastT = setTimeout(hide, action ? 4200 : 1700);
   }
   function elevate(pieceId, pieceKind, pieceTitle, text, dateKey, meta){
     text = (text||'').trim();
@@ -4059,8 +4092,9 @@ You: Really. The first line only has to exist, not be good.`;
       const t = log.querySelector('.rm-edit'); if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
     });
     log.querySelectorAll('.rm-tool[data-del]').forEach(b => b.onclick = () => {
-      if(!confirm('Delete this exchange?')) return;
+      const rid = currentReadingId(), kept = getQA(rid).slice();
       removeQA(b.dataset.del); renderConversation();
+      undoably('Exchange removed', () => { persistQA(rid, kept); renderConversation(); });
     });
     // Committed on blur as well as on Enter: a reader who edits a line and then taps
     // Send would otherwise lose the edit to the re-render.
@@ -4156,7 +4190,11 @@ You: Really. The first line only has to exist, not be good.`;
       return `<div class="notecard qa" data-qa="${r.id}">${ctx}${you}${him}<div class="hl-row">${keep}<button class="hl-del" data-qa="${r.id}">Remove</button></div></div>`;
     }).join('');
     box.querySelectorAll('.qa-quote').forEach(q => q.onclick = () => q.closest('.notecard').classList.toggle('open'));
-    box.querySelectorAll('.hl-del[data-qa]').forEach(b => b.onclick = () => removeQA(b.dataset.qa));
+    box.querySelectorAll('.hl-del[data-qa]').forEach(b => b.onclick = () => {
+      const rid = currentReadingId(), kept = getQA(rid).slice();
+      removeQA(b.dataset.qa);
+      undoably('Exchange removed', () => { persistQA(rid, kept); renderConversation(); });
+    });
     box.querySelectorAll('.hl-keep[data-qakeep]').forEach(b => b.onclick = () => {
       const rec = getQA(currentReadingId()).find(x => x.id === b.dataset.qakeep);
       if(rec) elevateQA(rec, selectedWithin(b.closest('.notecard')));
@@ -4228,11 +4266,21 @@ You: Really. The first line only has to exist, not be good.`;
     const rid = currentReadingId(); if(!rid) return null;
     persistHighlights(rid, getHighlights(rid).concat([rec])); return rec;
   }
+  // ⚠ THE LIKELIEST ACCIDENT IN THE APP. Remove sits on every card, beside four
+  // harmless buttons, and until now it asked nothing and offered nothing back: one
+  // stray click and a marked passage, its dated notes and its band were gone for good.
+  // Clear-all had a confirm and this did not, which is exactly backwards — the button
+  // you press often is the one that needs the way back.
   function removeHighlight(id){
     const rid = currentReadingId(); if(!rid) return;
-    persistHighlights(rid, getHighlights(rid).filter(h => h.id !== id));
+    const kept = getHighlights(rid).slice();
+    const gone = kept.find(h => h.id === id);
+    persistHighlights(rid, kept.filter(h => h.id !== id));
     document.querySelectorAll(`.hl-mark[data-hl="${id}"]`).forEach(el => el.remove());
     renderHighlightList();
+    if(gone) undoably('Highlight removed', () => {
+      persistHighlights(rid, kept); renderHighlightList(); repaintHighlights();
+    });
   }
   // Map a list of DOM client rects to {page,x,y,w,h} fractions of the page they sit on.
   function normalizeRectsToPages(clientRects){
@@ -4503,7 +4551,7 @@ You: Really. The first line only has to exist, not be good.`;
         + `<div class="hl-quote" data-hl="${h.id}" title="Click to go to it on the page. Use ✎ Trim to fix a box that grabbed too much.">${quote}</div>`
         + thumb + notes
         + `<div class="hl-row">`
-        + `<button class="hl-goto" data-hl="${h.id}" title="Scroll back to this passage and flash it">Go to p. ${escHtml(String(h.pageLabel || h.page || '?'))}</button>`
+        + `<button class="hl-goto" data-hl="${h.id}" data-pg="${escHtml(String(h.pageLabel || h.page || '?'))}" title="Go to this passage on page ${escHtml(String(h.pageLabel || h.page || '?'))} and flash it">${escHtml(String(h.pageLabel || h.page || '?'))}</button>`
         + `<button class="hl-add" data-hl="${h.id}" title="Add a dated line to this note. The old one stays — what you thought later beside what you thought first is the evidence your thread reading needs.">＋ Add</button>`
         + `<button class="hl-trim" data-hl="${h.id}" title="Edit the quoted passage — for when the box grabbed a line more than you meant. The mark on the page does not move.">✎ Trim</button>`
         + `<button class="hl-nb" data-hl="${h.id}" title="Keep this passage in your Writer's Notebook as a dated entry of its own, with its citation. The highlight stays here too.">Keep</button>`
@@ -4597,14 +4645,41 @@ You: Really. The first line only has to exist, not be good.`;
       `<button class="hl-clear" id="hlClearAll">Clear all ${list.length} on this reading</button>`;
     const clr = document.getElementById('hlClearAll');
     if(clr) clr.onclick = () => {
-      if(!confirm(`Remove all ${list.length} highlights on this reading? This cannot be undone.`)) return;
-      persistHighlights(currentReadingId(), []);
+      const rid = currentReadingId(), kept = getHighlights(rid).slice();
+      if(!kept.length) return;
+      persistHighlights(rid, []);
       document.querySelectorAll('.hl-mark').forEach(m => m.remove());
       renderHighlightList();
+      undoably(`Removed ${kept.length} highlight${kept.length === 1 ? '' : 's'}`, () => {
+        persistHighlights(rid, kept); renderHighlightList(); repaintHighlights();
+      });
     };
     el.querySelectorAll('.hl-nb').forEach(b => b.onclick = () => elevateHighlight(list.find(h => h.id === b.dataset.hl)));
     el.querySelectorAll('.hl-del').forEach(b => b.onclick = () => removeHighlight(b.dataset.hl));
+    fitGotoLabels(el);   // before the margin lays out — this changes card heights
     layoutMarginNotes();
+  }
+  // ⚠ MEASURED, NOT GUESSED. The five controls on a card have to fit one line, or the
+  // row doubles and every card in the anchored margin is pushed further from the passage
+  // it belongs to. At "p.20" they fit with about 2px to spare — and 2px is not a margin
+  // you can rely on, because a different font fallback on someone else's machine moves
+  // text by more than that. Dropping the "p." (Todd: "or just drop the p") buys back
+  // ~11px and takes every page label this app can print well clear: 1, 20, 121, xviii,
+  // xxviii all hold one line. The title says "page 20" in full, so the number keeps its
+  // meaning for anyone who wonders what it is.
+  //
+  // The arrow is the floor under all of that, for a label long enough to overrun even
+  // so — Todd's idea: "what if tight cases are replaced with an arrow or something?"
+  // The row is ASKED whether it actually wrapped rather than told when it would.
+  function fitGotoLabels(host){
+    if(!host) return;
+    host.querySelectorAll('.hl-card').forEach(card => {
+      const row = card.querySelector('.hl-row');
+      const g = row && row.querySelector('.hl-goto');
+      if(!row || !g || !g.dataset.pg) return;
+      const wrapped = () => new Set([...row.querySelectorAll('button')].map(b => b.offsetTop)).size > 1;
+      if(wrapped()) g.textContent = '\u2192';   // the way back, and nothing else
+    });
   }
 
   // ── Notes beside their passages ──────────────────────────────────────────────
@@ -5102,13 +5177,21 @@ You: Really. The first line only has to exist, not be good.`;
   function removeReadingAt(i){
     const r = readings[i];
     if(!r) return;
-    if(!confirm('Remove “' + readingLabel(r) + '” from your shelf?\n\n'
-              + 'Your highlights and notes on it are removed with it. The file on your disk is untouched — load it again and you start fresh.')) return;
+    // The highlights are keyed by reading id and are NOT touched here, so putting the
+    // reading back brings its marked passages back with it.
+    const wasAt = activeReading;
     readings.splice(i, 1);
     if(activeReading >= readings.length) activeReading = Math.max(0, readings.length - 1);
     readPageNum = 1; _curPdf = { id:null, doc:null, labels:null };
     logEvent('read', 'removed “' + r.name + '” from the shelf');
     persistReadings(); renderRead();
+    undoably('Removed “' + readingLabel(r) + '”', () => {
+      readings.splice(Math.min(i, readings.length), 0, r);
+      activeReading = Math.min(wasAt, readings.length - 1);
+      _curPdf = { id:null, doc:null, labels:null };
+      logEvent('read', 'restored “' + r.name + '” to the shelf');
+      persistReadings(); renderRead();
+    });
   }
   function renderDrawer(){
     const host = document.getElementById('drawerList');
@@ -6687,7 +6770,11 @@ You: Really. The first line only has to exist, not be good.`;
     });
     frame.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => { nbEditingId = null; renderNote(); });
     frame.querySelectorAll('[data-save]').forEach(b => b.onclick = () => { const id = b.dataset.save; const ta = document.getElementById('edit_'+id); if(ta) updateEntry(id, ta.value); nbEditingId = null; renderNote(); });
-    frame.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if(confirm('Delete this page? This cannot be undone.')){ deleteEntry(b.dataset.del); nbEditingId = null; renderNote(); } });
+    frame.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+      const gone = (DB.journal || []).find(e => e.id === b.dataset.del);
+      deleteEntry(b.dataset.del); nbEditingId = null; renderNote();
+      undoably('Page deleted', () => { if(gone){ DB.journal.push(gone); saveDB(); } renderNote(); });
+    });
     frame.querySelectorAll('[data-open]').forEach(b => b.onclick = () => goToPiece(b.dataset.open));
   }
 
@@ -7246,7 +7333,11 @@ You: Really. The first line only has to exist, not be good.`;
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
   });
   const _dClear = document.getElementById('diagClear');
-  if(_dClear) _dClear.addEventListener('click', () => { if(confirm('Clear the event log?')) clearLog(); });
+  if(_dClear) _dClear.addEventListener('click', () => {
+    const kept = _log.slice();
+    clearLog();
+    undoably('Event log cleared', () => { _log = kept; try { localStorage.setItem(LOG_KEY, JSON.stringify(_log)); } catch(e){} renderDiagnostics(); });
+  });
   document.addEventListener('keydown', e => {
     if(e.key === 'Escape'){
       const o = document.getElementById('settingsOverlay');

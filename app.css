@@ -1098,8 +1098,22 @@ body.capturing .hl-mark:not(.preview) { display: none; }
 .qa-wait { color: var(--muted); }
 .hl-thumb { display: block; max-width: 100%; border-radius: 4px; margin: .35rem 0; border: 1px solid rgba(0,0,0,.12); }
 .hl-note { margin-top: .3rem; color: var(--muted); font-size: 0.943rem; font-style: italic; }
-.hl-row { display: flex; gap: .4rem; margin-top: .45rem; }
-.hl-goto, .hl-nb, .hl-del { font: inherit; font-size: 0.897rem; border: 1px solid var(--comment-border, rgba(0,0,0,.14)); background: transparent; border-radius: 6px; padding: .2rem .5rem; cursor: pointer; color: var(--muted); }
+/* wrap, so a long label pushes a BUTTON to the next line instead of being squeezed
+   until its own text breaks — which doubled the height of every button in the row. */
+.hl-row { display: flex; gap: .28rem; margin-top: .45rem; flex-wrap: wrap; }
+.hl-goto { white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* ⚠ The five of them have to fit ONE line in a 302px card. They did not: at "Go to
+   p. 20" the row was 312px of buttons in 302px of room, and flex answered by squeezing
+   each one until its own TEXT broke -- which is why every button in the row stood two
+   lines tall, why they looked justified edge-to-edge rather than left-aligned, and why
+   the card was 175px against 318P's 142px. The label is "p.20" now (Todd: "just say
+   p.1, p.2 without the Go to and without the extra space"), the sides are tighter, and
+   the row is allowed to WRAP -- so if a label ever does overrun, a button moves to the
+   next line instead of every button growing a second line.
+   Measured across every page label this app can print -- p.1, p.20, p.121, p.xviii --
+   the row holds one line at 0.86rem with the sides at .38rem. 318P fits the same five
+   controls by running them at 0.68rem, which is too small to read comfortably. */
+.hl-goto, .hl-nb, .hl-del, .hl-add, .hl-trim { font: inherit; font-size: 0.86rem; border: 1px solid var(--comment-border, rgba(0,0,0,.14)); background: transparent; border-radius: 6px; padding: .2rem .38rem; cursor: pointer; color: var(--muted); }
 .hl-goto:hover, .hl-nb:hover { color: var(--ink, #2b2a26); }
 .hl-del:hover { color: #a33; border-color: #a33; }
 .hl-clear { display: block; width: 100%; margin-top: .6rem; font: inherit; font-size: 0.874rem;
@@ -1583,6 +1597,9 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
   text-decoration: underline; text-underline-offset: 3px;
   opacity: .82; cursor: pointer; white-space: nowrap; }
 .toastact:hover, .toastact:focus-visible { opacity: 1; }
+/* Second on a waiting offer, and quieter than Undo: the reader is being asked to
+   decide, and the recoverable choice is the one that should catch the eye. */
+.toastdismiss { font-weight: 400; opacity: .62; text-decoration: none; }
 
 /* The entry you just arrived at, said once and then let go. Long enough to find with
    the eye after a smooth scroll, short enough not to become part of the page. */
