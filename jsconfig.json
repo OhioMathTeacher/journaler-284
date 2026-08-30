@@ -1,0 +1,12 @@
+{
+  "// note": "Scopes the editor's JavaScript language service to our own source. Without this, VS Code / VS Codium builds one inferred project out of every .js and .mjs in the folder, including the minified bundles in vendor/ (pdf.worker.min.mjs has a single 975,000-character line), which slows the editor to a crawl.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "checkJs": false,
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"]
+  },
+  "include": ["app.js", "poems.js", "tips.js", "tools/*.js"],
+  "exclude": ["vendor", "reference", "fonts", "poem-texts"]
+}

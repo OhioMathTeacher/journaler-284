@@ -1,0 +1,39 @@
+{
+  // Keep the file watcher off large generated/vendored trees. The watcher walks
+  // these on every change notification and they never change by hand.
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/vendor/**": true,
+    "**/fonts/**": true,
+    "**/poem-texts/**": true,
+    "**/tools/__pycache__/**": true
+  },
+
+  // Keep full-text search out of the minified bundles and binary assets.
+  // Searching them is never useful and each hit drags a ~975,000-character
+  // line into the results view.
+  "search.exclude": {
+    "**/vendor/**": true,
+    "**/fonts/**": true,
+    "**/reference/**": true,
+    "**/.git/**": true
+  },
+  "search.followSymlinks": false,
+
+  // Never let the editor try to render a minified bundle as normal source.
+  "files.associations": {
+    "vendor/*.min.js": "plaintext",
+    "vendor/*.min.mjs": "plaintext"
+  },
+
+  // Belt and braces alongside jsconfig.json: no automatic type acquisition,
+  // no auto-imports scanning vendor/, and a hard memory ceiling on the
+  // language server so a runaway parse cannot eat the machine.
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "typescript.tsserver.maxTsServerMemory": 2048,
+  "javascript.suggest.autoImports": false,
+  "javascript.preferences.includePackageJsonAutoImports": "off",
+
+  "editor.largeFileOptimizations": true
+}
