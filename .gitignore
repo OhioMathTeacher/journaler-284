@@ -3,6 +3,8 @@
 _probe.html
 _p_*.html
 _q_*.html
+# The probe chapter tools/probes/run.py builds and then deletes.
+_p_*.pdf
 
 # Python bytecode from the tools/ scripts.
 tools/__pycache__/
