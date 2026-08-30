@@ -271,6 +271,9 @@ function updateAIBtn() {
     const m = localStorage.getItem(CUSTOM_MODEL_KEY) || '';
     on = !!(getStoredKey('custom') && m); said = on ? m : 'Custom (needs setup)';
   }
+  // The reader is rendered behind the Settings overlay, so its AI doors have to be
+  // re-synced here rather than waiting for a tab switch that may never come.
+  if (window.syncAiSurfaces) window.syncAiSurfaces();
   if (!gear) return;
   gear.classList.toggle('ai-active', on);
   gear.title = `Settings · AI: ${said}`;
@@ -3084,7 +3087,6 @@ async function runReflection(rf, text, hooks) {
     });
   }
   function handleMarqueeCapture(boxRect, canvas, textLayerDiv){
-    // spans whose box mostly falls inside the marquee (>=35% area) …
     const hits = [];
     textLayerDiv.querySelectorAll('span').forEach(sp => {
       if(!sp.textContent || !sp.textContent.trim() || sp.classList.contains('markedContent')) return;
@@ -3092,13 +3094,28 @@ async function runReflection(rf, text, hooks) {
       if(!r.width || !r.height) return;
       const ix = Math.max(0, Math.min(r.right,boxRect.right)-Math.max(r.left,boxRect.left));
       const iy = Math.max(0, Math.min(r.bottom,boxRect.bottom)-Math.max(r.top,boxRect.top));
-      if(ix*iy >= 0.35*(r.width*r.height)) hits.push(sp);
+      // Two ways in, because a "span" is a word on one PDF and a whole line on the
+      // next (see clipSpanToRange). Either the box covers most of the span -- the
+      // word-per-span case this was written for -- OR the box is SITTING ON this
+      // span's line and running along a real part of it, which is what a phrase boxed
+      // inside a line-long span looks like. The second test is what stops the whole
+      // capture coming back empty on a born-digital PDF.
+      const onLine = iy >= 0.5 * Math.min(r.height, boxRect.height);
+      const along  = ix >= 0.35 * Math.min(r.width, boxRect.width);
+      if(ix*iy >= 0.35*(r.width*r.height) || (onLine && along)) hits.push(sp);
     });
-    // … then expand to complete lines between the first and last hit word.
-    const pr = passageLineRects(hits);
-    const text = spansToText(pr.spans);
-    const rects = normalizeRectsToPages(pr.rects);
+    // … then expand to complete lines between the first and last hit word, with the
+    // box itself narrowing the ends when a hit span is wider than the whole box.
+    const pr = passageLineRects(hits, null, boxRect);
+    const text = textForBands(pr.rects, pr.spans);
+    let rects = normalizeRectsToPages(pr.rects);
     if(pr.rects.length) console.log('[hl] box capture →', pr.rects.length, 'line(s), build', BUILD);
+    // ⚠ EVERY BOX LEAVES A MARK (Todd, 2026-08-30). A capture that found no text was
+    // stored with NO rects at all: a figure -- or a page whose text layer the box
+    // missed -- was kept, listed, and counted, while the page itself stayed blank. The
+    // reader is told the highlight was saved and can see it was not. The box is a
+    // perfectly good record of where they looked, so it becomes the band.
+    if(!rects.length) rects = normalizeRectsToPages([boxRect]);
     // ⚠ CROP ONLY A REAL FIGURE (Todd, 2026-08-25). This used to crop every box and
     // store the PNG as base64 on the highlight, so a passage of text was kept twice —
     // once as words, once as a picture of those words — in the DB, in localStorage, and
@@ -3221,18 +3238,92 @@ async function runReflection(rf, text, hooks) {
   // Anchor-driven bands. Now used only by BOX capture, which hit-tests spans
   //   geometrically and so supplies a genuine, complete anchor list. Selection does
   //   NOT use this — it has no reliable way to produce that list from a DOM range.
-  function passageLineRects(anchors, selRects){
+  // ⚠ ONE SPAN IS NOT ONE WORD (Todd, 2026-08-30: "I highlighted California eccentric
+  // but it didn't highlight in the text. I've had trouble with this a few times in this
+  // pdf."). Everything above was built on OCR'd scans, where pdf.js emits one span per
+  // WORD-CHUNK. On a born-digital PDF it emits one span per text ITEM, which is
+  // routinely a whole LINE -- and a box drawn around two words inside a line-long span
+  // covered a fifth of it, so the 35%-of-the-span hit test never fired: no text, no
+  // anchors, no rects, filed as a figure, and nothing painted on the page at all.
+  //
+  // Cut a span down to a horizontal range, character by character, so a line-long span
+  // can still give up the phrase that was actually boxed. Grown back out to whole words:
+  // the reader dragged a rough box, not a text cursor, and a band that stops mid-word
+  // reads as a bug. Returns null for anything that is not a single text node.
+  function clipSpanToRange(sp, left, right){
+    const node = sp.firstChild;
+    if(!node || node.nodeType !== 3 || sp.childNodes.length !== 1) return null;
+    const s = node.nodeValue || '';
+    if(!s) return null;
+    const rg = document.createRange();
+    let lo = -1, hi = -1;
+    for(let i = 0; i < s.length; i++){
+      rg.setStart(node, i); rg.setEnd(node, i + 1);
+      const r = rg.getBoundingClientRect();
+      if(!r.width) continue;
+      const cx = (r.left + r.right) / 2;
+      if(cx >= left && cx <= right){ if(lo < 0) lo = i; hi = i; }
+    }
+    if(lo < 0) return null;
+    // Trim the ends BEFORE growing. A box drawn a couple of pixels wide of the phrase
+    // catches the space next to it, and growing from a space walks backwards through
+    // the whole of the neighbouring word — "he was" came back as "so he was never".
+    while(lo <= hi && /\s/.test(s[lo])) lo++;
+    while(hi >= lo && /\s/.test(s[hi])) hi--;
+    if(lo > hi) return null;
+    while(lo > 0 && !/\s/.test(s[lo - 1])) lo--;
+    while(hi < s.length - 1 && !/\s/.test(s[hi + 1])) hi++;
+    return { text: s.slice(lo, hi + 1) };
+  }
+  // The text that matches the BANDS, rather than the spans the bands were built from.
+  // On a word-per-span layer those are the same thing and this costs nothing; on a
+  // line-per-span layer they are not, and the bands are what the reader can see. A span
+  // the band covers almost entirely is taken whole -- no point measuring 80 characters
+  // to arrive back at the string we started with.
+  function textForBands(rects, spans){
+    const out = [];
+    (rects || []).forEach(b => {
+      // Some PDFs carry the same words TWICE in the text layer — a run for the line and
+      // a span per word on top of it (dedupeTextItems catches the identical ones, not
+      // these). Two spans that sit on the same stretch of paper are one piece of text,
+      // so the second is dropped: "your browser," was coming back as "your browser,
+      // your". Distinct words never overlap, so nothing real is lost.
+      const taken = [];
+      spans.forEach(sp => {
+        const r = sp.getBoundingClientRect();
+        const mid = (r.top + r.bottom) / 2;
+        if(mid <= b.top || mid >= b.bottom) return;               // belongs to another line
+        const inBand = Math.min(r.right, b.right) - Math.max(r.left, b.left);
+        if(inBand <= 0) return;
+        if(taken.some(t => Math.min(r.right, t.right) - Math.max(r.left, t.left) >= 0.6 * r.width)) return;
+        taken.push(r);
+        if(inBand >= 0.92 * r.width){ out.push(sp.textContent || ''); return; }
+        const c = clipSpanToRange(sp, b.left, b.right);
+        out.push(c ? c.text : (sp.textContent || ''));
+      });
+    });
+    return cleanOcrText(out.join(' '));
+  }
+  // clip (optional) = the marquee box. A hit item WIDER THAN THE WHOLE BOX is a line,
+  // not a word, and then the box is the more precise instruction of the two: take its
+  // edge. An item narrower than the box is a word the reader dragged across, and it is
+  // taken whole -- which is what keeps a rough box over an OCR'd scan from stopping a
+  // band inside a word, the failure the line-clustering comments above are all about.
+  function passageLineRects(anchors, selRects, clip){
     if(!anchors || !anchors.length) return { rects:[], spans:[] };
     const set = new Set(anchors);
     const lines = docLines();
+    const wide  = it => clip && (it.right - it.left) > (clip.right - clip.left);
+    const edgeL = it => wide(it) ? Math.max(it.left,  clip.left)  : it.left;
+    const edgeR = it => wide(it) ? Math.min(it.right, clip.right) : it.right;
     let firstLine = -1, lastLine = -1, firstLeft = Infinity, lastRight = -Infinity;
     lines.forEach((ln, li) => {
       ln.items.forEach(it => {
         if(!set.has(it.sp)) return;
-        if(firstLine === -1 || li < firstLine){ firstLine = li; firstLeft = it.left; }
-        else if(li === firstLine){ firstLeft = Math.min(firstLeft, it.left); }
-        if(li > lastLine){ lastLine = li; lastRight = it.right; }
-        else if(li === lastLine){ lastRight = Math.max(lastRight, it.right); }
+        if(firstLine === -1 || li < firstLine){ firstLine = li; firstLeft = edgeL(it); }
+        else if(li === firstLine){ firstLeft = Math.min(firstLeft, edgeL(it)); }
+        if(li > lastLine){ lastLine = li; lastRight = edgeR(it); }
+        else if(li === lastLine){ lastRight = Math.max(lastRight, edgeR(it)); }
       });
     });
     if(firstLine === -1) return { rects:[], spans:[] };
@@ -3502,6 +3593,9 @@ async function runReflection(rf, text, hooks) {
       ? (captureText.length>150 ? captureText.slice(0,150)+'…' : captureText)
       : '(figure — no text in this box)';
     const input = pop.querySelector('#captureInput'); input.value='';
+    // Highlight, Copy and Keep in notebook are why a student without a key can use
+    // this at all -- same rule as the write popup: only the ASKING goes away.
+    syncAiSurfaces();
     // Measure rather than assume — the popup's size is set in CSS and used to
     // drift out of sync with hardcoded numbers here.
     pop.style.visibility = 'hidden'; pop.style.display = 'block';
@@ -3886,6 +3980,7 @@ You: Really. The first line only has to exist, not be good.`;
   let _rmEditing = null; // { id, field } while a line is being edited
 
   function openRomanoChat(passage, page){
+    if(aiOff()){ toast('Connect a model under \u2699 to ask ' + AI_NAME + '.'); syncAiSurfaces(); return; }
     _rmPassage = passage || '';
     _rmPage = page || readPageNum;
     _rmEditing = null;
@@ -3906,6 +4001,29 @@ You: Really. The first line only has to exist, not be good.`;
     _rmEditing = null;
   }
   window.closeRomanoChat = closeRomanoChat;
+
+  // ⚠ EVERY door onto Romano is closed from HERE (Todd, 2026-08-30): "when the AI is
+  // not enacted, I can still ask Romano questions in chat." Each surface used to decide
+  // for itself, and the two in the reader never asked at all -- the 🥫 button in the
+  // view bar and Ask in the capture popup were painted whatever the provider was, so a
+  // reader with no model could open the window, type, and send.
+  //
+  // Settings is an OVERLAY, not a tab, so turning AI off can happen with the reader
+  // still rendered behind it and nothing repainting afterwards. updateAIBtn is the one
+  // funnel every provider change goes through, so it calls this; renderRead and the
+  // capture popup call it too, for the surfaces they have just built.
+  function aiOff(){ return getProvider() === 'none'; }
+  function syncAiSurfaces(){
+    const off = aiOff();
+    const rb = document.getElementById('romanoBtn');
+    if(rb) rb.style.display = off ? 'none' : '';
+    const cap = document.getElementById('captureAskBtn');
+    if(cap) cap.style.display = off ? 'none' : '';
+    // Switched off while the window was open: don't leave a live composer behind.
+    const o = document.getElementById('romanoOverlay');
+    if(off && o && o.classList.contains('open')) closeRomanoChat();
+  }
+  window.syncAiSurfaces = syncAiSurfaces;
 
   function renderRomanoLog(){
     const log = document.getElementById('rmLog');
@@ -4060,16 +4178,20 @@ You: Really. The first line only has to exist, not be good.`;
       box.addEventListener('keyup',   () => setTimeout(relabel, 0));
     }
   }
-  // ⚠ RETIRED 2026-08-26 and currently unreferenced: Readings is notes only, so
-  // nothing calls this. Kept for one build rather than excised during class because it
-  // shares the retry/repair helpers below. Delete it, and whatever it alone uses, at the
-  // next clean-up. Do NOT wire it back into the reading pane.
+  // ⚠ The retired-and-unreferenced note that stood here was STALE and wrong: this is
+  // live, and both doors call it -- sendRomano from the ask bar, romanoOpenOnPassage
+  // from a marked passage. Do not delete it on the strength of an old comment.
   async function askRomanoInto(passage, question, page){
     const rid = currentReadingId(); if(!rid) return;
-    if(getProvider()==='none'){
+    if(aiOff()){
       // No-AI is a supported path — don't bank a question nothing will answer.
-      const box = document.getElementById('newnote');
-      if(box) box.insertAdjacentHTML('beforeend', '<div class="notecard"><em>Want to talk it through? Connect a model under \u2699 \u2014 optional. Your reading and notes work without it.</em></div>');
+      // ⚠ This used to append a notice straight into #newnote (Todd, 2026-08-30:
+      // "it adds error messages that can't be deleted from mynotes"). That div is
+      // the QA LIST's canvas: the notice was not a record, so it carried no Remove,
+      // renderQAList never knew about it, and every blocked ask stacked another
+      // undeletable card in the notes pane. Transient news belongs in a toast.
+      toast('Connect a model under \u2699 to ask ' + AI_NAME + '. Your reading and notes work without it.');
+      syncAiSurfaces();
       return;
     }
     const rec = addQA(rid, {
@@ -4178,9 +4300,18 @@ You: Really. The first line only has to exist, not be good.`;
   // rule in the other direction: move the view only as much as it has to. The margin is
   // a scrolling list here, so a card below the fold comes up first, then flashes.
   function revealHighlight(id){
+    // ⚠ Todd, 2026-08-30: "when I click on a quote in the reading, it doesn't trace back
+    // to the quote in the notes." Two reasons, and both of them look like nothing
+    // happening. The margin may be SHUT -- the cards are still in the DOM when it is, so
+    // this found one, scrolled it and flashed it where nobody could see any of that. And
+    // the scroller is .notes-scroll: measuring #hlList compared the card against a plain
+    // div that GROWS WITH ITS CONTENT, so a card far below the fold still tested as
+    // already in view and the list never moved. (#hlList stopped being the scrolling box
+    // when the ask bar was pinned; this was the one caller left reading it as one.)
+    if(!notesOpen) setNotesOpen(true);
     const card = document.querySelector(`.hl-card[data-hl="${id}"]`);
     if(!card){ return; }
-    const pane = document.getElementById('hlList');
+    const pane = card.closest('.notes-scroll');
     if(pane){
       const cr = card.getBoundingClientRect(), pr = pane.getBoundingClientRect();
       if(cr.bottom < pr.top + 2 || cr.top > pr.bottom - 2) card.scrollIntoView({ behavior:'smooth', block:'center' });
@@ -4236,16 +4367,40 @@ You: Really. The first line only has to exist, not be good.`;
     const r = document.querySelector('.reader');
     if(r) r.classList.toggle('notes-hidden', !notesOpen);
   }
+  // The margin has TWO doors now — ◧ in the view bar, and ◨ Show notes in the top bar
+  // for the reader who has already shut the pane and no longer has that first button
+  // in front of them. One setter and one labeller, so the pair can never disagree
+  // about which way the pane is pointing.
+  function syncNotesToggles(){
+    const all = getHighlights(currentReadingId());
+    // Work captured while the pane is closed still announces itself, on whichever
+    // door is showing, instead of vanishing into a panel nobody can see.
+    const badge = (!notesOpen && all.length) ? ' \u00b7 ' + all.length : '';
+    const nt = document.getElementById('notesToggle');
+    if(nt) nt.innerHTML = (notesOpen ? '\u25e7<span class="vb-word"> Hide notes</span>'
+                                     : '\u25e8<span class="vb-word"> Show notes</span>')
+                        + '<span class="hl-count" id="hlCount">' + badge + '</span>';
+    // Only while the pane is shut: this bar is the most contested space in the app,
+    // and a button that undoes something you have not done is just clutter. Hidden on
+    // every other tab by CSS — body.reading is the reader's own signal.
+    const tb = document.getElementById('showNotesBtn');   // not `top` -- that is window.top
+    if(tb){
+      tb.hidden = notesOpen;
+      const c = document.getElementById('hlCountTop');
+      if(c) c.textContent = badge;
+    }
+  }
+  function setNotesOpen(open){
+    notesOpen = !!open; DB.notesOpen = notesOpen; saveDB();
+    applyNotesPane(); syncNotesToggles(); renderHighlightList();
+  }
   function renderHighlightList(){
     const el = document.getElementById('hlList'); if(!el) return;
     const all = getHighlights(currentReadingId());
     const single = readPageMode === 'single';
     const vis = visiblePages();
     const list = vis ? all.filter(h => vis.includes(h.page || 1)) : all;
-    // Badge on the toggle, so work captured while the pane is closed still announces
-    // itself instead of vanishing into a panel nobody can see.
-    const badge = document.getElementById('hlCount');
-    if(badge) badge.textContent = (!notesOpen && all.length) ? ' · ' + all.length : '';
+    syncNotesToggles();   // owns the badge on both doors — see above
     // Where the rest of them are, said as a fact rather than discovered by panic.
     const scope = !all.length ? '' : (single
       ? `<p class="hl-scope">${list.length} on ${vis && vis.length > 1 ? 'these pages' : 'this page'} · <strong>${all.length}</strong> in this chapter.
@@ -4846,13 +5001,10 @@ You: Really. The first line only has to exist, not be good.`;
     if(zs) zs.onchange = () => { readZoom = zs.value; DB.readZoom = readZoom; saveDB(); const rr = readings[activeReading]; if(rr) renderActiveDoc(rr); };
     applyNotesPane();
     const nt = document.getElementById('notesToggle');
-    if(nt) nt.onclick = () => {
-      notesOpen = !notesOpen; DB.notesOpen = notesOpen; saveDB();
-      nt.innerHTML = (notesOpen ? '◧<span class="vb-word"> Hide notes</span>' : '◨<span class="vb-word"> Show notes</span>') + '<span class="hl-count" id="hlCount"></span>';
-      applyNotesPane(); renderHighlightList();
-    };
-    renderHighlightList();
+    if(nt) nt.onclick = () => setNotesOpen(!notesOpen);
+    renderHighlightList();   // calls syncNotesToggles, which labels both doors
     renderQAList();
+    syncAiSurfaces();
     const dp = document.getElementById('docPane');
     if(dp){ trackDrag(dp); }
     watchPaneWidth(dp);
@@ -6568,6 +6720,8 @@ You: Really. The first line only has to exist, not be good.`;
       if(r && (r.type === 'pdf' || r.type === 'docx')) renderActiveDoc(r);
     }));
   }
+  const _showNotes = document.getElementById('showNotesBtn');
+  if(_showNotes) _showNotes.addEventListener('click', () => setNotesOpen(true));
   document.getElementById('focusToggle').addEventListener('click',()=>setFocus(!body.classList.contains('focus')));
   document.getElementById('exitFocus').addEventListener('click',()=>setFocus(false));
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!G.running) setFocus(false); });
