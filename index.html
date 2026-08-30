@@ -19,7 +19,7 @@
      files after a push. (This said "both" while there were three; tips.js was missed.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-08-30-202">
+<link rel="stylesheet" href="app.css?v=2026-08-30-203">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -62,14 +62,18 @@
        touched, and it was costing ~150px of a bar that already wraps on an iPad.
        It moved into Settings; the export still asks outright when it is blank
        (ensureName), so nobody has to go looking for it. -->
-  <!-- ⚠ THE WAY BACK (Todd, 2026-08-30): "when notes are hidden, we need show notes in
-       the top bar." The only door into the margin was the ◧ in the view bar that had
-       just shut it, so a reader who hid the pane had to remember where that button was.
-       Readings tab only, and only while the pane IS shut -- it is a way back, not a
-       permanent fixture, and this bar has no room for one. Both copies of the control
-       are labelled and badged by syncNotesToggles so they cannot drift apart. -->
-  <button class="focusbtn" id="showNotesBtn" hidden
-    title="Bring your highlights and notes back beside the page">◨ <span class="btn-shownotes">Show </span>notes<span class="hl-count" id="hlCountTop"></span></button>
+  <!-- ⚠ THE READER'S TOOLS, WHEN ITS OWN BAR HAS GONE (Todd, 2026-08-30, over four
+       rounds). The view bar is not sticky and .topbar is, so a few pages into a
+       continuous reading the control that says Hide notes has scrolled away while this
+       bar is still here: "there is no easy way to hide notes once you're down 3-4
+       pages." Pinning the view bar as well was built and measured — two stacked bars
+       cost 91px of every screen — and rejected: "that's too much bar."
+       So nothing is duplicated. #viewWrap and #notesToggle are MOVED into this span
+       while the view bar is out of reach, and moved home when it returns. Todd on the
+       shape: "a magnifying glass icon and a hide notes icon (with a hoverover, no extra
+       text) could really work" — hence icon-only here, words in the view bar, and
+       deliberately NOT Chapters or the page count, which he ruled out. -->
+  <span class="topbar-tools" id="topTools"></span>
   <!-- Where you stand on the notebook. It was a lens inside Notebook and nothing else
        pointed at it; a student who never found that row never saw their own progress. -->
   <button class="focusbtn" id="myProgressBtn" title="Where you stand on the Writer's Notebook — the four scored rows, what is tagged, and the bundle">▤ <span class="btn-my">My </span>Progress</button>
@@ -300,7 +304,7 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="tips.js?v=2026-08-30-202"></script>
-<script src="app.js?v=2026-08-30-202"></script>
+<script src="tips.js?v=2026-08-30-203"></script>
+<script src="app.js?v=2026-08-30-203"></script>
 </body>
 </html>

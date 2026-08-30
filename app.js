@@ -4378,19 +4378,83 @@ You: Really. The first line only has to exist, not be good.`;
     // Work captured while the pane is closed still announces itself, on whichever
     // door is showing, instead of vanishing into a panel nobody can see.
     const badge = (!notesOpen && all.length) ? ' \u00b7 ' + all.length : '';
+    // ⚠ ONE DOOR AT A TIME, AND ALWAYS ONE (Todd, 2026-08-30, twice). First: "I don't
+    // think these should both appear at the same time" — both bars were offering Show
+    // notes at once. Then: "there is no easy way to hide notes in continuous mode once
+    // you're down 3-4 pages", and the reason is structural — .topbar is position:sticky
+    // and the view bar is not, so a few pages in, the control that says Hide has
+    // scrolled away while the top bar is still there.
+    //
+    // Pinning the view bar too was built and measured: two stacked bars cost 91px of
+    // every screen, and "that's too much bar. We don't have that much vertical space."
+    //
+    // So the view bar keeps the control — it is the reader's own bar — and the top bar
+    // carries a STAND-IN that appears only when the view bar is not on screen to be
+    // used. Never two, never none. Focus hides the top bar outright, but there the
+    // reader fills the viewport and the page scrolls INSIDE it, so the view bar never
+    // leaves and no stand-in is needed.
+    const focus = body.classList.contains('focus');
     const nt = document.getElementById('notesToggle');
     if(nt) nt.innerHTML = (notesOpen ? '\u25e7<span class="vb-word"> Hide notes</span>'
                                      : '\u25e8<span class="vb-word"> Show notes</span>')
                         + '<span class="hl-count" id="hlCount">' + badge + '</span>';
-    // Only while the pane is shut: this bar is the most contested space in the app,
-    // and a button that undoes something you have not done is just clutter. Hidden on
-    // every other tab by CSS — body.reading is the reader's own signal.
-    const tb = document.getElementById('showNotesBtn');   // not `top` -- that is window.top
-    if(tb){
-      tb.hidden = notesOpen;
-      const c = document.getElementById('hlCountTop');
-      if(c) c.textContent = badge;
+    // The title carries the whole meaning wherever this button is lodged in the top bar,
+    // where the word is hidden and the glyph is all there is to go on.
+    if(nt) nt.title = notesOpen
+      ? 'Hide the notes pane and give the page the whole width. Highlighting keeps working.'
+      : 'Show your highlights and notes beside the page';
+    relocateReaderTools(focus);
+  }
+  // Move the view bar's own controls into the top bar while the view bar is out of
+  // reach, and move them home when it comes back. MOVED, not copied: appendChild
+  // relocates the live node, so every handler, the View popover and the highlight badge
+  // travel with it and there is never a second copy to keep in step. Chapters and the
+  // page count stay behind — Todd: "skip putting Chapters or pages / scroll to read in
+  // the top bar", they are for arriving at a reading, not for working inside one.
+  function relocateReaderTools(focus){
+    const host = document.getElementById('topTools');
+    const vbar = document.querySelector('.reader .viewbar');
+    if(!host) return;
+    const nt = document.getElementById('notesToggle');
+    const vw = document.getElementById('viewWrap');
+    // Focus hides the top bar outright, and there the reader fills the viewport and the
+    // page scrolls INSIDE it, so the view bar never leaves and nothing has to move.
+    // ⚠ Off the Readings tab the lodgers are DEAD NODES: they were moved out of #frame,
+    // so renderTip and friends wiping frame.innerHTML cannot take them with it, and they
+    // would sit in the top bar on Tips offering to hide a notes pane that is not there.
+    if(tab !== 'read'){ host.innerHTML = ''; return; }
+    const away = !focus && !!vbar && !viewbarInReach();
+    if(away){
+      [vw, nt].forEach(el => { if(el && el.parentElement !== host) host.appendChild(el); });
+    } else if(vbar){
+      // Home again, in the order the bar was written: … View, Mark passage, 🥫, notes.
+      if(vw && vw.parentElement === host){
+        const before = document.getElementById('vbCapture') || document.getElementById('romanoBtn') || nt;
+        if(before && before.parentElement === vbar) vbar.insertBefore(vw, before); else vbar.appendChild(vw);
+      }
+      if(nt && nt.parentElement === host) vbar.appendChild(nt);   // always last
     }
+  }
+  // Is the view bar's own copy actually usable? Not "is it in the DOM" — scrolled UNDER
+  // the sticky top bar it is still laid out, still reports a sane rectangle, and is
+  // completely invisible behind an opaque bar with a higher z-index. So the floor is the
+  // top bar's bottom edge, not zero.
+  function viewbarInReach(){
+    const vb = document.querySelector('.reader .viewbar');
+    if(!vb) return false;
+    const r = vb.getBoundingClientRect();
+    if(!r.height) return false;
+    const bar = document.querySelector('.topbar');
+    const floor = (bar && bar.offsetParent !== null) ? bar.getBoundingClientRect().bottom : 0;
+    return r.bottom > floor + 4 && r.top < window.innerHeight - 4;
+  }
+  // Scroll fires far faster than the answer changes, so relabel only on the crossing.
+  let _vbReach = null;
+  function syncDoorsOnScroll(){
+    const v = viewbarInReach();
+    if(v === _vbReach) return;
+    _vbReach = v;
+    syncNotesToggles();
   }
   function setNotesOpen(open){
     notesOpen = !!open; DB.notesOpen = notesOpen; saveDB();
@@ -4651,8 +4715,9 @@ You: Really. The first line only has to exist, not be good.`;
   // bubble, so this listens in the CAPTURE phase and catches whichever element it is,
   // window included. Off anchored mode layoutMarginNotes returns immediately, so the
   // cost of being wrong about the scroller is one early return per frame.
-  document.addEventListener('scroll', scheduleMarginLayout, { capture: true, passive: true });
-  window.addEventListener('scroll', scheduleMarginLayout, { passive: true });
+  const _onScroll = () => { scheduleMarginLayout(); syncDoorsOnScroll(); };
+  document.addEventListener('scroll', _onScroll, { capture: true, passive: true });
+  window.addEventListener('scroll', _onScroll, { passive: true });
 
   // ── Zoom. Percentages are of ACTUAL SIZE, the convention every PDF reader uses:
   //    100% means one PDF point per CSS pixel, so a letter page is 612px wide. On a big
@@ -5061,6 +5126,11 @@ You: Really. The first line only has to exist, not be good.`;
 
   function renderRead(){
     body.classList.add('bleed');
+    // The view bar below is about to be rebuilt from scratch. Anything this render's
+    // predecessor lodged in the top bar is now a stale twin of a control that is about
+    // to exist again — and since .topbar precedes #frame in the document, it is the twin
+    // that getElementById would hand back. Drop them first.
+    const _tt = document.getElementById('topTools'); if(_tt) _tt.innerHTML = '';
     sortReadings();
     const active = readings[activeReading];
     frame.innerHTML = `<div class="head"><h1>Readings</h1></div>
@@ -5133,6 +5203,7 @@ You: Really. The first line only has to exist, not be good.`;
     applyNotesPane();
     const nt = document.getElementById('notesToggle');
     if(nt) nt.onclick = () => setNotesOpen(!notesOpen);
+    _vbReach = null;         // the view bar above is a new element; forget the old answer
     renderHighlightList();   // calls syncNotesToggles, which labels both doors
     renderQAList();
     syncAiSurfaces();
@@ -6811,7 +6882,11 @@ You: Really. The first line only has to exist, not be good.`;
   // clamps .frame to 720px, which is right for a gush and wrong for a PDF.
   // paintInsMarker last: the insertion marker is a fixed overlay on <body>, so leaving
   // Freewrite has to take it down or it hangs over whatever view replaced the pane.
-  function show(t){ tab=t; document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); body.classList.toggle('reading', t==='read'); R[t](); paintInsMarker(); }
+  // ⚠ relocateReaderTools LAST, and on every tab: leaving Readings with the reader's
+  // controls lodged in the top bar strands them there — they live outside #frame by
+  // then, so the wipe that replaces the reading cannot take them along, and they sit on
+  // Tips offering to hide a notes pane that is not on screen. Measured: 23 nodes.
+  function show(t){ tab=t; document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); body.classList.toggle('reading', t==='read'); R[t](); paintInsMarker(); _vbReach = null; relocateReaderTools(body.classList.contains('focus')); }
   document.querySelectorAll('#tabbar button').forEach(b=>b.addEventListener('click',()=>{ if(G.running)return; show(b.dataset.t); }));
   // ⚠ FOCUS MUST ASK FOR THE RE-RENDER (Todd, 2026-08-26): "when I click focus button
   // on this page, the pages disappear." Toggling the class changes the reader's width
@@ -6847,14 +6922,13 @@ You: Really. The first line only has to exist, not be good.`;
     body.classList.toggle('focus', on);
     if(on) requestChromeless(); else releaseChromeless();
     if(tab !== 'read') return;
+    syncNotesToggles();       // focus hides the top bar, so the doors swap over
     scheduleMarginLayout();   // the column's top moved even when nothing re-renders
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const r = readings[activeReading];
       if(r && (r.type === 'pdf' || r.type === 'docx')) renderActiveDoc(r);
     }));
   }
-  const _showNotes = document.getElementById('showNotesBtn');
-  if(_showNotes) _showNotes.addEventListener('click', () => setNotesOpen(true));
   document.getElementById('focusToggle').addEventListener('click',()=>setFocus(!body.classList.contains('focus')));
   document.getElementById('exitFocus').addEventListener('click',()=>setFocus(false));
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!G.running) setFocus(false); });

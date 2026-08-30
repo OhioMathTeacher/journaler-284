@@ -101,13 +101,23 @@
   .focusbtn { font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: var(--accent); background: none; border: 1px solid var(--comment-border); border-radius: 6px; padding: 6px 9px; cursor: pointer; white-space: nowrap; }
   .focusbtn:hover { background: var(--comment-bg); }
   @media (max-width: 1100px){ .topbar .btn-my { display: none; } }
-  /* The top bar's ◨ Show notes belongs to the reader and nowhere else: it is hidden
-     off the Readings tab (body.reading is set by show()) and, by its own [hidden],
-     whenever the pane is already open. Focus takes the whole bar down with it, which
-     is why the view bar keeps its own copy of the control. Same shrink as My Progress
-     on a narrow bar -- the glyph and "notes" still say it. */
-  body:not(.reading) #showNotesBtn { display: none !important; }
-  @media (max-width: 1100px){ .topbar .btn-shownotes { display: none; } }
+  /* Reader tools lodging in the top bar while the view bar is out of reach. ICON ONLY:
+     the word is dropped, the title attribute carries the meaning, and the bar spends
+     ~36px a button instead of ~130. Empty on every other tab, and empty whenever the
+     view bar is on screen — which is why it collapses to nothing rather than sitting
+     there as a permanent fixture in the most contested strip in the app. */
+  .topbar-tools { display: flex; align-items: center; gap: 6px; }
+  .topbar-tools:empty { display: none; }
+  .topbar-tools .vb-word { display: none; }
+  .topbar-tools .vbtn { font-family: var(--sans); font-size: 17px; line-height: 1; font-weight: 600;
+    color: var(--accent); background: none; border: 1px solid var(--comment-border); border-radius: 6px;
+    padding: 6px 9px; cursor: pointer; white-space: nowrap; }
+  .topbar-tools .vbtn:hover { background: var(--comment-bg); }
+  .topbar-tools .vbtn.on { background: var(--comment-bg); }
+  .topbar-tools .hl-count { font-size: 14px; }
+  /* The View popover travels with its button, and anchors to it wherever it lands. */
+  .topbar-tools .vb-viewwrap { position: relative; }
+  .topbar-tools .vb-pop { left: auto; right: 0; }
   /* Typed once, stored in DB, printed on every export. Empty leaves the blank rule
      on the sheet so a printed page can still be signed by hand. */
   /* flex-shrink:0 — the topbar is crowded, and an unlabelled input that collapses to a
