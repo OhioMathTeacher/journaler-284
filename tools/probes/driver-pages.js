@@ -155,6 +155,50 @@
     var hd = cardDrift();
     ok('H7 the cards found their bands again', hd.orphans === 0 && hd.worst <= 2, 'orphans=' + hd.orphans + ' worst=' + hd.worst.toFixed(2) + 'px');
 
+    // ── I · a box over a FIGURE. No text under it, so this is the path that used to
+    // store a base64 PNG on the highlight. It must still produce a real, banded,
+    // anchored highlight — and must not store a picture.
+    function drag(el, x0, y0, x1, y1){
+      function ev(type, x, y, target){
+        target.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, button: 0,
+          buttons: type === 'pointerup' ? 0 : 1, isPrimary: true, bubbles: true, cancelable: true }));
+      }
+      ev('pointerdown', x0, y0, el);
+      ev('pointermove', (x0+x1)/2, (y0+y1)/2, window);
+      ev('pointermove', x1, y1, window);
+      ev('pointerup', x1, y1, window);
+    }
+    var pg1 = document.querySelector('#docPane .pdf-page[data-page="1"]');
+    var ov = pg1 && pg1.querySelector('.marquee-overlay');
+    ok('I1 page 1 is drawn and has a capture overlay', !!ov);
+    if(!ov) return finish();
+    var before = (localStorage.getItem('cr284_state') || '').length;
+    var nBefore = (JSON.parse(localStorage.getItem('cr284_state') || '{}').highlights || {})[RID].length;
+    var pr = pg1.getBoundingClientRect();
+    // The probe chapter's text stops well above the foot of the page, so the bottom
+    // eighth is genuinely blank — which is what makes this the figure path.
+    drag(ov, pr.left + pr.width*0.30, pr.top + pr.height*0.87,
+             pr.left + pr.width*0.60, pr.top + pr.height*0.95);
+    await sleep(500);
+    var pop = document.getElementById('capturePopup');
+    var open = pop && pop.style.display !== 'none';
+    ok('I2 the capture popup opened on a box with no text', !!open,
+       open ? String((pop.querySelector('#capturePassage')||{}).textContent) : 'not open');
+    ok('I3 it says there is no text in the box, not that nothing happened', open && /figure/i.test(String((pop.querySelector('#capturePassage')||{}).textContent||'')));
+    ok('I4 it offers no way to save a picture', !document.getElementById('captureFigBtn') && !document.getElementById('captureThumb'));
+    var save = pop && pop.querySelector('#captureSaveBtn');
+    if(save){ save.click(); await sleep(400); }
+    await sleep(500);
+    var db = JSON.parse(localStorage.getItem('cr284_state') || '{}');
+    var list = (db.highlights || {})[RID] || [];
+    var made = list[list.length - 1];
+    ok('I5 the figure was kept as a highlight', list.length === nBefore + 1, list.length + ' highlights (was ' + nBefore + ')');
+    ok('I6 it carries a band, so it is marked on the page', !!made && (made.rects||[]).length > 0, made && JSON.stringify(made.rects));
+    ok('I7 and NO picture was stored', !!made && !made.image, made ? ('image field: ' + JSON.stringify(made.image === undefined ? '(absent)' : String(made.image).slice(0,40))) : '');
+    var grew = (localStorage.getItem('cr284_state') || '').length - before;
+    ok('I8 it cost bytes, not kilobytes', grew > 0 && grew < 2000, 'DB grew by ' + grew + ' bytes');
+    ok('I9 the band is painted on the page it was drawn on', !!document.querySelector('#docPane .hl-mark[data-hl="' + (made && made.id) + '"]'));
+
     finish();
   }
 

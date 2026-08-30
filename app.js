@@ -3038,7 +3038,7 @@ async function runReflection(rf, text, hooks) {
   // so "box" mode is the default: drag a rectangle and harvest the spans it covers, in
   // reading order, plus a cropped image (figures). "select" = native text selection.
   // Toggle with the shelf button. See app.css .marquee-* / .selection-popup.
-  let captureText = '', captureImage = '', captureRects = null;
+  let captureText = '', captureRects = null;
 
   // Reorder OCR text items into reading order when the page has clear columns.
   // ⚠ ROOT CAUSE, STILL OPEN. This re-sorts the text items, which is what makes the
@@ -3210,28 +3210,23 @@ async function runReflection(rf, text, hooks) {
     // reader is told the highlight was saved and can see it was not. The box is a
     // perfectly good record of where they looked, so it becomes the band.
     if(!rects.length) rects = normalizeRectsToPages([boxRect]);
-    // ⚠ CROP ONLY A REAL FIGURE (Todd, 2026-08-25). This used to crop every box and
-    // store the PNG as base64 on the highlight, so a passage of text was kept twice —
-    // once as words, once as a picture of those words — in the DB, in localStorage, and
-    // in the save zip. The list only ever displayed the thumbnail for a text-less box,
-    // so the bytes bought nothing. No text found means a figure; then the crop is the
-    // only record there is.
-    let imgData = '';
-    if(!text.trim()) try {
-      const cRect = canvas.getBoundingClientRect();
-      const sx = (boxRect.left-cRect.left)/cRect.width*canvas.width;
-      const sy = (boxRect.top-cRect.top)/cRect.height*canvas.height;
-      const sw = boxRect.width/cRect.width*canvas.width;
-      const sh = boxRect.height/cRect.height*canvas.height;
-      const tmp = document.createElement('canvas');
-      tmp.width = Math.max(1,Math.round(sw)); tmp.height = Math.max(1,Math.round(sh));
-      tmp.getContext('2d').drawImage(canvas, sx,sy,sw,sh, 0,0, tmp.width,tmp.height);
-      imgData = tmp.toDataURL('image/png');
-    } catch(e){ console.warn('crop', e); }
+    // ⚠ NO PICTURE IS KEPT (Todd, 2026-08-30): "I wouldn't include any graphics in the
+    // highlights section, although I'd certainly allow students to highlight images in
+    // the text." Both halves of that hold, because the band above already does the job
+    // the crop was doing. A box over a figure gets its rects from the BOX (see EVERY BOX
+    // LEAVES A MARK), so it is marked on the page, anchored in the margin, and carries
+    // its dated notes exactly like a passage — it simply quotes as "(figure)".
+    //
+    // The PNG was the last thing in a student's notes that could fill the storage quota:
+    // measured, ten figure captures put the DB at 4.96MB and thirty threw
+    // QuotaExceededError against a ~5MB localStorage budget. And the way to get thirty
+    // was never deliberate — a chapter with NO TEXT LAYER makes every box a figure, so
+    // one bad scan turned an ordinary term of marking into a hard stop. Storing nothing
+    // makes that impossible rather than unlikely.
     // The page the box was drawn on, for a capture with no text to hit-test.
     const own = canvas.closest && canvas.closest('.pdf-page');
     capturePageHint = own ? (+own.dataset.page || readPageNum) : readPageNum;
-    openCapturePopup(text, imgData, boxRect, rects);
+    openCapturePopup(text, boxRect, rects);
   }
   // The text-layer span containing a selection boundary node.
   function spanOf(node){
@@ -3636,10 +3631,9 @@ async function runReflection(rf, text, hooks) {
     let pop = document.getElementById('capturePopup');
     if(pop) return pop;
     pop = document.createElement('div'); pop.className='selection-popup'; pop.id='capturePopup'; pop.style.display='none';
-    pop.innerHTML = `<img id="captureThumb" alt="captured region" style="display:none;max-width:100%;max-height:130px;border-radius:4px;margin-bottom:.5rem;border:1px solid rgba(0,0,0,.15)">
-      <div class="popup-passage" id="capturePassage"></div>
+    pop.innerHTML = `<div class="popup-passage" id="capturePassage"></div>
       <textarea id="captureInput" rows="4" placeholder="What do you make of this passage?"></textarea>
-      <div class="popup-quick"><button class="popup-chip" id="captureCopyBtn" title="Copy this passage (⌘C / Ctrl+C)">⧉ Copy</button><button class="popup-chip" id="captureNbBtn">📓 Keep in notebook</button><button class="popup-chip" id="captureFigBtn" style="display:none">↓ Save figure</button></div>
+      <div class="popup-quick"><button class="popup-chip" id="captureCopyBtn" title="Copy this passage (⌘C / Ctrl+C)">⧉ Copy</button><button class="popup-chip" id="captureNbBtn">📓 Keep in notebook</button></div>
       <div class="popup-actions">
         <button class="popup-btn secondary" id="captureCancelBtn">Cancel</button>
         <button class="popup-btn ask" id="captureAskBtn" title="Talk this passage over with ${AI_NAME}. Your note is kept first if you have written one.">🥫 Ask ${AI_NAME}</button>
@@ -3650,7 +3644,6 @@ async function runReflection(rf, text, hooks) {
     pop.querySelector('#captureSaveBtn').onclick = () => saveHighlight();
     pop.querySelector('#captureAskBtn').onclick = askFromCapture;
     pop.querySelector('#captureNbBtn').onclick   = () => saveHighlight(true);
-    pop.querySelector('#captureFigBtn').onclick = downloadCapture;
     pop.querySelector('#captureCopyBtn').onclick = copyCaptureText;
     pop.querySelector('#captureInput').addEventListener('keydown', e => {
       if(e.key==='Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); saveHighlight(); }
@@ -3676,13 +3669,9 @@ async function runReflection(rf, text, hooks) {
     return pop;
   }
   let capturePageHint = 0;   // set by a box drag; the page that box was drawn on
-  function openCapturePopup(text, imgData, boxRect, rects){
-    captureText = text || ''; captureImage = imgData || ''; captureRects = rects || null;
+  function openCapturePopup(text, boxRect, rects){
+    captureText = text || ''; captureRects = rects || null;
     const pop = ensureCapturePopup();
-    const thumb = pop.querySelector('#captureThumb');
-    const figBtn = pop.querySelector('#captureFigBtn');
-    if(captureImage){ thumb.src = captureImage; thumb.style.display='block'; figBtn.style.display=''; }
-    else { thumb.removeAttribute('src'); thumb.style.display='none'; figBtn.style.display='none'; }
     pop.querySelector('#capturePassage').textContent = captureText
       ? (captureText.length>150 ? captureText.slice(0,150)+'…' : captureText)
       : '(figure — no text in this box)';
@@ -3793,17 +3782,21 @@ async function runReflection(rf, text, hooks) {
     // Forget the capture. It used to linger, so every later question typed in the
     // ask bar ("about the reading", not about any passage) was filed under
     // whatever was captured last. saveHighlight copies what it needs first.
-    captureText = ''; captureImage = ''; captureRects = null;
+    captureText = ''; captureRects = null;
   }
   function saveHighlight(toNotebook){
     const pop = document.getElementById('capturePopup');
     const note = pop ? pop.querySelector('#captureInput').value.trim() : '';
-    if(!captureText && !captureImage){ closeCapture(); return; }
+    // ⚠ ASK FOR THE BAND, NOT THE PICTURE. This read "no text and no image → nothing
+    // to keep", so removing the crop would have made every figure capture vanish at the
+    // moment the reader pressed Highlight. What makes a capture real is that it MARKS
+    // somewhere, and every box now does.
+    if(!captureText && !(captureRects && captureRects.length)){ closeCapture(); return; }
     const passage = captureText;
     const rects = captureRects || [];
     const rec = {
       id: 'h' + Date.now() + '-' + Math.round(Math.random()*1e6),
-      text: passage || '', image: captureImage || '', note,
+      text: passage || '', note,
       rects, page: (rects[0] && rects[0].page) || capturePageHint || readPageNum, ts: Date.now()
     };
     // Stamped now, not looked up later: the citation has to survive the reader
@@ -3829,7 +3822,7 @@ async function runReflection(rf, text, hooks) {
     const note = pop ? pop.querySelector('#captureInput').value.trim() : '';
     const passage = captureText;
     const page = (captureRects && captureRects[0] && captureRects[0].page) || capturePageHint || readPageNum;
-    if(!passage && !captureImage){ closeCapture(); return; }
+    if(!passage && !(captureRects && captureRects.length)){ closeCapture(); return; }
     saveHighlight();                       // closes the popup and clears capture state
     openRomanoChat(passage, page);
     // A note already typed IS the question. Without one, Romano opens on the passage
@@ -3911,13 +3904,6 @@ async function runReflection(rf, text, hooks) {
     const title = label ? 'From chat about ' + label : 'From chat about the reading';
     elevate(pieceId, 'conversation', title, body, null, { author: AI_TAG, authorKind:'ai' });
   }
-  function downloadCapture(){
-    if(!captureImage) return;
-    const a = document.createElement('a');
-    a.href = captureImage; a.download = 'figure.png';
-    document.body.appendChild(a); a.click(); a.remove();
-  }
-
   // ── Page-scoped grounding. A bare quoted passage leaves Romano guessing at what
   //    the chapter is actually arguing; the page it sits on plus its neighbours is
   //    enough to keep him on the book, at a few hundred words per ask.
@@ -4602,8 +4588,11 @@ You: Really. The first line only has to exist, not be good.`;
       // Keep the WHOLE passage in the DOM — selectable, copyable, and ready for the
       // hand-off into the Notebook. .hl-quote clamps it visually; clicking opens it.
       const quote = escHtml(h.text || '(figure)');
-      // A thumbnail of text just duplicates the quote above it, and rides along in
-      // ⤓ Save my work as base64. Keep it only for real figures (boxed, no text).
+      // ⚠ LEGACY ONLY. Nothing has stored an image since 2026-08-30 — see NO PICTURE IS
+      // KEPT at the capture site — and a figure boxed today is recorded by its band and
+      // its dated notes instead. This line stays so that a highlight kept BEFORE that
+      // change does not quietly lose the only record it has: those were saved with no
+      // rects, so the thumbnail is all they carry. Delete it once no live DB has one.
       const thumb = (!h.text && h.image) ? `<img src="${h.image}" alt="figure" class="hl-thumb">` : '';
       const passes = notePasses(h);
       const notes = passes.map((pz, i) => `<div class="hl-note" data-pass="${i}" data-hl="${h.id}"
