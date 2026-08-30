@@ -1958,7 +1958,7 @@ async function runReflection(rf, text, hooks) {
       // Open the chapter the notes came from, not just the Readings tab.
       const rid = pieceId.slice(8);   // "reading:" → the reading's id
       const idx = rid ? readings.findIndex(r => r.id === rid) : -1;
-      if(idx >= 0){ activeReading = idx; readPageNum = 1; _curPdf = { id:null, doc:null, labels:null }; persistReadings(); }
+      if(idx >= 0){ activeReading = idx; readPageNum = 1; dropPdf(); persistReadings(); }
       show('read');
     }
     else { show('free'); }
@@ -2799,6 +2799,20 @@ async function runReflection(rf, text, hooks) {
   }
   let readPageNum = 1;                               // current page in single mode
   let _curPdf = { id:null, doc:null, labels:null };  // cache the parsed doc so paging doesn't reparse
+  // ⚠ A pdf.js DOCUMENT MUST BE DESTROYED, not merely dropped. PDFDocumentProxy keeps
+  // its data on the WORKER side; releasing the reference here frees the handle and none
+  // of the memory behind it. This cache was replaced or nulled in seven places and
+  // destroy() appeared nowhere in the file, so every chapter opened in a session left
+  // its parsed document behind for the rest of it — and this shelf holds 27 chapters.
+  // (Found after Todd's freeze, 2026-08-30: 27 readings, continuous mode, dpr 2.)
+  // destroy() returns a promise that rejects if a render is still in flight, which is
+  // ordinary here — a reading switched mid-render is the common case — so the rejection
+  // is swallowed rather than reported.
+  function releasePdf(d, keep){
+    if(!d || d === keep) return;
+    try { const p = d.destroy(); if(p && p.catch) p.catch(() => {}); } catch(e){}
+  }
+  function dropPdf(){ const d = _curPdf.doc; _curPdf = { id:null, doc:null, labels:null }; releasePdf(d); }
   // The WWM chapter PDFs carry /PageLabels (embedded 2026-08-26), so page 1 of
   // ch5-a-writing-place.pdf reports itself as book page 23. Everything a student
   // READS or CITES should use that; everything that POSITIONS a highlight must keep
@@ -2853,7 +2867,7 @@ async function runReflection(rf, text, hooks) {
     delete DB.readingsDirName; saveDB();
     try { await idbDel('handles','readingsDir'); } catch(e){}
     if(activeReading >= readings.length) activeReading = Math.max(0, readings.length - 1);
-    _curPdf = { id:null, doc:null, labels:null };
+    dropPdf();
     persistReadings(); renderRead();
   }
   // Reconcile the shelf with what's actually in the folder — new files appear,
@@ -2951,10 +2965,14 @@ async function runReflection(rf, text, hooks) {
           if(token !== _readToken) return;
           if(!bytes){ pane.innerHTML = missingBytesStub(r); return; }
           doc = await lib.getDocument({ data: (bytes.slice ? bytes.slice(0) : bytes), ...(window.PDF_DOC_OPTS||{}) }).promise;
-          if(token !== _readToken) return;
+          // Switched reading while this was parsing: it is finished, it is ours, and
+          // nothing will ever look at it again. Hand it back before walking away.
+          if(token !== _readToken){ releasePdf(doc); return; }
           let labels = null;
           try { labels = await doc.getPageLabels(); }
           catch(e){ console.warn('page labels', e); }
+          if(token !== _readToken){ releasePdf(doc); return; }
+          releasePdf(_curPdf.doc, doc);   // the chapter we are leaving
           _curPdf = { id:r.id, doc, labels };
         }
         await renderPdfPages(pane, doc, r, token);
@@ -5081,7 +5099,7 @@ You: Really. The first line only has to exist, not be good.`;
       }
     }
     activeReading = readings.length - 1;
-    readPageNum = 1; _curPdf = { id:null, doc:null, labels:null };
+    readPageNum = 1; dropPdf();
     persistReadings();
     renderRead();
   }
@@ -5168,7 +5186,7 @@ You: Really. The first line only has to exist, not be good.`;
   }
   function pickReading(i){
     if(i === activeReading || i < 0 || i >= readings.length) return;
-    activeReading = i; readPageNum = 1; _curPdf = { id:null, doc:null, labels:null };
+    activeReading = i; readPageNum = 1; dropPdf();
     persistReadings(); renderRead();
   }
   // Deliberately confirmed, unlike the old ✕ Remove: a trash can beside a title is a
@@ -5182,13 +5200,13 @@ You: Really. The first line only has to exist, not be good.`;
     const wasAt = activeReading;
     readings.splice(i, 1);
     if(activeReading >= readings.length) activeReading = Math.max(0, readings.length - 1);
-    readPageNum = 1; _curPdf = { id:null, doc:null, labels:null };
+    readPageNum = 1; dropPdf();
     logEvent('read', 'removed “' + r.name + '” from the shelf');
     persistReadings(); renderRead();
     undoably('Removed “' + readingLabel(r) + '”', () => {
       readings.splice(Math.min(i, readings.length), 0, r);
       activeReading = Math.min(wasAt, readings.length - 1);
-      _curPdf = { id:null, doc:null, labels:null };
+      dropPdf();
       logEvent('read', 'restored “' + r.name + '” to the shelf');
       persistReadings(); renderRead();
     });
