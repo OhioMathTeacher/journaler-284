@@ -1538,8 +1538,41 @@ async function runReflection(rf, text, hooks) {
   // Four seconds is the wrong shape for the mistake it is meant to catch — "that was
   // the wrong one" is a thought that arrives AFTER the thing has gone, when the reader
   // looks up and the passage they wanted is not in the margin. So the offer waits.
+  //
+  // ⚠ AND THE OFFER IS NOT THE TOAST'S TO THROW AWAY (found 2026-08-30 by driving the
+  // real app, not by reading it). There is ONE toast element, and every message in the
+  // app writes through it. So an offer with no timer of its own still died two ways:
+  //   · a second deletion overwrote the first offer, committing it with no way back and
+  //     no decision from the reader — the exact accident this was built to catch, and
+  //     two stray clicks on adjacent trash icons is how you get there;
+  //   · any ORDINARY message — "Tagged: Week 1 baseline" — overwrote the offer in place
+  //     and then hid the element on ITS 1.7s timer. The reader did something harmless
+  //     and unrelated, and the way back went with it.
+  // The receipts still fade; they should. They are now temporary TENANTS of the element
+  // instead of its owners: when one expires the standing offer comes back up. And the
+  // offers queue, newest shown, so every deletion gets its own decision.
+  let _offers = [];   // deletions awaiting a decision — newest last
+
   function undoably(said, undo){
-    toast(said, { label: 'Undo', onClick: undo }, { decide: true });
+    _offers.push({ said: said, undo: undo });
+    showOffer();
+  }
+
+  // Paint the newest offer. Returns false when there is none, which is how the toast
+  // knows whether hiding is actually the right thing to do.
+  function showOffer(){
+    const o = _offers[_offers.length - 1];
+    if(!o) return false;
+    const waiting = _offers.length - 1;
+    toast(o.said + (waiting ? ` · and ${waiting} more you can still undo` : ''),
+      // Undo takes back the newest and then re-offers the one before it: one decision
+      // per deletion, which is the promise.
+      { label: 'Undo', onClick: () => { _offers.pop(); o.undo(); showOffer(); } },
+      // Dismiss ends ALL of them. It is the "yes, I meant that" half of the decision,
+      // and a reader clearing out ten highlights should not have to say it ten times.
+      // Nothing is destroyed by this that was not already destroyed.
+      { decide: true, onDismiss: () => { _offers = []; } });
+    return true;
   }
 
   // action = { label, onClick } — a passing offer, taken or missed in a few seconds.
@@ -1550,6 +1583,9 @@ async function runReflection(rf, text, hooks) {
     let el = document.getElementById('cr284Toast');
     if(!el){ el = document.createElement('div'); el.id = 'cr284Toast'; el.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--parchment);font-family:var(--sans);font-size:15px;padding:9px 16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;display:flex;align-items:center;gap:14px'; document.body.appendChild(el); }
     const hide = () => { el.style.opacity = '0'; el.style.pointerEvents = 'none'; };
+    // ⚠ NOT hide(). A message that has run its course gives the element back to any
+    // offer still waiting on a decision, and only hides when there is none.
+    const settle = () => { if(!showOffer()) hide(); };
     el.textContent = '';
     el.appendChild(document.createTextNode(msg));
     el.style.pointerEvents = action ? 'auto' : 'none';
@@ -1563,12 +1599,12 @@ async function runReflection(rf, text, hooks) {
         // goes away on its own needs a way to be sent away.
         const d = document.createElement('button');
         d.type = 'button'; d.className = 'toastact toastdismiss'; d.textContent = 'Dismiss';
-        d.onclick = () => { clearTimeout(_toastT); hide(); };
+        d.onclick = () => { clearTimeout(_toastT); if(opts.onDismiss) opts.onDismiss(); settle(); };
         el.appendChild(d);
       }
     }
     el.style.opacity = '1'; clearTimeout(_toastT);
-    if(!opts.decide) _toastT = setTimeout(hide, action ? 4200 : 1700);
+    if(!opts.decide) _toastT = setTimeout(settle, action ? 4200 : 1700);
   }
   function elevate(pieceId, pieceKind, pieceTitle, text, dateKey, meta){
     text = (text||'').trim();
