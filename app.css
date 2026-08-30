@@ -378,6 +378,40 @@
      other column has its own overflow, so scrolling here never moves the reading. */
   .reader .notes .notes-scroll { flex: 1 1 auto; min-height: 5rem; overflow-y: auto; margin-right: -6px; padding-right: 6px; }
   .reader .notes h4 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  /* Head and foot are OUTSIDE the scrolling surface: the scope line stays readable
+     after you scroll, Clear-all is not buried under a dozen cards, and neither can be
+     sat on by an absolutely-placed card in anchored mode. */
+  .reader .notes .notes-head:empty, .reader .notes .notes-foot:empty { display: none; }
+  .reader .notes .notes-foot { margin-top: 2px; }
+
+  /* ── Notes beside their passages (Continuous only) ──────────────────────────────
+     Ported from journaler-318P (d808a78). The margin stops being a list and becomes a
+     surface: each card is placed at the height of the passage it was written about,
+     and the column no longer scrolls on its own -- it rides the reading. That is the
+     trade Todd accepted there and asked for here.
+     ⚠ Flex, not height:100%. The heading must keep its place in flow at the top and
+     the surface must be exactly the space left under it -- so a card whose passage has
+     scrolled ABOVE the viewport gets a negative offset and is clipped by the surface
+     instead of floating up over "Your highlights". (height:100% also ran the surface
+     past the bottom of the column, which cut the last card early.) */
+  /* The -6/+6 gutter trick exists to keep a scrollbar off the cards; there is no
+     scrollbar here, so it goes, and the cards can use the full column. */
+  .reader .notes.anchored .notes-scroll { overflow: hidden; position: relative; flex: 1 1 auto; min-height: 0;
+    margin-right: 0; padding-right: 0; }
+  .reader .notes.anchored .hl-card {
+    position: absolute; left: 0; right: 0; margin-bottom: 0;
+    transition: top .14s ease-out;   /* cards slide as the reading moves, never jump */
+  }
+  /* The one the reader is pointing at lifts out of the stack. */
+  .reader .notes.anchored .hl-card:hover { z-index: 3; }
+  /* Could not sit where it belongs: three notes on one dense paragraph cannot all be
+     adjacent to it, and the rule the reader needs is "pushed down to make room". */
+  .reader .notes.anchored .hl-card.crowded { border-left: 2px solid var(--accent); }
+  /* The Romano thread has no passage to stand beside -- it belongs to the chapter, not
+     to a line of it. Parking it at the top would push every anchored card down the
+     column, so in anchored mode it lives in the 🥫 window, which is the whole
+     conversation anyway. The plain list still shows it inline. */
+  .reader .notes.anchored #newnote { display: none; }
   .notecard { background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; padding: 11px 13px; margin-bottom: 10px; font-size: 15.5px; }
   .notecard .q { color: var(--accent); font-weight: 600; margin-bottom: 4px; }
   .reader .notes .askbar { display: flex; gap: 6px; margin-top: 8px; }

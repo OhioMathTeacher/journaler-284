@@ -4311,7 +4311,9 @@ You: Really. The first line only has to exist, not be good.`;
     if(!notesOpen) setNotesOpen(true);
     const card = document.querySelector(`.hl-card[data-hl="${id}"]`);
     if(!card){ return; }
-    const pane = card.closest('.notes-scroll');
+    // Anchored: the card is already beside the band you just clicked, and the margin
+    // has no scroll of its own to move. Flashing is the whole of the answer there.
+    const pane = marginAnchored() ? null : card.closest('.notes-scroll');
     if(pane){
       const cr = card.getBoundingClientRect(), pr = pane.getBoundingClientRect();
       if(cr.bottom < pr.top + 2 || cr.top > pr.bottom - 2) card.scrollIntoView({ behavior:'smooth', block:'center' });
@@ -4402,20 +4404,28 @@ You: Really. The first line only has to exist, not be good.`;
     const list = vis ? all.filter(h => vis.includes(h.page || 1)) : all;
     syncNotesToggles();   // owns the badge on both doors — see above
     // Where the rest of them are, said as a fact rather than discovered by panic.
-    const scope = !all.length ? '' : (single
+    // ⚠ The scope line and Clear-all live in the margin's HEAD and FOOT, not in the
+    // list: anchored mode turns the list into an absolutely-placed surface, and a
+    // sentence in normal flow inside it would be sat on by the first card. They are
+    // better off pinned in the plain list too — a scope you can still read after
+    // scrolling, and a Clear-all that is not at the bottom of a dozen cards.
+    const head = document.getElementById('hlHead');
+    if(head) head.innerHTML = !all.length ? '' : (single
       ? `<p class="hl-scope">${list.length} on ${vis && vis.length > 1 ? 'these pages' : 'this page'} · <strong>${all.length}</strong> in this chapter.
          Switch to <strong>Continuous</strong> to see them all.</p>`
       : `<p class="hl-scope"><strong>${all.length}</strong> in this chapter, all pages.</p>`);
     if(!list.length){
-      el.innerHTML = scope + (all.length
+      const f0 = document.getElementById('hlFoot'); if(f0) f0.innerHTML = '';
+      el.innerHTML = (all.length
         ? `<p class="hl-empty">Nothing marked on ${vis && vis.length > 1 ? 'these pages' : 'this page'} yet. Drag a box around a passage, then choose ✎ Highlight.</p>`
         : '<p class="hl-empty">Nothing marked yet. '
           + (COARSE_POINTER ? 'Tap 💬 Mark passage, then drag a box around a passage'
                             : 'Drag a box around a passage')
           + ', then choose ✎ Highlight.</p>');
+      layoutMarginNotes();
       return;
     }
-    el.innerHTML = scope + list.map(h => {
+    el.innerHTML = list.map(h => {
       // Keep the WHOLE passage in the DOM — selectable, copyable, and ready for the
       // hand-off into the Notebook. .hl-quote clamps it visually; clicking opens it.
       const quote = escHtml(h.text || '(figure)');
@@ -4432,8 +4442,8 @@ You: Really. The first line only has to exist, not be good.`;
         + `<button class="hl-goto" data-hl="${h.id}" title="Scroll back to this passage and flash it">Go to p. ${escHtml(String(h.pageLabel || h.page || '?'))}</button>`
         + `<button class="hl-add" data-hl="${h.id}" title="Add a dated line to this note. The old one stays — what you thought later beside what you thought first is the evidence your thread reading needs.">＋ Add</button>`
         + `<button class="hl-trim" data-hl="${h.id}" title="Edit the quoted passage — for when the box grabbed a line more than you meant. The mark on the page does not move.">✎ Trim</button>`
-        + `<button class="hl-nb" data-hl="${h.id}" title="Keep this one passage in your Writer's Notebook on its own">📓</button>`
-        + `<button class="hl-del" data-hl="${h.id}">Remove</button>`
+        + `<button class="hl-nb" data-hl="${h.id}" title="Keep this passage in your Writer's Notebook as a dated entry of its own, with its citation. The highlight stays here too.">Keep</button>`
+        + `<button class="hl-del" data-hl="${h.id}" title="Remove this highlight and its notes. The band comes off the page with it.">Remove</button>`
         + `</div></div>`;
     }).join('');
     // Click the quote to expand/collapse — "Go to" already covers navigation.
@@ -4441,7 +4451,7 @@ You: Really. The first line only has to exist, not be good.`;
       if(q.querySelector('textarea') || e.target.closest('.hl-mini')) return;  // being trimmed
       const card = q.closest('.hl-card');
       const clamped = q.scrollHeight > q.clientHeight + 2;
-      if(clamped || card.classList.contains('open')) card.classList.toggle('open');
+      if(clamped || card.classList.contains('open')){ card.classList.toggle('open'); layoutMarginNotes(); }
       else scrollToHighlight(card.dataset.hl);
     });
     el.querySelectorAll('.hl-goto').forEach(b => b.onclick = () => scrollToHighlight(b.dataset.hl));
@@ -4460,8 +4470,11 @@ You: Really. The first line only has to exist, not be good.`;
       const ta = host.querySelector('textarea');
       ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
       const btns = host.querySelectorAll('.hl-mini');
+      layoutMarginNotes();   // a textarea is taller than the line it replaced
       let done = false;
-      const finish = fn => { if(done) return; done = true; fn(); };
+      // In anchored mode a card's height IS its neighbours' positions, so every exit
+      // from the editor — save, cancel, delete — has to settle the stack again.
+      const finish = fn => { if(done) return; done = true; fn(); layoutMarginNotes(); };
       btns[0].onclick = () => finish(() => onSave(ta.value.trim()));
       btns[1].onclick = () => finish(() => { host.innerHTML = prev; });
       if(opts.canDelete) btns[2].onclick = () => finish(() => onSave(''));
@@ -4494,7 +4507,7 @@ You: Really. The first line only has to exist, not be good.`;
       host.className = 'hl-note pending';
       card.querySelector('.hl-row').before(host);
       editInPlace(host, '', text => {
-        if(!text){ host.remove(); return; }
+        if(!text){ host.remove(); layoutMarginNotes(); return; }
         updateHighlight(b.dataset.hl, h => writePasses(h, notePasses(h).concat([{ text, ts: Date.now() }])));
       });
     });
@@ -4515,8 +4528,9 @@ You: Really. The first line only has to exist, not be good.`;
     // an older build keeps its geometry for ever and no fix can repaint it — the
     // only remedy is to drop it and highlight again. Removing them one card at a
     // time is unreasonable when a reading has a dozen.
-    el.insertAdjacentHTML('beforeend',
-      `<button class="hl-clear" id="hlClearAll">Clear all ${list.length} on this reading</button>`);
+    const foot = document.getElementById('hlFoot');
+    if(foot) foot.innerHTML =
+      `<button class="hl-clear" id="hlClearAll">Clear all ${list.length} on this reading</button>`;
     const clr = document.getElementById('hlClearAll');
     if(clr) clr.onclick = () => {
       if(!confirm(`Remove all ${list.length} highlights on this reading? This cannot be undone.`)) return;
@@ -4526,7 +4540,119 @@ You: Really. The first line only has to exist, not be good.`;
     };
     el.querySelectorAll('.hl-nb').forEach(b => b.onclick = () => elevateHighlight(list.find(h => h.id === b.dataset.hl)));
     el.querySelectorAll('.hl-del').forEach(b => b.onclick = () => removeHighlight(b.dataset.hl));
+    layoutMarginNotes();
   }
+
+  // ── Notes beside their passages ──────────────────────────────────────────────
+  // Ported from journaler-318P, build d808a78. Todd, on the Google Docs model: "I
+  // would give away independent scroll if we implemented a google docs approach."
+  // That is the trade, and it is made here too. In Continuous the margin stops being
+  // a list and becomes a SURFACE: every card sits at the height of the passage it was
+  // written about, and the column no longer scrolls on its own -- it rides the page.
+  // "Beside the passage" and "wherever I left the list" cannot both be true.
+  //
+  // Continuous only, and that is not a compromise: Google Docs IS a continuous scroll,
+  // so there is no paged behaviour to be faithful to. The paged views keep the plain
+  // list, where most cards have no passage on screen and a margin that empties as you
+  // turn the page would hide the work rather than place it. Narrow screens stack the
+  // reader into one column (app.css, 720px), and a margin under the page has nothing
+  // to sit beside, so it stays a list there as well.
+  function marginAnchored(){
+    const r = readings[activeReading];
+    return notesOpen && readPageMode === 'continuous' && !!(r && r.type === 'pdf')
+        && !(window.matchMedia && window.matchMedia('(max-width: 720px)').matches);
+  }
+  // Where a highlight POINTS: the top-left of its first band, in page fractions. The
+  // rects are one per line, and DOM order is not reading order after a re-render, so
+  // take the earliest page and the highest rect on it rather than rects[0].
+  function anchorOf(rec){
+    let best = null;
+    (rec && rec.rects || []).forEach(rc => {
+      const pg = rc.page || 1;
+      if(!best || pg < best.page || (pg === best.page && rc.y < best.y)) best = { page: pg, y: rc.y };
+    });
+    return best;
+  }
+  // Place every card at the height of its passage, then push overlapping ones down so
+  // they stay readable.
+  //
+  // Positions are computed in VIEWPORT space from the live page element on every pass,
+  // rather than mapped once into the margin's own scroll space. It costs a layout per
+  // scroll frame, coalesced to one per animation frame, and buys the absence of a
+  // second coordinate system to keep in step with the first -- two coordinate systems
+  // drifting apart is precisely how this feature goes subtly wrong: a card half a line
+  // off, on some pages only.
+  let _mnFrame = 0;
+  function layoutMarginNotes(){
+    const aside = document.querySelector('.reader .notes');
+    const surf  = document.querySelector('.reader .notes-scroll');
+    if(!aside || !surf) return;
+    if(!marginAnchored()){
+      aside.classList.remove('anchored');
+      surf.style.minHeight = '';
+      surf.querySelectorAll('.hl-card').forEach(c => {
+        c.style.top = ''; c.classList.remove('crowded');
+      });
+      return;
+    }
+    aside.classList.add('anchored');
+    const sr = surf.getBoundingClientRect();
+    const items = [];
+    getHighlights(currentReadingId()).forEach(h => {
+      const el = surf.querySelector(`.hl-card[data-hl="${h.id}"]`);
+      if(!el) return;
+      const a = anchorOf(h);
+      const pg = a && document.querySelector(`#docPane .pdf-page[data-page="${a.page}"]`);
+      // No band, or its page is not rendered: park it at the top rather than dropping
+      // it. A card the reader cannot find is worse than one in the wrong place.
+      if(!pg){ items.push({ el, want: 0, orphan: true }); return; }
+      const r = pg.getBoundingClientRect();
+      if(!r.height){ items.push({ el, want: 0, orphan: true }); return; }
+      items.push({ el, want: (r.top + a.y * r.height) - sr.top, orphan: false });
+    });
+    // Reading order down the chapter, which for anchored cards is also the order the
+    // reader meets the passages — not the order they happened to mark them.
+    items.sort((a, b) => a.want - b.want);
+    const GAP = 10;
+    let prevBottom = -1e9;
+    for(const it of items){
+      it.top = Math.max(it.want, prevBottom + GAP);
+      prevBottom = it.top + it.el.offsetHeight;
+    }
+    // ⚠ 318P's surface is one viewport tall, and a cluster pushed past its bottom is
+    // revealed by scrolling the margin. Here there is nothing to scroll: the reader
+    // grows to its pages and the WINDOW moves, so the surface is already as tall as the
+    // reading and a card pushed off its bottom would simply be clipped away.
+    // Lifting the stack to make room was tried and is a bad trade — it put all nine
+    // cards 36px off their passages to rescue two, and being beside the passage is the
+    // entire point. The surface GROWS instead: the column runs a little past the last
+    // page, and every card stays where it points. Safe against oscillation because the
+    // surface's TOP is what positions cards, and growing it downward cannot move that.
+    // Nothing to place: hand the height back to the stylesheet rather than pinning the
+    // surface to 0px, which would override its own min-height floor.
+    surf.style.minHeight = items.length ? Math.max(0, Math.ceil(prevBottom + 8)) + 'px' : '';
+    for(const it of items){
+      // Marked crowded when it could not sit where it belongs: three notes on one
+      // dense paragraph cannot all be adjacent to it, and the rule the reader needs
+      // is "pushed down to make room", not "this is where you wrote it".
+      it.el.classList.toggle('crowded', !it.orphan && Math.abs(it.top - it.want) > 2);
+      it.el.style.top = Math.round(it.top) + 'px';
+    }
+  }
+  // Coalesce to one layout per animation frame: scroll fires far faster than paint.
+  function scheduleMarginLayout(){
+    if(_mnFrame) return;
+    _mnFrame = requestAnimationFrame(() => { _mnFrame = 0; layoutMarginNotes(); });
+  }
+  // ⚠ WHICH THING SCROLLS IS NOT FIXED. #docPane has overflow-y:auto, but at page zoom
+  // in Continuous the pane grows to its content and the WINDOW is what moves — measured,
+  // not assumed: docPane scrollable by 0px, html by 444px. Hooking the pane alone would
+  // have left the cards behind on exactly the view this feature is for. scroll does not
+  // bubble, so this listens in the CAPTURE phase and catches whichever element it is,
+  // window included. Off anchored mode layoutMarginNotes returns immediately, so the
+  // cost of being wrong about the scroller is one early return per frame.
+  document.addEventListener('scroll', scheduleMarginLayout, { capture: true, passive: true });
+  window.addEventListener('scroll', scheduleMarginLayout, { passive: true });
 
   // ── Zoom. Percentages are of ACTUAL SIZE, the convention every PDF reader uses:
   //    100% means one PDF point per CSS pixel, so a letter page is 612px wide. On a big
@@ -4556,6 +4682,7 @@ You: Really. The first line only has to exist, not be good.`;
   // chosen it goes to DB and nothing here touches it again.
   let _orientT = null;
   window.addEventListener('resize', () => {
+    scheduleMarginLayout();   // the column moved NOW, not in 220ms
     if(DB.readZoom) return;
     clearTimeout(_orientT);
     _orientT = setTimeout(() => {              // a rotation fires resize several times
@@ -4751,9 +4878,11 @@ You: Really. The first line only has to exist, not be good.`;
         pageDiv.appendChild(overlay);
         attachMarquee(overlay, canvas, tlDiv);
         paintHighlightsForPage(pageDiv, n, r.id);
+        layoutMarginNotes();   // pages arrive one at a time; cards follow each one in
       } catch(e){ console.warn('text layer', e); }
     }
     if(token === _readToken && !attached){ pane.innerHTML = ''; }
+    layoutMarginNotes();
   }
   // Add one or many files (multi-select or a whole folder). txt inline, PDF/.docx bytes to IndexedDB.
   // Stable, filename-derived id. Mirrors the `d:` scheme the persistent-folder path
@@ -4962,10 +5091,12 @@ You: Really. The first line only has to exist, not be good.`;
         <div class="doc" id="docPane">${docBody(active)}</div>
         <aside class="notes">
           <h4>Your highlights</h4>
+          <div class="notes-head" id="hlHead"></div>
           <div class="notes-scroll">
             <div id="hlList"></div>
             <div id="newnote"></div>
           </div>
+          <div class="notes-foot" id="hlFoot"></div>
           <p class="locknote" style="margin-top:10px">Highlights save automatically · export to your Notebook →</p>
         </aside>
       </div>`;
@@ -5008,6 +5139,7 @@ You: Really. The first line only has to exist, not be good.`;
     const dp = document.getElementById('docPane');
     if(dp){ trackDrag(dp); }
     watchPaneWidth(dp);
+    layoutMarginNotes();
   }
 
   // ---------- Notebook — kept pages, seen two ways (by day · by piece) ----------
@@ -6715,6 +6847,7 @@ You: Really. The first line only has to exist, not be good.`;
     body.classList.toggle('focus', on);
     if(on) requestChromeless(); else releaseChromeless();
     if(tab !== 'read') return;
+    scheduleMarginLayout();   // the column's top moved even when nothing re-renders
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const r = readings[activeReading];
       if(r && (r.type === 'pdf' || r.type === 'docx')) renderActiveDoc(r);
