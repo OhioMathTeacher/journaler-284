@@ -2848,7 +2848,14 @@ async function runReflection(rf, text, hooks) {
     if(!d || d === keep) return;
     try { const p = d.destroy(); if(p && p.catch) p.catch(() => {}); } catch(e){}
   }
-  function dropPdf(){ const d = _curPdf.doc; _curPdf = { id:null, doc:null, labels:null }; releasePdf(d); }
+  function dropPdf(){ stopPageObservers(); const d = _curPdf.doc; _curPdf = { id:null, doc:null, labels:null }; releasePdf(d); }
+  // ── Which pages currently hold a canvas is decided by two IntersectionObservers set
+  // up per render (see renderPdfPages, PHASE 2). They observe divs that a later render
+  // throws away, so they are torn down whenever the pane is about to be rebuilt or the
+  // document goes — an observer left watching detached nodes is a leak, and worse, it
+  // would call fill() against a stale render token.
+  let _pageIO = [];
+  function stopPageObservers(){ _pageIO.forEach(o => { try { o.disconnect(); } catch(e){} }); _pageIO = []; }
   // The WWM chapter PDFs carry /PageLabels (embedded 2026-08-26), so page 1 of
   // ch5-a-writing-place.pdf reports itself as book page 23. Everything a student
   // READS or CITES should use that; everything that POSITIONS a highlight must keep
@@ -5029,6 +5036,21 @@ You: Really. The first line only has to exist, not be good.`;
     const twoUp = single && _effSpread === 2 && pages.length > 1;
     const colW = twoUp ? Math.max(280, Math.floor((avail - 18) / 2)) : avail;
     if(twoUp) wrap.classList.add('two-up');
+
+    // ══ PHASE 1 · every page div, at its true size, before anything is drawn ═══════
+    //
+    // ⚠ THE PAGE DIVS ARE NOT NEGOTIABLE (Todd, 2026-08-30): "We can't have notes
+    // disappearing while students are reading a long document." layoutMarginNotes
+    // anchors every margin card to the LIVE RECT of .pdf-page[data-page="N"]. A page
+    // that leaves the DOM takes its cards' anchor with it, and a student scrolling a
+    // long chapter would watch their notes jump and pile up at the top of the column —
+    // a worse bug than the one being fixed. So every page keeps a div of the correct
+    // height for as long as the chapter is open, and only the CANVAS comes and goes.
+    //
+    // getViewport is arithmetic over numbers pdf.js already has — no rendering, no
+    // image decoding — so the document's full height is right from the first paint and
+    // nothing below the fold ever shifts under the reader.
+    const slots = new Map();
     for(const n of pages){
       if(token !== _readToken) return;
       const page = await doc.getPage(n);
@@ -5037,25 +5059,83 @@ You: Really. The first line only has to exist, not be good.`;
       const viewport = page.getViewport({ scale });
       const pageDiv = document.createElement('div'); pageDiv.className = 'pdf-page'; pageDiv.dataset.page = n;
       pageDiv.style.width = viewport.width + 'px'; pageDiv.style.height = viewport.height + 'px';
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.floor(viewport.width * ratio); canvas.height = Math.floor(viewport.height * ratio);
-      canvas.style.width = viewport.width + 'px'; canvas.style.height = viewport.height + 'px';
-      pageDiv.appendChild(canvas); wrap.appendChild(pageDiv); attach();
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport, transform: ratio !== 1 ? [ratio,0,0,ratio,0,0] : null }).promise;
-      if(token !== _readToken) return;
-      // Selectable text layer + marquee capture overlay (passages → Romano / Notebook).
+      wrap.appendChild(pageDiv); attach();
+      // ⚠ AND THE READER'S WORK IS NOT MEMORY TO BE MANAGED (Todd, 2026-08-30): "We do
+      // need all of the user's comments saved in resident memory across all the
+      // readings. Those should never leave (unless the user deletes them)." Bands are
+      // painted here, at placeholder time, from the stored records and the div's own
+      // box — no canvas, no text layer. So they are right on a page that has never been
+      // drawn, and they survive every eviction below because nothing there touches them.
+      paintHighlightsForPage(pageDiv, n, r.id);
+      slots.set(n, { div: pageDiv, page, viewport, scale, unit, state: 'empty', task: null });
+    }
+    if(token !== _readToken) return;
+
+    // ══ PHASE 2 · the canvas follows the viewport ═════════════════════════════════
+    //
+    // ⚠ REMOVE BY NAME, NEVER WHOLESALE. .hl-layer is a SIBLING of the canvas and the
+    // text layer inside .pdf-page, and it holds the reader's marked passages.
+    // pageDiv.innerHTML = '' would take the bands with it — the one thing this work is
+    // not allowed to do. Take the canvas, the text layer and the capture overlay, and
+    // nothing else.
+    const strip = s => s.div
+      .querySelectorAll(':scope > canvas, :scope > .textLayer, :scope > .marquee-overlay')
+      .forEach(el => el.remove());
+
+    const drop = n => {
+      const s = slots.get(n);
+      if(!s || s.state === 'empty') return;
+      // Never pull a page out from under a drag that is happening on it. Eviction only
+      // ever reaches pages well off screen, so this should not fire — but a box drag
+      // that has scrolled is the one way it could, and losing it would be silent.
+      if(_mq && _mq.overlay && s.div.contains(_mq.overlay)) return;
+      if(s.task){ try { s.task.cancel(); } catch(e){} s.task = null; }
+      s.state = 'empty';
+      strip(s);
+      // ⚠ THE BITMAP IS NOT THE WHOLE COST. pdf.js keeps a decoded operator list, font
+      // data and image cache per page; dropping the canvas frees the bitmap and leaves
+      // all of that resident. cleanup() is guarded internally against firing mid-render,
+      // and the task above is cancelled first.
+      try { s.page.cleanup(); } catch(e){}
+    };
+
+    const fill = async n => {
+      const s = slots.get(n);
+      if(!s || s.state !== 'empty' || token !== _readToken) return;
+      s.state = 'filling';
+      // Between every await the page may have been evicted, the reading switched, or a
+      // newer render started. `live` is the one question worth asking at each of them.
+      const live = () => token === _readToken && s.state === 'filling';
       try {
-        const tc = await page.getTextContent();
-        if(token !== _readToken) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.floor(s.viewport.width * ratio); canvas.height = Math.floor(s.viewport.height * ratio);
+        canvas.style.width = s.viewport.width + 'px'; canvas.style.height = s.viewport.height + 'px';
+        s.div.appendChild(canvas);
+        s.task = s.page.render({ canvasContext: canvas.getContext('2d'), viewport: s.viewport,
+                                 transform: ratio !== 1 ? [ratio,0,0,ratio,0,0] : null });
+        await s.task.promise;
+        s.task = null;
+        if(!live()){ strip(s); return; }
+        // Selectable text layer + marquee capture overlay (passages → Romano / Notebook).
+        // ⚠ THE TEXT LAYER MAY GO WITH THE CANVAS (Todd, 2026-08-30): "We don't need all
+        // of the text loaded for all of the pages all of the time." Everything that
+        // reads #docPane .textLayer acts on the page the reader is touching —
+        // handleMarqueeCapture is handed its own page's layer, and spanOf, docLines,
+        // paintLiveSelection and the copy handler all work from a live selection. You
+        // cannot drag a box across a page you cannot see. It rebuilds from
+        // getTextContent() on the way back in.
+        const tc = await s.page.getTextContent();
+        if(!live()){ strip(s); return; }
         // Clean OCR items before building the layer: drop duplicate-embedded text and
         // put them in reading order — helps both native selection and marquee capture.
-        try { tc.items = orderByReadingColumns(dedupeTextItems(tc.items), unit.width); } catch(e2){ console.warn('column order', e2); }
+        try { tc.items = orderByReadingColumns(dedupeTextItems(tc.items), s.unit.width); } catch(e2){ console.warn('column order', e2); }
         const tlDiv = document.createElement('div'); tlDiv.className = 'textLayer';
-        tlDiv.style.setProperty('--scale-factor', scale);
-        tlDiv.style.setProperty('--total-scale-factor', scale);
-        pageDiv.appendChild(tlDiv);
+        tlDiv.style.setProperty('--scale-factor', s.scale);
+        tlDiv.style.setProperty('--total-scale-factor', s.scale);
+        s.div.appendChild(tlDiv);
         const TL = window.pdfjsLib && window.pdfjsLib.TextLayer;
-        if(TL){ await new TL({ textContentSource: tc, container: tlDiv, viewport }).render(); }
+        if(TL){ await new TL({ textContentSource: tc, container: tlDiv, viewport: s.viewport }).render(); }
+        if(!live()){ strip(s); return; }
         // Cross-line native selection fix ("endOfContent" trick), used in "select" mode:
         // a full-layer selectable block behind the text lets the browser flow the
         // selection to end-of-line and wrap instead of a rectangular column.
@@ -5069,11 +5149,41 @@ You: Really. The first line only has to exist, not be good.`;
         // Marquee "box" capture overlay (default; reliable on OCR'd scans).
         const overlay = document.createElement('div'); overlay.className = 'marquee-overlay';
         overlay.style.pointerEvents = 'auto';
-        pageDiv.appendChild(overlay);
+        s.div.appendChild(overlay);
         attachMarquee(overlay, canvas, tlDiv);
-        paintHighlightsForPage(pageDiv, n, r.id);
-        layoutMarginNotes();   // pages arrive one at a time; cards follow each one in
-      } catch(e){ console.warn('text layer', e); }
+        s.state = 'filled';
+      } catch(e){
+        // A cancelled render is ordinary here — it is what eviction does to a page that
+        // was still drawing — and is not worth a console line.
+        if(!(e && (e.name === 'RenderingCancelledException' || /cancel/i.test(String(e.message||''))))) console.warn('page ' + n, e);
+        s.state = 'empty'; strip(s);
+      }
+    };
+
+    stopPageObservers();
+    if(single || !slots.size){
+      // One or two pages, and both are on screen by definition. Nothing to manage.
+      for(const n of pages){ if(token !== _readToken) return; await fill(n); }
+    } else {
+      // ⚠ root:null ON PURPOSE. Which element actually scrolls is not fixed here —
+      // #docPane has overflow-y:auto, but at page zoom the pane scrolls by 0px and the
+      // document scrolls instead (see the note on layoutMarginNotes). Intersection
+      // against the VIEWPORT is correct either way, because the algorithm clips the
+      // target through every ancestor on the way up.
+      //
+      // Two bands, not one: draw within a viewport of the reader, and let go only well
+      // beyond that. A single threshold would leave a page on the boundary flipping
+      // between drawn and blank on every small scroll.
+      const ioFill = new IntersectionObserver(es => {
+        if(token !== _readToken) return;
+        es.forEach(e => { if(e.isIntersecting) fill(+e.target.dataset.page); });
+      }, { root: null, rootMargin: '100% 0px' });
+      const ioKeep = new IntersectionObserver(es => {
+        if(token !== _readToken) return;
+        es.forEach(e => { if(!e.isIntersecting) drop(+e.target.dataset.page); });
+      }, { root: null, rootMargin: '250% 0px' });
+      slots.forEach(s => { ioFill.observe(s.div); ioKeep.observe(s.div); });
+      _pageIO = [ioFill, ioKeep];
     }
     if(token === _readToken && !attached){ pane.innerHTML = ''; }
     layoutMarginNotes();
