@@ -2003,7 +2003,17 @@ async function runReflection(rf, text, hooks) {
   // ---------- FreeWrite ----------
   const OPS = {
     op1:{n:1,t:'Why You Write',f:'Why have you written, and why do you write? <span class="hint">What has it cost you? What has it given you?</span>',ph:'Shape your gush into one page — ~500–600 words, image and text.'},
-    op2:{n:2,t:'Writing Place',f:'Where and how do you write? <span class="hint">Light, sound, tools, talismans, rituals. When does the writing come, and when not?</span>',ph:'One page: place and process, 2–3 photos embedded. Use the image button.',photos:true},
+    // The gush prompt is the in-class activity, verbatim: the room counts off 1–2–3 and
+    // your number is your subject. General words are the failure mode this is written
+    // against — "music", "my desk", "late at night" — so every branch names actual
+    // things and the mentor texts do the naming, not the instruction.
+    op2:{n:2,t:'Writing Place',f:`Where and how do you write? Count off 1–2–3 — your number is your subject. No general words: name the actual thing.
+      <ol class="branches">
+        <li><strong>Sound and light.</strong> What do you hear when you write, and what’s the light? Romano wants silence “save the voice in my head”; King writes inside heavy metal; Murray wrote to loud classical; one student matched the music to the subject — Italian opera for Latin class, German folk music for German folktales — and burned a scented candle.</li>
+        <li><strong>Time and ritual.</strong> When do you write, and what has to happen first? Romano starts before dawn and breaks to brew a French press — “I like the ritual as well as the caffeine lift.” Liz writes at 10 p.m. or later: “On some nights, at 4 a.m., you can see the faint glow of light from in between the blinds… If you listen hard enough, you can hear the sounds of typing.”</li>
+        <li><strong>Objects and creatures.</strong> What’s within arm’s reach — tools, talismans, pets? Romano has the Tri-Conderoga pencils, a widemouthed ceramic frog full of paper clips that a high school student made him, and a schnauzer named Minnie Mae who waits on the stair landing. Hillary photographed an orange tabby with one paw on her keyboard. (Ask Todd about the Iron Sheik on the desk.)</li>
+      </ol>
+      <p class="hint">One requirement, from the mentor texts: land at least one simile, metaphor, or bit of personification. The dog is a simile, the knight is a metaphor, and the IKEA desk that “snuggles up next to the foot of my bed” is personification. (Metaphor gets a whole day in Week 9.)</p>`,ph:'One page: place and process, 2–3 photos embedded. Use the image button.',photos:true},
     op3:{n:3,t:'Voice Print',f:'A voice you don’t hear anymore — one moment, in <em>pure dialogue</em>. <span class="hint">Just the voices. No narration.</span>',ph:'One page, mostly pure dialogue. New paragraph per speaker.'},
     op4:{n:4,t:'Show, Don’t Tell',f:'One small moment, through the senses. <span class="hint">Light, sound, smell, touch, taste. No dialogue. Make us feel it.</span>',ph:'One page. Cut every word that tells instead of shows.'},
     op5:{n:5,t:'Breaking the Rules',f:'Something that matters, rules broken on purpose. <span class="hint">At least two Grammar B moves: fragments, labyrinths, purposeful misspelling, double voice.</span>',ph:'One page. Every “error” one you meant.'},
@@ -2301,7 +2311,7 @@ async function runReflection(rf, text, hooks) {
   function renderOPStage(M){
     body.classList.toggle('wide', !!fwGushed[fwCur]);
     document.getElementById('stage').innerHTML = `
-      <p class="kicker">One-Pager ${M.n}</p><h2>${M.t}</h2><p class="framing">${M.f}</p>
+      <p class="kicker">One-Pager ${M.n}</p><h2>${M.t}</h2><div class="framing">${M.f}</div>
       <div class="op-cols ${fwGushed[fwCur]?'two':''}">
        <div class="op-col gush">
         <div class="stagelabel"><span class="n">1</span> Gush — timed, editing locks · enters Focus</div>

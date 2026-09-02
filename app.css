@@ -185,6 +185,13 @@
   .kicker { font-size: 12.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); font-weight: 700; margin: 0 0 6px; }
   .stage h2 { font-family: var(--write); font-size: 26.5px; margin: 0 0 6px; font-weight: 600; }
   .framing { font-size: 17px; margin: 0 0 16px; max-width: 90ch; } .framing .hint { color: var(--muted); }
+  /* OP2's prompt is the count-off activity, so .framing is a <div> holding a list, not a
+     <p>. It sits above the gush box and stays up during the gush -- the student is
+     writing to branch 1, 2 or 3 and needs to see which -- so keep it tight. */
+  .framing ol { margin: 8px 0 0; padding-left: 1.6em; }
+  .framing ol > li { margin: 0 0 7px; }
+  .framing ol > li:last-child { margin-bottom: 0; }
+  .framing p.hint { margin: 11px 0 0; }
 
   .stagelabel { font-size: 12.5px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 700; margin: 20px 0 10px; padding-top: 16px; border-top: 1px solid var(--comment-border); display: flex; align-items: center; gap: 8px; }
   .stagelabel .n { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12.5px; display: inline-flex; align-items: center; justify-content: center; }
