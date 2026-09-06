@@ -34,6 +34,9 @@
     ok('M3 the notebook view is showing', !!document.querySelector('.nbview[data-mode="tags"].on'));
     var acts = document.querySelectorAll('.pj-act');
     ok('M4 row 4 draws three act columns', acts.length === 3, acts.length + ' columns');
+    var st0 = JSON.parse(localStorage.getItem('cr284_state')) || {};
+    ok('M4b the seed survived the reload', (st0.journal||[]).length === 4, (st0.journal||[]).length + ' entries');
+    ok('M4c what the columns say', true, [].slice.call(acts).map(function(a){ return a.textContent.replace(/\s+/g,' ').slice(0,70); }).join(' || '));
     var opts = document.querySelectorAll('.pj-opt');
     ok('M5 the acts list their entries as options', opts.length >= 3, opts.length + ' options');
     var chosen = document.querySelectorAll('.pj-opt.on');

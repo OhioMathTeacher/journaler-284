@@ -6307,7 +6307,13 @@ You: Really. The first line only has to exist, not be good.`;
                 ['Act II', 'The Currere', 'Sep 28 – Oct 30', '2026-11-01'],
                 ['Act III', 'Multimodal Research Project', 'Nov 2 – Dec 2', '9999-12-31']];
   // ISO dates compare correctly as strings, which is why every date in this app is one.
-  function actOf(date){
+  // ⚠ NOT actOf. `actOf(t)` already exists further down as the TIPS carousel's act lookup,
+  // and it returns an object. Two function declarations of one name in this IIFE means the
+  // LATER one wins, silently — so every call here reached the tips version, ACTS[{...}] came
+  // back undefined, row 4 threw on it, and the My Progress button did nothing, because the
+  // failure of a render is invisible from outside. Same trap the shapedPageText note
+  // upstairs was written about, walked into anyway.
+  function actOfDate(date){
     if(!date || date < TERM) return -1;
     return ACTS.findIndex(a => date <= a[3]);
   }
@@ -6888,7 +6894,7 @@ You: Really. The first line only has to exist, not be good.`;
       : `<span class="pj-none">not written yet</span> ${jump('Threads →','threads')}`;
     const flagOK = ['flag1','flag2','flag3'].map((k, i) => {
       const e = T[k] && ord.find(x => x.id === T[k]);
-      return !!e && actOf(e.date) === i && wordsIn(e) >= FLAG_MIN_WORDS;
+      return !!e && actOfDate(e.date) === i && wordsIn(e) >= FLAG_MIN_WORDS;
     });
     // ⚠ EACH ACT SHOWS ITS OWN (Todd, 2026-09-06): "each of the 'ones' from each act should
     // be listed/linked in its own column, and we should have one checked off from each
@@ -6901,7 +6907,7 @@ You: Really. The first line only has to exist, not be good.`;
     // happened without going back and seeing which one that was.
     const actCols = ACTS.map(([act, title, when], i) => {
       const k = 'flag' + (i + 1);
-      const mine = ord.filter(e => actOf(e.date) === i);
+      const mine = ord.filter(e => actOfDate(e.date) === i);
       // A flag set before this check existed can point outside its act. Show it here
       // rather than nowhere, amber, so it can be seen and taken off.
       const stray = T[k] && !mine.some(e => e.id === T[k]) && ord.find(e => e.id === T[k]);
@@ -6909,11 +6915,11 @@ You: Really. The first line only has to exist, not be good.`;
       // rather than as a complaint after it. Short ones stay clickable -- you may flag what
       // you like -- they simply do not complete the row.
       const opt = (e, bad) => { const w = wordsIn(e), thin = w < FLAG_MIN_WORDS;
-        // Where the entry actually sits, resolved ONCE and defensively. Calling actOf twice
+        // Where the entry actually sits, resolved ONCE and defensively. Calling actOfDate twice
         // inside a template and indexing ACTS with the second call is how this threw
         // "cannot read properties of undefined" and took the whole panel -- and therefore
         // the My Progress button -- down with it.
-        const el = actOf(e.date), home = ACTS[el] ? 'in ' + ACTS[el][0] : 'before the term';
+        const el = actOfDate(e.date), home = ACTS[el] ? 'in ' + ACTS[el][0] : 'before the term';
         return `<button class="pj-opt${T[k] === e.id ? ' on' : ''}${bad || thin ? ' bad' : ''}"
            data-flagpick="${k}" data-flagent="${escHtml(e.id)}"
            title="${escHtml(bad ? 'Flagged for ' + act + ', but written ' + home + '. Click to take it off.'
