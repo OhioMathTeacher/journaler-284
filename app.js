@@ -7497,14 +7497,19 @@ You: Really. The first line only has to exist, not be good.`;
     // The Tags lens advertises itself. Todd: "Folks won't know to click on Tags." A lens
     // name sitting third in a row of three says nothing about being required before you
     // submit, so it carries its own count and goes red until every column is filled.
-    const _R = readiness(); const tagDone = _R.done, tagAll = _R.all;
-    const tagBadge = (DB.journal||[]).length
-      ? `<span class="nbcount ${tagDone<tagAll?'todo':'ready'}">${tagDone}/${tagAll}</span>` : '';
+    // ⚠ NO COUNT ON THE TAB (Todd, 2026-09-06): "I think it gives a false sense of being
+    // nearly done!" It did. The badge read readiness() — eight tag slots plus the three
+    // guards — so 10/11 was reachable by FILING: tag a few pages, and the tab says you
+    // are one step from finished while the 50 points are barely started. It is the same
+    // mistake as "3 entries created in 5 minutes should [not] allow me to submit the
+    // entire notebook", printed where it is seen most and read fastest.
+    // The panel inside says where you stand, in points, with the work named. A number on
+    // the tab can only ever summarise that badly, so there isn't one.
     const nEntries = numberedEntries().length;
     const threadsReady = nEntries >= THREADS_MIN;
     const onPages = noteMode === 'day' || noteMode === 'piece';
     const toggle = `<div class="nbviews">`
-      + `<button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags" title="Where you stand on the 50 points: how much you have kept, which readings are still waiting for you to write about them, and which pages you have marked to be read closely. Start here.">My Progress ${tagBadge}</button>`
+      + `<button class="nbview ${noteMode==='tags'?'on':''}" data-mode="tags" title="Where you stand on the 50 points: how much you have kept, which readings are still waiting for you to write about them, and which pages you have marked to be read closely. Start here.">My Progress</button>`
       + `<button class="nbview ${onPages?'on':''}" data-mode="day" title="Your term as a calendar. A filled dot is a day you wrote; a hollow one is a day you marked passages but have not written about them yet. Spread is part of the grade — entries dated across the whole term read as a practice, a pile of them in November does not.">By day</button>`
       + `<button class="nbview ${noteMode==='threads'?'on':''}" data-mode="threads"`
       + ` title="${threadsReady

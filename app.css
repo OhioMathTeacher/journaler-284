@@ -1483,13 +1483,6 @@ body.gushing .liftbar { display: none !important; }
 .turnin-row .tclear { border: 0; background: none; cursor: pointer; color: var(--mut, #6b7280); font-size: 17px; line-height: 1; padding: 0 3px; }
 .turnin-row .tclear:hover { color: var(--danger, #b91c1c); }
 
-/* The Tags lens carries its own count, so the row of lens names says which one still
-   wants attention. Red until every column has a box filled. */
-.nbview .nbcount { display: inline-block; margin-left: 5px; font-size: 12.5px; font-weight: 700;
-  padding: 1px 6px; border-radius: 999px; vertical-align: baseline; font-variant-numeric: tabular-nums; }
-.nbview .nbcount.todo  { background: #d9534f; color: #fff; }
-.nbview .nbcount.ready { background: #4c9a5e; color: #fff; }
-
 /* ── Threads: hold one preoccupation still and watch it change. The app groups, orders
    and juxtaposes; it never says what a thread means. */
 .tagbar.thr { margin-top: 5px; }
