@@ -6090,24 +6090,66 @@ You: Really. The first line only has to exist, not be good.`;
   ];
   function rosterNorm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
 
-  // Match a file the student loaded to a row in the roster.
-  //   Romano is exact: the roster carries a chapter number and chapterNum() reads one off
-  //   the filename, so ch7 matches ch7 and nothing else. The rest match on the author
-  //   surname the roster title starts with PLUS one distinctive word from the title --
-  //   enough to catch "Daspit - None of Us.pdf" without letting a file that merely
-  //   mentions Daspit claim the row. A file that matches nothing is the student's own and
-  //   is listed as such; it never appears as a gap in the course list.
-  function rosterMatch(r, entry){
+  // ── MATCHING A LOADED FILE TO A ROW IN THE ROSTER.
+  //
+  // ⚠ THE FIRST VERSION REQUIRED THE AUTHOR'S SURNAME IN THE FILENAME, and Todd's own
+  // copies are named for the article instead -- so "Who's Cheating Whom?" with 19
+  // passages marked sat in the roster reading "due Wed, Aug 26", as though he had never
+  // opened it. A matcher that only works on files named the way the matcher expects is
+  // not a matcher.
+  //
+  // Now every token counts and the surname is worth more, not required:
+  //   surname (the first significant word of the roster title)   2
+  //   each other significant word                                1
+  // A file is claimed at 2 or better -- an author plus one title word, or two title
+  // words on their own. Short tokens ("read", "page", "none", "whom") must appear as
+  // WHOLE WORDS, so "reading-notes-page1.pdf" cannot claim Wiederhold on read + page;
+  // tokens of six letters or more may match inside a word, so "BlankPage" still counts.
+  //
+  // Ambiguity loses rather than guesses. Two articles here are by an Edwards, so a file
+  // called "edwards.pdf" ties at 2 and is claimed by NEITHER -- it goes to Your own,
+  // where the student can see it, instead of being silently filed under the wrong
+  // reading. Romano is assigned first and separately, because a chapter number is exact
+  // and should never lose a tie to a fuzzy title score.
+  function rosterRomanoHit(r, entry){
     if(r.builtin) return false;
     const bare = String(r.name||'').replace(/\.(pdf|docx|txt)$/i,'');
-    if(entry.kind === 'romano'){
-      if(entry.ch != null) return chapterNum(bare) === entry.ch;
-      return FRONT_RE.test(bare);
+    return entry.ch != null ? chapterNum(bare) === entry.ch : FRONT_RE.test(bare);
+  }
+  function rosterScore(r, entry){
+    if(r.builtin) return 0;
+    const n = rosterNorm(String(r.name||'').replace(/\.(pdf|docx|txt)$/i,''));
+    const words = n.split(' ');
+    const toks = rosterNorm(entry.title).split(' ').filter(w => w.length > 3);
+    if(!toks.length) return 0;
+    const has = w => w.length >= 6 ? n.includes(w) : words.includes(w);
+    return (has(toks[0]) ? 2 : 0) + toks.slice(1).filter(has).length;
+  }
+  function rosterAssign(roster, loaded){
+    const files = loaded.filter(r => !r.builtin);
+    const out = new Map();            // roster index → the loaded reading
+    const taken = new Set();
+    roster.forEach((e, i) => {
+      if(e.kind !== 'romano') return;
+      const f = files.find(r => !taken.has(r.id) && rosterRomanoHit(r, e));
+      if(f){ out.set(i, f); taken.add(f.id); }
+    });
+    const best = [];
+    for(const r of files){
+      if(taken.has(r.id)) continue;
+      const row = [];
+      roster.forEach((e, i) => {
+        if(e.kind === 'romano' || out.has(i)) return;
+        const s = rosterScore(r, e);
+        if(s >= 2) row.push([s, i]);
+      });
+      row.sort((a, b) => b[0] - a[0]);
+      // Only an outright winner is allowed to claim a row.
+      if(row.length && (row.length === 1 || row[0][0] > row[1][0])) best.push([row[0][0], r, row[0][1]]);
     }
-    const n = rosterNorm(bare);
-    const words = rosterNorm(entry.title).split(' ').filter(w => w.length > 3);
-    if(words.length < 2) return words.length === 1 ? n.includes(words[0]) : false;
-    return n.includes(words[0]) && words.slice(1).some(w => n.includes(w));
+    best.sort((a, b) => b[0] - a[0]);
+    for(const [, r, i] of best){ if(!out.has(i) && !taken.has(r.id)){ out.set(i, r); taken.add(r.id); } }
+    return out;
   }
 
   function rosterPanel(){
@@ -6115,11 +6157,14 @@ You: Really. The first line only has to exist, not be good.`;
     if(!roster.length) return pendingPanel();   // no roster shipped — keep the old panel
     const caps  = capturesByPiece();
     const today = new Date().toISOString().slice(0,10);
-    const claimed = new Set();
+    // One assignment for the whole panel, computed before anything renders, so a row
+    // never depends on which group happened to be drawn first.
+    const assigned = rosterAssign(roster, readings);
+    const claimed = new Set([...assigned.values()].map(r => r.id));
+    const idxOf = new Map(roster.map((e, i) => [e, i]));
 
     const stateFor = entry => {
-      const hit = readings.find(r => !claimed.has(r.id) && rosterMatch(r, entry));
-      if(hit) claimed.add(hit.id);
+      const hit = assigned.get(idxOf.get(entry)) || null;
       const c = hit ? caps.find(x => x.rid === hit.id) : null;
       return { hit, marked: c ? c.items.length : 0, commented: c ? c.reflected : 0 };
     };
