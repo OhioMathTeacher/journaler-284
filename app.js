@@ -5457,10 +5457,16 @@ You: Really. The first line only has to exist, not be good.`;
     const roster = (window.COURSE_READINGS || []);
     const assigned = rosterAssign(roster, readings);
     const mineNow = [...assigned.entries()].find(([, x]) => x.id === rid);
-    const takenRows = new Set([...assigned.entries()].filter(([, x]) => x.id !== rid).map(([i]) => i));
+    // ⚠ EVERY ROW IS OFFERED (Todd, 2026-09-06): "allow the user to reassign any reading
+    // as any other reading." Hiding rows another file already holds meant the one student
+    // whose shelf went wrong in some way we did not predict had no way to say so. A row
+    // held by another file is shown, labelled with what holds it, and picking it MOVES it
+    // — last pick wins, and the file that lost it falls back to the matcher.
+    const heldBy = new Map();
+    for(const [i, x] of assigned) if(x.id !== rid) heldBy.set(i, shelfLabel(x));
     const rTitle = rosterTitleFor(rid);
     const groups = ROSTER_GROUPS.map(([kind, label]) => [label,
-      roster.map((e, i) => [e, i]).filter(([e, i]) => e.kind === kind && !takenRows.has(i))]);
+      roster.map((e, i) => [e, i]).filter(([e]) => e.kind === kind)]);
     const host = document.createElement('div');
     host.className = 'rf-overlay'; host.id = 'idOverlay';
     host.innerHTML = `<div class="rf-box" role="dialog" aria-modal="true" aria-label="This reading">
@@ -5475,7 +5481,9 @@ You: Really. The first line only has to exist, not be good.`;
       <label class="id-lab">Which course reading is it? <span class="id-sub">— sets the counts, not the name</span></label>
       <div class="id-list">
         ${groups.filter(([, xs]) => xs.length).map(([label, xs]) => `<div class="id-sec">${escHtml(label)}</div>`
-          + xs.map(([e, i]) => `<button class="id-pick${mineNow && mineNow[0] === i ? ' on' : ''}" type="button" data-title="${escHtml(e.title)}">${escHtml(rosterLabel(e))}</button>`).join('')).join('')}
+          + xs.map(([e, i]) => `<button class="id-pick${mineNow && mineNow[0] === i ? ' on' : ''}" type="button" data-title="${escHtml(e.title)}"${
+              heldBy.has(i) ? ` title="${escHtml('Currently ' + heldBy.get(i) + '. Choosing it here moves it.')}"` : ''
+            }>${escHtml(rosterLabel(e))}${heldBy.has(i) ? `<span class="id-held">now ${escHtml(heldBy.get(i))}</span>` : ''}</button>`).join('')).join('')}
         <div class="id-sec">Not a course reading</div>
         <button class="id-pick${(rosterOverrides()[rid] === 'own') ? ' on' : ''}" type="button" data-title="own">This is my own reading</button>
       </div>
@@ -5504,7 +5512,13 @@ You: Really. The first line only has to exist, not be good.`;
       // file later and the shelf would keep showing the old one. Only a real change sticks.
       if(typed && typed !== readingLabel(r)) readingNames()[rid] = typed;
       else delete readingNames()[rid];
-      if(pick) rosterOverrides()[rid] = pick; else delete rosterOverrides()[rid];
+      const ov = rosterOverrides();
+      // One row, one file. Whoever picked it last holds it; the other returns to the
+      // matcher, which may find it another row or leave it under Your own.
+      if(pick){
+        if(pick !== 'own') for(const k of Object.keys(ov)) if(k !== rid && ov[k] === pick) delete ov[k];
+        ov[rid] = pick;
+      } else delete ov[rid];
       saveDB(); close(); renderDrawer(); renderRead();
       toast('Saved');
     };

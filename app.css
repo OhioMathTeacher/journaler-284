@@ -1879,6 +1879,7 @@ a.rr-t:hover { border-bottom-color: currentColor; }
   border: 1px solid transparent; border-radius: 6px; padding: 6px 8px; color: var(--ink); }
 .id-pick:hover { background: var(--comment-bg); border-color: var(--comment-border); }
 .id-pick.on { border-color: var(--go); color: var(--go); font-weight: 600; }
+.id-held { float: right; font-family: var(--sans); font-size: 11px; font-weight: 400; color: var(--muted); }
 .drawer-tick { flex: 0 0 auto; align-self: center; width: 16px; padding-left: 4px; text-align: center; font-size: 12px; line-height: 1; color: transparent; }
 .drawer-tick.done { color: var(--go); font-weight: 700; cursor: help; }
 .drawer-tick.part { color: var(--muted); cursor: help; }
