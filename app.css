@@ -1863,3 +1863,4 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
   background: var(--panel-fill); max-height: 46vh; overflow: auto; }
 .gl-pane h4 { margin: 0 0 6px; font-size: 13px; opacity: .8; }
 .gl-pane p { margin: 0 0 8px; }
+.reflectband { margin: 26px 0 0; padding-top: 18px; border-top: 1px solid var(--panel-line); }

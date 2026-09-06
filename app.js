@@ -724,8 +724,7 @@ function distressNote(text){ return DISTRESS.test(String(text || '')) ? ANSWER_I
 // so the question on its own is half a conversation. The answer is saved and prints
 // on the session record. Callers that pass no hooks get the question only.
 function paintReflection(rf, question, hooks) {
-  rf.innerHTML = '<span class="lbl">' + REFLECT_LABEL + '</span>'
-    + '<span id="reflectBody"></span>';
+  rf.innerHTML = '<span id="reflectBody"></span>';
   rf.querySelector('#reflectBody').textContent = question;
   if (!hooks) return;
   const ta = document.createElement('textarea');
@@ -735,6 +734,32 @@ function paintReflection(rf, question, hooks) {
   ta.value = hooks.answer || '';
   ta.addEventListener('input', () => hooks.onAnswer(ta.value));
   rf.appendChild(ta);
+}
+
+// ── Which stage bands are showing. Two rules, one exception.
+//
+//    Generation Loss (3) stays hidden until there is something in the Shape pane -- it
+//    rewrites the composed page, so before a page exists the button has nothing to act
+//    on and only clutters the gush.
+//
+//    Reflection (4) waits for Generation Loss on the one-pager that has it: the OP5
+//    reflection is ABOUT what the machine erased, so asking for it first asks too early.
+//    Elsewhere it is 3 and appears as soon as the gush ends.
+//
+//    ⚠ The exception is not negotiable. appendDistressNote paints into #reflect, so a
+//    hidden band is a hidden safety net. If the gush tripped DISTRESS the band shows at
+//    once, whatever step the student is on. Sequencing never outranks that.
+function syncStageBands(){
+  const gl = document.getElementById('genloss');
+  const pg = document.getElementById('page');
+  if (gl) gl.style.display = (pg && pg.innerText.trim()) ? '' : 'none';
+
+  const rb = document.getElementById('reflectband');
+  const rf = document.getElementById('reflect');
+  if (!rb || !rf) return;
+  if (rf.dataset.on !== '1') { rb.style.display = 'none'; return; }
+  const waitingOnGenloss = !!gl && gl.dataset.done !== '1';
+  rb.style.display = (!waitingOnGenloss || rf.dataset.urgent === '1') ? '' : 'none';
 }
 
 // Name the human, ALONGSIDE whatever else this pane is saying. Never instead of it:
@@ -762,8 +787,7 @@ async function runReflection(rf, text, hooks) {
   // needs no model at all. The safety net cannot depend on a word count or a provider.
   const note = distressNote(text);
 
-  rf.innerHTML = '<span class="lbl">' + REFLECT_LABEL + '</span>'
-    + '<span id="reflectBody"><em>Reading your pace…</em></span>';
+  rf.innerHTML = '<span id="reflectBody"><em>Reading your pace…</em></span>';
   const bodyEl = rf.querySelector('#reflectBody');
   // Nothing was typed, so there is no session to reflect on. Without this the model
   // cheerfully asks where your pace slowed down on a gush of zero words, and that
@@ -885,7 +909,9 @@ async function runReflection(rf, text, hooks) {
         ta.disabled=false; ta.readOnly=true;
         if(lm) lm.textContent='Time. Your gush is fixed now — select the lines you want and copy them across, or send them to your notebook.';
         if(opts.focus) setFocus(false);
-        const rf = document.getElementById('reflect'); if(rf){ rf.style.display='block'; runReflection(rf, ta.value, opts.reflect); }
+        const rf = document.getElementById('reflect');
+        if(rf){ rf.dataset.on='1'; if(distressNote(ta.value)) rf.dataset.urgent='1';
+          rf.style.display='block'; runReflection(rf, ta.value, opts.reflect); syncStageBands(); }
         if(opts.onEnd) opts.onEnd();
       }
     }, 1000);
@@ -2361,7 +2387,6 @@ async function runReflection(rf, text, hooks) {
             <span class="note" id="keepcount"></span></span>
           <span class="locknote" id="lockmsg">Set your minutes, then start — the page locks and Focus opens.</span></div>
         <textarea class="gush" id="gush" placeholder="Don’t stop, don’t fix. Stalled? Write that you stalled — and keep going." disabled></textarea>
-        <div class="reflect" id="reflect" style="display:none"><span class="lbl">${REFLECT_LABEL}</span><span>How did it go? <em>(About the experience, never your words — stubbed.)</em></span></div>
        </div>
        <div class="op-col shape" id="shapeCol">
         <div class="stagelabel"><span class="n">2</span> Shape — the One-Pager ${M.photos?'(image + text)':''}</div>
@@ -2386,7 +2411,11 @@ async function runReflection(rf, text, hooks) {
           <span class="note" id="glStatus"></span>
         </div>
         <div id="glOut"></div>
-      </section>` : ''}`;
+      </section>` : ''}
+      <section class="reflectband" id="reflectband" style="display:none">
+        <div class="stagelabel"><span class="n">${M.genloss ? 4 : 3}</span> ${REFLECT_LABEL}</div>
+        <div class="reflect" id="reflect"></div>
+      </section>`;
     wireTimer();
     // Restore a saved gush + shaped one-pager for this OP.
     const saved = DB.freewrite[fwCur] || {};
@@ -2398,7 +2427,8 @@ async function runReflection(rf, text, hooks) {
     // question they were asked and the answer they gave.
     if(saved.session && saved.session.question){
       const rf0 = document.getElementById('reflect');
-      if(rf0){ rf0.style.display = 'block'; paintReflection(rf0, saved.session.question, reflectHooks(fwCur)); }
+      if(rf0){ rf0.dataset.on = '1'; rf0.style.display = 'block';
+        paintReflection(rf0, saved.session.question, reflectHooks(fwCur)); }
     }
     const opKey = fwCur;
     // ── Any writing done here can become a notebook entry.
@@ -2463,6 +2493,9 @@ async function runReflection(rf, text, hooks) {
         const out = document.getElementById('glOut');
         const g = glSaved();
         if (!out) return;
+        const host = document.getElementById('genloss');
+        if (host) host.dataset.done = (g && g.passes && g.passes.length > 1) ? '1' : '';
+        syncStageBands();
         if (!g || !g.passes || !g.passes.length) { out.innerHTML = ''; return; }
         const n = g.passes.length - 1;
         const chips = g.passes.map((_, i) =>
@@ -2517,6 +2550,7 @@ async function runReflection(rf, text, hooks) {
       stopBtn.addEventListener('click', () => { glAbort = true; });
       glPaint();
     }
+    syncStageBands();
 
     const liftBtn = document.getElementById('liftBtn');
     if(liftBtn) liftBtn.onclick = ()=>{
@@ -2767,7 +2801,7 @@ async function runReflection(rf, text, hooks) {
   // insert can land after the student has clicked away to another One-Pager.
   function wireComposer(opKey){
     const page=document.getElementById('page'),wc=document.getElementById('wc');
-    const upd=()=>{const n=(page.innerText.trim().match(/\S+/g)||[]).length;wc.textContent=n+' words';wc.classList.toggle('good',n>=500&&n<=650);};
+    const upd=()=>{const n=(page.innerText.trim().match(/\S+/g)||[]).length;wc.textContent=n+' words';wc.classList.toggle('good',n>=500&&n<=650);syncStageBands();};
     const save=()=>{ if(!page.isConnected) return; DB.freewrite[opKey]=Object.assign({},DB.freewrite[opKey],{shape:page.innerHTML}); saveDB(); upd(); };
     page.addEventListener('input',upd);
     // The direct child of #page holding the caret — the block whose tag H switches.
