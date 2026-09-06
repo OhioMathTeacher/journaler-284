@@ -763,7 +763,7 @@ async function runReflection(rf, text, hooks) {
     // No model, so no back-and-forth -- but the student still writes the commentary.
     // paintReflection resets rf, so the distress note goes on AFTER it, exactly as in
     // the success path below.
-    if (hooks) hooks.onQuestion(REFLECT_PROMPT_SOLO);
+    if (hooks) hooks.onQuestion(REFLECT_PROMPT_SOLO, 'app');
     paintReflection(rf, REFLECT_PROMPT_SOLO, hooks);
     appendDistressNote(rf, note);
     return;
@@ -2236,7 +2236,7 @@ async function runReflection(rf, text, hooks) {
   function reflectHooks(key){
     return {
       answer: ((DB.freewrite[key] || {}).session || {}).answer || '',
-      onQuestion: q => sessionPatch(key, { question: q }),
+      onQuestion: (q, from) => sessionPatch(key, { question: q, questionFrom: from || 'ai' }),
       onAnswer:   v => sessionPatch(key, { answer: v }),
     };
   }
@@ -6493,14 +6493,19 @@ You: Really. The first line only has to exist, not be good.`;
     // count instead, the same reason the About panel measures its build size rather than
     // stating it.
     const asks = s.writeAsks || 0;
+    // WHO asked matters on a submitted document. With no provider connected the prompt
+    // is the app's own fixed text, and crediting Romano for it put a sentence on the
+    // record that never happened -- "Romano - AI asked" above a question no model was
+    // called to produce. Sessions saved before questionFrom existed were all AI-asked.
+    const askedByAI = !!s.question && s.questionFrom !== 'app';
     const aiBits = [];
-    if(s.question) aiBits.push(escHtml(AI_TAG) + ' asked how the writing went \u2014 about the experience, not the content.');
+    if(askedByAI) aiBits.push(escHtml(AI_TAG) + ' asked how the writing went \u2014 about the experience, not the content.');
     if(asks) aiBits.push('I asked ' + escHtml(AI_TAG) + ' about a passage of my own writing '
       + asks + ' time' + (asks === 1 ? '' : 's') + '. Nothing he said is in the One-Pager unless I typed it there myself.');
     const aiUse = aiBits.length ? aiBits.join(' ') : 'No AI was used on this One-Pager.';
 
     const exchange = s.question ? `
-      <h3>${escHtml(AI_TAG)} asked</h3>
+      <h3>${askedByAI ? escHtml(AI_TAG) + ' asked' : escHtml(REFLECT_LABEL)}</h3>
       ${para(s.question)}
       <h3>I answered</h3>
       ${s.answer && s.answer.trim() ? para(s.answer) : '<p class="op-none">Not answered.</p>'}` : '';
