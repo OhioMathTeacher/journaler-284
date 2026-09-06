@@ -61,7 +61,6 @@ index.html      shell, top bar, modals, the ?v= cache buster
 app.js          the whole app
 app.css         the whole stylesheet
 tips.js         GENERATED — one tip per class meeting
-poems.js        GENERATED — the daily poem, no longer shown; kept for reuse
 manual.html     the student manual
 vendor/         pdf.js, mammoth, jszip
 fonts/          self-hosted, so nothing is fetched at runtime
@@ -99,9 +98,10 @@ xdg-open tools/curate.html      # Tips mode: → use · ← pass · V veto the c
 ```
 
 The curator walks the pool one passage at a time and exports lines to paste straight into
-`tips-chosen.txt`. It also has a **Poems** mode for `poems.js`, whose builders
+`tips-chosen.txt`. Its **Poems** mode and the builders behind it
 (`tools/build-poems.py`, `tools/build-candidates.py`) read the course repo `tce284-fa26`
-for session dates and daily poems.
+for session dates and daily poems. The app no longer ships a poem list — the course
+site's `daily-poems.html` is the one list — so these are kept only for reuse.
 
 ## Run it locally
 

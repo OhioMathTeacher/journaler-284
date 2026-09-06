@@ -1,6 +1,6 @@
 # Poem texts
 
-One file per poem, named for its `slug` in `poems.js`. `tools/build-poems.py` folds
+One file per poem, named for its `slug` in `tools/build-poems.py`, which folds
 them in; a poem with no file here shows its byline and a link out instead, which is
 what the course pages themselves do.
 
