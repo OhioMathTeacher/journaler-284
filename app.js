@@ -6124,15 +6124,39 @@ You: Really. The first line only has to exist, not be good.`;
       return { hit, marked: c ? c.items.length : 0, commented: c ? c.reflected : 0 };
     };
 
+    // ⚠ A NUMBER THAT DOES NOTHING IS THE DISCONNECTION AGAIN (Todd, 2026-09-06):
+    // "When I see the page as a student, I'm like 'What the fuck is this? What do I
+    // need to do?'" A badge reading "5 marked" reported a fact and left the student to
+    // work out that the fact was a TASK, and where to go to do it.
+    //
+    // So the marked state is a BUTTON, carrying the verb: it says what to do and goes
+    // there. data-reflect is bound in the note frame already -- the same handler the
+    // old pending list used -- and openReflect() looks the reading up in
+    // capturesByPiece(), which only holds readings with passages. That is why the
+    // button appears only when there is something marked: with nothing kept there is
+    // nothing for it to open.
+    //
+    // "commented" was jargon this app invented; nobody outside it knows what it means.
+    // The words are the handout's now -- an entry is writing you did -- and every state
+    // carries a title, because a state that needs explaining should explain itself.
     const badges = (st, entry) => {
-      const out = [];
-      if(st.commented) out.push('<span class="rr-b rr-b-done">commented</span>');
-      if(st.marked) out.push(`<span class="rr-b rr-b-part">${st.marked} marked</span>`);
-      if(!out.length){
-        const owed = entry.due <= today;
-        out.push(`<span class="rr-when${owed ? ' rr-owed' : ''}">${owed ? 'due' : 'not yet due ·'} ${escHtml(entry.dueLabel)}</span>`);
+      const go = (label, tip) =>
+        `<button class="rr-b rr-b-part rr-go" data-reflect="reading:${escHtml(st.hit.id)}" title="${escHtml(tip)}">${label} →</button>`;
+      if(st.commented){
+        const done = `<span class="rr-b rr-b-done" title="You wrote an entry about this reading. That is what counts toward Kept practice — marking passages alone does not.">entry written</span>`;
+        return done + (st.marked
+          ? go(`${st.marked} marked · write again`,
+               `You kept ${st.marked} passage${st.marked===1?'':'s'} from this reading. Writing about it again is a second entry, not a correction.`)
+          : '');
       }
-      return out.join('');
+      if(st.marked){
+        return go(`${st.marked} marked · write what you make of it`,
+          `You kept ${st.marked} passage${st.marked===1?'':'s'} here. Marking keeps and cites a passage, but it is not an entry yet — write what you make of it and it counts toward Kept practice.`);
+      }
+      const owed = entry.due <= today;
+      return `<span class="rr-when${owed ? ' rr-owed' : ''}" title="${escHtml(owed
+        ? 'Nothing marked here yet. Open it under Readings, mark the passages worth keeping, then write what you make of them.'
+        : 'Not assigned yet — it is here so you can see the whole term.')}">${owed ? 'due' : 'not yet due ·'} ${escHtml(entry.dueLabel)}</span>`;
     };
 
     const section = ([kind, label]) => {
@@ -6150,8 +6174,16 @@ You: Really. The first line only has to exist, not be good.`;
         </div>`;
       }).join('');
       const done = states.filter(([, st]) => st.commented).length;
+      const marked = states.filter(([, st]) => !st.commented && st.marked).length;
+      // The counter is the group's whole story in one line, so it says what it counts
+      // and what is still owed rather than making the student open the group to find out.
+      const tip = `${done} of these ${rows.length} reading${rows.length===1?'':'s'} `
+        + `${done===1?'has':'have'} an entry written about ${done===1?'it':'them'} — writing is what counts toward Kept practice.`
+        + (marked ? ` ${marked} more ${marked===1?'has passages':'have passages'} marked but nothing written yet.` : '')
+        + ' Marking a passage keeps and cites it; it is not an entry until you write.';
       return `<details class="rr-grp"><summary><span class="rr-g">${escHtml(label)}</span>
-        <span class="rr-c">${done} of ${rows.length} commented</span></summary>${built}</details>`;
+        <span class="rr-c" title="${escHtml(tip)}">${done} of ${rows.length} written about${
+          marked ? ` · ${marked} waiting` : ''}</span></summary>${built}</details>`;
     };
 
     const groups = ROSTER_GROUPS.map(section).join('');
@@ -6160,7 +6192,7 @@ You: Really. The first line only has to exist, not be good.`;
     // manual, which is built in. Shown so a file never silently disappears from view.
     const mine = readings.filter(r => !r.builtin && !claimed.has(r.id));
     const own = mine.length ? `<details class="rr-grp"><summary><span class="rr-g">Your own</span>
-        <span class="rr-c">${mine.length} file${mine.length===1?'':'s'}</span></summary>${
+        <span class="rr-c" title="${escHtml(`Reading you loaded yourself — ${mine.length} file${mine.length===1?'':'s'} the course list does not name. It counts the same way: mark passages, then write what you make of them.`)}">${mine.length} file${mine.length===1?'':'s'}</span></summary>${
         mine.map(r => {
           const c = caps.find(x => x.rid === r.id);
           const st = { marked: c ? c.items.length : 0, commented: c ? c.reflected : 0 };

@@ -1848,6 +1848,10 @@ a.rr-t:hover { border-bottom-color: currentColor; }
 .rr-when.rr-owed { font-style: italic; }
 .rr-future .rr-t { color: var(--muted); }
 .pj-pts { display: block; font-family: var(--sans); font-size: 11.5px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+.rr-go { cursor: pointer; font-family: var(--sans); background: transparent; border: 1px solid var(--go); color: var(--go); }
+.rr-go:hover { background: var(--go); color: #fff; }
+.rr-c { cursor: help; }
+.rr-b-done { cursor: help; }
 
 .hl-stamp { display: block; margin-top: .2rem; font-family: var(--sans); font-size: 11px; letter-spacing: .02em; color: var(--muted); }
 .hl-edit { width: 100%; box-sizing: border-box; min-height: 4.5rem; font-family: var(--serif); font-size: 15px; line-height: 1.5; padding: .45rem .5rem; border: 1px solid var(--accent); border-radius: 6px; background: #fff; color: var(--ink); resize: vertical; }
