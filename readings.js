@@ -1,0 +1,346 @@
+// GENERATED FILE — do not edit by hand.
+//   python3 tools/build-readings.py /home/todd/Repos/tce284-fa26
+// 31 readings: 20 Romano, 3 currere, 8 articles.
+window.COURSE_READINGS = [
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154842",
+  "title": "ch1",
+  "ch": 1,
+  "week": 1,
+  "day": "Wed",
+  "due": "2026-08-26",
+  "dueLabel": "Wed, Aug 26",
+  "outline": "week-01-trust-the-gush/week-01-wed.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154853",
+  "title": "ch2",
+  "ch": 2,
+  "week": 1,
+  "day": "Wed",
+  "due": "2026-08-26",
+  "dueLabel": "Wed, Aug 26",
+  "outline": "week-01-trust-the-gush/week-01-wed.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154867",
+  "title": "Intro",
+  "ch": null,
+  "week": 1,
+  "day": "Wed",
+  "due": "2026-08-26",
+  "dueLabel": "Wed, Aug 26",
+  "outline": "week-01-trust-the-gush/week-01-wed.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154860",
+  "title": "ch3",
+  "ch": 3,
+  "week": 2,
+  "day": "Mon",
+  "due": "2026-08-31",
+  "dueLabel": "Mon, Aug 31",
+  "outline": "week-02-writing-place/week-02-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154861",
+  "title": "ch4",
+  "ch": 4,
+  "week": 2,
+  "day": "Mon",
+  "due": "2026-08-31",
+  "dueLabel": "Mon, Aug 31",
+  "outline": "week-02-writing-place/week-02-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154862",
+  "title": "ch5",
+  "ch": 5,
+  "week": 2,
+  "day": "Wed",
+  "due": "2026-09-02",
+  "dueLabel": "Wed, Sep 2",
+  "outline": "week-02-writing-place/week-02-wed.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154863",
+  "title": "ch6",
+  "ch": 6,
+  "week": 2,
+  "day": "Wed",
+  "due": "2026-09-02",
+  "dueLabel": "Wed, Sep 2",
+  "outline": "week-02-writing-place/week-02-wed.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154864",
+  "title": "ch7",
+  "ch": 7,
+  "week": 2,
+  "day": "Wed",
+  "due": "2026-09-02",
+  "dueLabel": "Wed, Sep 2",
+  "outline": "week-02-writing-place/week-02-wed.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154865",
+  "title": "ch8",
+  "ch": 8,
+  "week": 2,
+  "day": "Wed",
+  "due": "2026-09-02",
+  "dueLabel": "Wed, Sep 2",
+  "outline": "week-02-writing-place/week-02-wed.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154866",
+  "title": "ch9",
+  "ch": 9,
+  "week": 3,
+  "day": "Wed",
+  "due": "2026-09-09",
+  "dueLabel": "Wed, Sep 9",
+  "outline": "week-03-voice-print/week-03-wed.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154843",
+  "title": "ch10",
+  "ch": 10,
+  "week": 3,
+  "day": "Wed",
+  "due": "2026-09-09",
+  "dueLabel": "Wed, Sep 9",
+  "outline": "week-03-voice-print/week-03-wed.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154844",
+  "title": "ch11",
+  "ch": 11,
+  "week": 4,
+  "day": "Mon",
+  "due": "2026-09-14",
+  "dueLabel": "Mon, Sep 14",
+  "outline": "week-04-show-dont-tell/week-04-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154845",
+  "title": "ch12",
+  "ch": 12,
+  "week": 4,
+  "day": "Mon",
+  "due": "2026-09-14",
+  "dueLabel": "Mon, Sep 14",
+  "outline": "week-04-show-dont-tell/week-04-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154846",
+  "title": "ch13",
+  "ch": 13,
+  "week": 4,
+  "day": "Mon",
+  "due": "2026-09-14",
+  "dueLabel": "Mon, Sep 14",
+  "outline": "week-04-show-dont-tell/week-04-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154847",
+  "title": "ch14",
+  "ch": 14,
+  "week": 5,
+  "day": "Mon",
+  "due": "2026-09-21",
+  "dueLabel": "Mon, Sep 21",
+  "outline": "week-05-breaking-the-rules/week-05-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154848",
+  "title": "ch15",
+  "ch": 15,
+  "week": 5,
+  "day": "Mon",
+  "due": "2026-09-21",
+  "dueLabel": "Mon, Sep 21",
+  "outline": "week-05-breaking-the-rules/week-05-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154851",
+  "title": "ch18, \"Drawing It Out.\"",
+  "ch": 18,
+  "week": 7,
+  "day": "Wed",
+  "due": "2026-10-07",
+  "dueLabel": "Wed, Oct 7",
+  "outline": "week-07-regressive-the-scene/week-07-wed.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154849",
+  "title": "ch16, \"Metaphor\"",
+  "ch": 16,
+  "week": 9,
+  "day": "Mon",
+  "due": "2026-10-19",
+  "dueLabel": "Mon, Oct 19",
+  "outline": "week-09-metaphor-and-leads/week-09-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154850",
+  "title": "ch17, \"Leading the Way.\"",
+  "ch": 17,
+  "week": 9,
+  "day": "Mon",
+  "due": "2026-10-19",
+  "dueLabel": "Mon, Oct 19",
+  "outline": "week-09-metaphor-and-leads/week-09-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154852",
+  "title": "ch19, \"Mentors, Imitation, and the Like.\"",
+  "ch": 19,
+  "week": 10,
+  "day": "Mon",
+  "due": "2026-10-26",
+  "dueLabel": "Mon, Oct 26",
+  "outline": "week-10-mentors-and-the-hinge/week-10-mon.html"
+ },
+ {
+  "kind": "currere",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/149",
+  "title": "Daspit, \"'None of Us'\"",
+  "ch": null,
+  "week": 3,
+  "day": "Wed",
+  "due": "2026-09-09",
+  "dueLabel": "Wed, Sep 9",
+  "outline": "week-03-voice-print/week-03-wed.html"
+ },
+ {
+  "kind": "currere",
+  "url": "https://www.currereexchange.com/uploads/9/5/8/7/9587563/5moorecejv1i1.pdf",
+  "title": "Moore, \"Starting the Conversation\"",
+  "ch": null,
+  "week": 6,
+  "day": "Mon",
+  "due": "2026-09-28",
+  "dueLabel": "Mon, Sep 28",
+  "outline": "week-06-what-is-currere/week-06-mon.html"
+ },
+ {
+  "kind": "currere",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/214",
+  "title": "Romano, \"The Anchor, the Bridge, the Lesson\"",
+  "ch": null,
+  "week": 10,
+  "day": "Mon",
+  "due": "2026-10-26",
+  "dueLabel": "Mon, Oct 26",
+  "outline": "week-10-mentors-and-the-hinge/week-10-mon.html"
+ },
+ {
+  "kind": "article",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/192",
+  "title": "Edwards, \"Who's Cheating Whom?\"",
+  "ch": null,
+  "week": 1,
+  "day": "Wed",
+  "due": "2026-08-26",
+  "dueLabel": "Wed, Aug 26",
+  "outline": "week-01-trust-the-gush/week-01-wed.html"
+ },
+ {
+  "kind": "article",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/268",
+  "title": "Wiederhold, \"How to Read a Blank Page of Writing\"",
+  "ch": null,
+  "week": 2,
+  "day": "Mon",
+  "due": "2026-08-31",
+  "dueLabel": "Mon, Aug 31",
+  "outline": "week-02-writing-place/week-02-mon.html"
+ },
+ {
+  "kind": "article",
+  "url": "https://drive.google.com/file/d/1nBnBLC1dJvbwoLGdn6TSG39AvuuRnvl4/view?usp=sharing",
+  "title": "\"My Father's Voice\"",
+  "ch": null,
+  "week": 3,
+  "day": "Wed",
+  "due": "2026-09-09",
+  "dueLabel": "Wed, Sep 9",
+  "outline": "week-03-voice-print/week-03-wed.html"
+ },
+ {
+  "kind": "article",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/152",
+  "title": "J. Edwards, \"Beyond Presence\"",
+  "ch": null,
+  "week": 4,
+  "day": "Mon",
+  "due": "2026-09-14",
+  "dueLabel": "Mon, Sep 14",
+  "outline": "week-04-show-dont-tell/week-04-mon.html"
+ },
+ {
+  "kind": "article",
+  "url": "https://www.newyorker.com/tech/annals-of-technology/chatgpt-is-a-blurry-jpeg-of-the-web",
+  "title": "Chiang, \"ChatGPT Is a Blurry JPEG of the Web\"",
+  "ch": null,
+  "week": 5,
+  "day": "Mon",
+  "due": "2026-09-21",
+  "dueLabel": "Mon, Sep 21",
+  "outline": "week-05-breaking-the-rules/week-05-mon.html"
+ },
+ {
+  "kind": "article",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/299",
+  "title": "O'Hara, \"Moviehouse Poems\"",
+  "ch": null,
+  "week": 5,
+  "day": "Mon",
+  "due": "2026-09-21",
+  "dueLabel": "Mon, Sep 21",
+  "outline": "week-05-breaking-the-rules/week-05-mon.html"
+ },
+ {
+  "kind": "article",
+  "url": "https://wrd.as.uky.edu/sites/default/files/1-Shitty%20First%20Drafts.pdf",
+  "title": "Lamott, \"Shitty First Drafts\"",
+  "ch": null,
+  "week": 5,
+  "day": "Mon",
+  "due": "2026-09-21",
+  "dueLabel": "Mon, Sep 21",
+  "outline": "week-05-breaking-the-rules/week-05-mon.html"
+ },
+ {
+  "kind": "article",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/320",
+  "title": "Bird, \"Self-Coaching Emotions\"",
+  "ch": null,
+  "week": 10,
+  "day": "Mon",
+  "due": "2026-10-26",
+  "dueLabel": "Mon, Oct 26",
+  "outline": "week-10-mentors-and-the-hinge/week-10-mon.html"
+ }
+];
