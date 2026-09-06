@@ -224,7 +224,7 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "currere",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/192",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40277230",
   "title": "Edwards, \"Who's Cheating Whom?\"",
   "ch": null,
   "week": 1,
@@ -235,7 +235,7 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "currere",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/268",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40277240",
   "title": "Wiederhold, \"How to Read a Blank Page of Writing\"",
   "ch": null,
   "week": 2,
@@ -246,7 +246,7 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "currere",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/149",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40277227",
   "title": "Daspit, \"'None of Us'\"",
   "ch": null,
   "week": 3,
@@ -257,7 +257,7 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "currere",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/152",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40277231",
   "title": "J. Edwards, \"Beyond Presence\"",
   "ch": null,
   "week": 4,
@@ -268,7 +268,7 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "currere",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/299",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40277236",
   "title": "O'Hara, \"Moviehouse Poems\"",
   "ch": null,
   "week": 5,
@@ -279,7 +279,7 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "currere",
-  "url": "https://www.currereexchange.com/uploads/9/5/8/7/9587563/5moorecejv1i1.pdf",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40277234",
   "title": "Moore, \"Starting the Conversation\"",
   "ch": null,
   "week": 6,
@@ -290,7 +290,7 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "currere",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/214",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40277239",
   "title": "Romano, \"The Anchor, the Bridge, the Lesson\"",
   "ch": null,
   "week": 10,
@@ -301,7 +301,7 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "currere",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/320",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40277226",
   "title": "Bird, \"Self-Coaching Emotions\"",
   "ch": null,
   "week": 10,

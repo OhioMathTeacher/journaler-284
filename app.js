@@ -931,7 +931,11 @@ async function runReflection(rf, text, hooks) {
     try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); saveAlarm(false); }
     catch(e){ console.warn('saveDB', e); saveAlarm(true); logEvent('error', 'SAVE FAILED — storage full?', String(e && e.message || e)); }
   }, 250); }
-  function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  // " is escaped too. Reading titles carry quotation marks -- ch17, "Leding the Way." --
+  // and unescaped they end an attribute early: data-title="Wiederhold, " silently threw
+  // away the rest of the title and the identification saved a name matching no row.
+  // Harmless in text, where &quot; renders as the quote it was.
+  function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   // ═══ Diagnostics ═══════════════════════════════════════════════════════════
   // A rolling event log kept in its OWN storage key, deliberately not in DB: the
@@ -2839,9 +2843,14 @@ async function runReflection(rf, text, hooks) {
     activeReading = idx >= 0 ? idx : 0;
   }
   // A cleaner label for the dropdown (the underlying filename is kept as r.name).
+  // A leading "WWM" is the book's initials, not part of the chapter's name. chapterNum
+  // already skipped it; front matter did not, so "WWM Introduction.pdf" read as "Wwm
+  // introduction" and matched no roster row. Stripped once, here, for both.
+  const WWM_RE = /^\s*wwm[\s._-]+/i;
+  function bareName(r){ return String(r && r.name || '').replace(/\.(pdf|docx|txt)$/i, '').replace(WWM_RE, ''); }
   function readingLabel(r){
     if(r.builtin) return r.name;
-    const n = r.name.replace(/\.(pdf|docx|txt)$/i, '');
+    const n = bareName(r);
     const tidy = s => { s = (s||'').replace(/[-_]+/g,' ').trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; };
     // Same order as readingRank: matter before numbers, since both start with digits.
     if(FRONT_RE.test(n)) return /front[\s._-]*matter/i.test(n) ? 'Front matter' : 'Introduction';
@@ -5415,17 +5424,81 @@ You: Really. The first line only has to exist, not be good.`;
     ['article', 'Articles'],
     ['own',     'Your own'],
   ];
+  // ── "WHICH READING IS THIS?" (Todd, 2026-09-06)
+  //
+  // Todd: "I have a currere that's currently labeled as 2Wiederhold... I'm hopeful that
+  // I can be given a list of the 8 currere and identify that one." A filename the
+  // matcher cannot read is not the reader's fault, and the fix should not be renaming a
+  // file on disk.
+  //
+  // The list offers the course readings NOT already claimed by another file, so picking
+  // one can never produce two files on one row. Choosing sets the displayed title too --
+  // identifying the reading and naming it are the same act, so there is no second
+  // rename step to forget.
+  function openIdentify(rid){
+    const r = readings.find(x => x.id === rid); if(!r) return;
+    const roster = (window.COURSE_READINGS || []);
+    const assigned = rosterAssign(roster, readings);
+    const mineNow = [...assigned.entries()].find(([, x]) => x.id === rid);
+    const takenRows = new Set([...assigned.entries()].filter(([, x]) => x.id !== rid).map(([i]) => i));
+    const groups = ROSTER_GROUPS.map(([kind, label]) => [label,
+      roster.map((e, i) => [e, i]).filter(([e, i]) => e.kind === kind && !takenRows.has(i))]);
+    const host = document.createElement('div');
+    host.className = 'rf-overlay'; host.id = 'idOverlay';
+    host.innerHTML = `<div class="rf-box" role="dialog" aria-modal="true" aria-label="Identify this reading">
+      <h3 class="rf-h">Which reading is this?</h3>
+      <p class="runline">Your file is <strong>${escHtml(r.name)}</strong>. Pick what it actually is and
+        Journaler will show it under that name and count it on that row. Readings another file
+        already claims are not listed.</p>
+      <div class="id-list">
+        ${groups.filter(([, xs]) => xs.length).map(([label, xs]) => `<div class="id-sec">${escHtml(label)}</div>`
+          + xs.map(([e, i]) => `<button class="id-pick${mineNow && mineNow[0] === i ? ' on' : ''}" data-title="${escHtml(e.title)}">${escHtml(e.title)}</button>`).join('')).join('')}
+        <div class="id-sec">Not a course reading</div>
+        <button class="id-pick${(rosterOverrides()[rid] === 'own') ? ' on' : ''}" data-title="own">This is my own reading</button>
+      </div>
+      <div class="rf-actions">
+        <button class="popup-btn secondary" id="idCancel">Cancel</button>
+        <button class="popup-btn secondary" id="idClear">Clear — let Journaler guess</button>
+      </div></div>`;
+    document.body.appendChild(host);
+    const close = () => host.remove();
+    host.addEventListener('click', e => { if(e.target === host) close(); });
+    document.getElementById('idCancel').onclick = close;
+    document.getElementById('idClear').onclick = () => {
+      delete rosterOverrides()[rid]; saveDB(); close(); renderDrawer(); renderRead();
+      toast('Journaler will work it out from the filename again.');
+    };
+    host.querySelectorAll('.id-pick').forEach(b => b.onclick = () => {
+      rosterOverrides()[rid] = b.dataset.title; saveDB(); close(); renderDrawer(); renderRead();
+      toast(b.dataset.title === 'own' ? 'Filed under Your own' : 'Identified as ' + b.dataset.title);
+    });
+  }
+  // What a reading is CALLED on the shelf: the course reading it was identified as, if
+  // it was, otherwise whatever its filename yields.
+  function shelfLabel(r){
+    const want = rosterOverrides()[r.id];
+    if(want && want !== 'own'){
+      const e = (window.COURSE_READINGS || []).find(x => x.title === want);
+      if(e) return e.title;
+    }
+    return readingLabel(r);
+  }
   function renderDrawer(){
     const host = document.getElementById('drawerList');
     if(!host) return;
     // The index is the handle every click uses, so it is captured BEFORE grouping and
     // travels with the row. Sections are presentation only — reordering the shelf would
     // silently rewire delete.
-    const row = (r, i) =>
-      `<div class="drawer-row${i===activeReading?' on':''}">`
-      + `<button class="drawer-pick" data-i="${i}" title="${escHtml(r.name)}">${escHtml(readingLabel(r))}</button>`
-      + `<button class="drawer-x" data-x="${i}" title="Remove this chapter from your shelf" aria-label="Remove ${escHtml(readingLabel(r))}">🗑</button>`
+    const row = (r, i) => {
+      const named = shelfLabel(r);
+      const ov = rosterOverrides()[r.id];
+      return `<div class="drawer-row${i===activeReading?' on':''}">`
+      + `<button class="drawer-pick" data-i="${i}" title="${escHtml(r.name)}">${escHtml(named)}${
+          ov && ov !== 'own' ? '<span class="drawer-id" title="You identified this one yourself">·</span>' : ''}</button>`
+      + `<button class="drawer-q" data-id="${escHtml(r.id)}" title="${escHtml('Which reading is this? — file: ' + r.name)}" aria-label="Identify ${escHtml(named)}">?</button>`
+      + `<button class="drawer-x" data-x="${i}" title="Remove this chapter from your shelf" aria-label="Remove ${escHtml(named)}">🗑</button>`
       + `</div>`;
+    };
     const kinds = loadedKinds();
     const indexed = readings.map((r,i)=>({ r, i }));
     const builtin = indexed.filter(x => x.r.builtin);
@@ -5443,6 +5516,7 @@ You: Really. The first line only has to exist, not be good.`;
       : `<p class="drawer-empty">No chapters yet.<br><br>Use ＋ Load readings above, or point Journaler at a whole folder under ⚙ Settings → Readings.</p>`;
     host.querySelectorAll('.drawer-pick').forEach(b => b.onclick = () => pickReading(+b.dataset.i));
     host.querySelectorAll('.drawer-x').forEach(b => b.onclick = e => { e.stopPropagation(); removeReadingAt(+b.dataset.x); });
+    host.querySelectorAll('.drawer-q').forEach(b => b.onclick = e => { e.stopPropagation(); openIdentify(b.dataset.id); });
   }
 
   function renderRead(){
@@ -6166,7 +6240,7 @@ You: Really. The first line only has to exist, not be good.`;
   // and should never lose a tie to a fuzzy title score.
   function rosterRomanoHit(r, entry){
     if(r.builtin) return false;
-    const bare = String(r.name||'').replace(/\.(pdf|docx|txt)$/i,'');
+    const bare = bareName(r);
     return entry.ch != null ? chapterNum(bare) === entry.ch : FRONT_RE.test(bare);
   }
   function rosterScore(r, entry){
@@ -6178,12 +6252,26 @@ You: Really. The first line only has to exist, not be good.`;
     const has = w => w.length >= 6 ? n.includes(w) : words.includes(w);
     return (has(toks[0]) ? 2 : 0) + toks.slice(1).filter(has).length;
   }
+  // A student's own answer to "which reading is this?", kept by roster TITLE because that
+  // is what survives a URL changing under it -- as all eight currere URLs just did when
+  // they moved to Canvas. 'own' means: this is mine, stop trying to match it.
+  function rosterOverrides(){ return (DB.rosterMap = DB.rosterMap || {}); }
   function rosterAssign(roster, loaded){
     const files = loaded.filter(r => !r.builtin);
     const out = new Map();            // roster index → the loaded reading
     const taken = new Set();
+    // The reader's own identification beats every guess below it, and holds even when
+    // the filename would have matched something else.
+    const ov = rosterOverrides();
+    files.forEach(r => {
+      const want = ov[r.id];
+      if(!want) return;
+      if(want === 'own'){ taken.add(r.id); return; }
+      const i = roster.findIndex(e => e.title === want);
+      if(i >= 0 && !out.has(i)){ out.set(i, r); taken.add(r.id); }
+    });
     roster.forEach((e, i) => {
-      if(e.kind !== 'romano') return;
+      if(e.kind !== 'romano' || out.has(i)) return;
       const f = files.find(r => !taken.has(r.id) && rosterRomanoHit(r, e));
       if(f){ out.set(i, f); taken.add(f.id); }
     });
@@ -6305,7 +6393,7 @@ You: Really. The first line only has to exist, not be good.`;
               : marked
                 ? `<button class="rr-b rr-b-part rr-go" data-open="reading:${escHtml(r.id)}" title="${escHtml(`${marked} passage${marked===1?'':'s'} kept, none commented on yet.`)}">${marked} marked · add your comments →</button>`
                 : '';
-          return `<div class="rr-row ${kept ? 'rr-done' : comments || marked ? 'rr-part' : ''}"><span class="rr-t">${escHtml(readingLabel(r))}</span>
+          return `<div class="rr-row ${kept ? 'rr-done' : comments || marked ? 'rr-part' : ''}"><span class="rr-t">${escHtml(shelfLabel(r))}</span>
             <span class="rr-s">${badge}</span></div>`;
         }).join('')}</details>` : '';
 
