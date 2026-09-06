@@ -1862,8 +1862,11 @@ a.rr-t:hover { border-bottom-color: currentColor; }
 .drawer-sec { display: flex; align-items: baseline; gap: 8px; font-family: var(--sans); font-size: 11px; font-weight: 700;
   letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
   padding: 12px 10px 4px; margin-top: 4px; border-top: 1px solid var(--comment-border); }
+/* The name may wrap; the count may not. "9 of 27" breaking across two lines was the
+   one piece of this header a reader actually scans. */
+.drawer-secname { min-width: 0; }
 .drawer-sec:first-child { margin-top: 0; border-top: none; }
-.drawer-n { margin-left: auto; font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 11.5px; }
+.drawer-n { margin-left: auto; flex: 0 0 auto; white-space: nowrap; font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 11.5px; }
 .drawer-q { font-family: var(--sans); font-size: 12px; font-weight: 700; color: var(--muted); background: none;
   border: 1px solid transparent; border-radius: 5px; padding: 0 6px; cursor: pointer; opacity: .55; }
 .drawer-row:hover .drawer-q, .drawer-q:focus { opacity: 1; border-color: var(--comment-border); }

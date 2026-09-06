@@ -5572,6 +5572,27 @@ You: Really. The first line only has to exist, not be good.`;
     const hit = [...rosterAssign(roster, readings).entries()].find(([, x]) => x.id === rid);
     return hit ? rosterLabel(roster[hit[0]]) : '';
   }
+  // ⚠ THE DENOMINATOR IS THE COURSE, NOT THE SHELF (Todd, 2026-09-06): "Even if they
+  // only upload 4 romano files, the denominator should still be 27." Counting what
+  // happens to be loaded made the fraction move when a student added a file, and told
+  // someone with four chapters that they were nearly done. The roster is the whole, so
+  // the roster supplies the total — 27 for Romano, which is the 26 assigned rows plus
+  // the acknowledgments that ship with the book, 8 for currere, 3 for the articles.
+  // Your own has no course total; there it is simply how many files there are.
+  function sectionTotal(kind, xs){
+    const roster = (window.COURSE_READINGS || []);
+    if(!roster.length || kind === 'own') return xs.length;
+    const n = roster.filter(e => e.kind === kind).length;
+    return kind === 'romano' ? n + 1 : n;      // + the back matter, which no outline assigns
+  }
+  function sectionTip(kind, xs){
+    const done = xs.filter(x => commentCount(x.r.id) >= ANN_MIN).length;
+    const total = sectionTotal(kind, xs);
+    return kind === 'own'
+      ? `${done} of your own ${total} file${total===1?'':'s'} ${done===1?'has':'have'} reached ${ANN_MIN} comments.`
+      : `${done} of the course's ${total} have reached ${ANN_MIN} comments and count as entries.`
+        + (xs.length < total ? ` You have ${xs.length} of them loaded.` : '');
+  }
   function renderDrawer(){
     const host = document.getElementById('drawerList');
     if(!host) return;
@@ -5607,16 +5628,15 @@ You: Really. The first line only has to exist, not be good.`;
     const kinds = loadedKinds();
     const indexed = readings.map((r,i)=>({ r, i }));
     const builtin = indexed.filter(x => x.r.builtin);
-    const groups = SHELF_SECTIONS.map(([kind, label]) => [label,
+    const groups = SHELF_SECTIONS.map(([kind, label]) => [kind, label,
       indexed.filter(x => !x.r.builtin && (kinds.get(x.r.id) || 'own') === kind)]);
-    const anyGrouped = groups.some(([, xs]) => xs.length);
+    const anyGrouped = groups.some(([, , xs]) => xs.length);
     host.innerHTML = readings.length
       ? (builtin.map(x => row(x.r, x.i)).join('')
          + (anyGrouped
-            ? groups.filter(([, xs]) => xs.length).map(([label, xs]) =>
-                `<div class="drawer-sec">${escHtml(label)}<span class="drawer-n" title="${escHtml(
-                   `${xs.filter(x => commentCount(x.r.id) >= ANN_MIN).length} of these ${xs.length} have reached ${ANN_MIN} comments and count as entries.`)
-                 }">${xs.filter(x => commentCount(x.r.id) >= ANN_MIN).length} of ${xs.length}</span></div>`
+            ? groups.filter(([, , xs]) => xs.length).map(([kind, label, xs]) =>
+                `<div class="drawer-sec"><span class="drawer-secname">${escHtml(label)}</span><span class="drawer-n" title="${escHtml(
+                   sectionTip(kind, xs))}">${xs.filter(x => commentCount(x.r.id) >= ANN_MIN).length} of ${sectionTotal(kind, xs)}</span></div>`
                 + xs.map(x => row(x.r, x.i)).join('')).join('')
             // No roster loaded — one flat shelf, exactly as before.
             : indexed.filter(x => !x.r.builtin).map(x => row(x.r, x.i)).join('')))
