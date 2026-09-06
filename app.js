@@ -5489,10 +5489,26 @@ You: Really. The first line only has to exist, not be good.`;
     // The index is the handle every click uses, so it is captured BEFORE grouping and
     // travels with the row. Sections are presentation only — reordering the shelf would
     // silently rewire delete.
+    // ✓ ON THE SHELF (Todd, 2026-09-06): "a green check mark next to readings ...
+    // indicating that they have comments". The check means the reading COUNTS -- it has
+    // reached ANN_MIN comments and is an entry -- because a tick that only meant "you
+    // typed something once" would say a reading was done when the notebook disagreed.
+    // A reading part-way there shows a hollow ring and how far, so the difference
+    // between started and finished is visible without opening it.
+    const mark = r => {
+      const n = commentCount(r.id);
+      if(n >= ANN_MIN) return `<span class="drawer-tick done" title="${escHtml(
+        `${n} comments — this reading counts as one entry in your notebook.`)}">✓</span>`;
+      if(n) return `<span class="drawer-tick part" title="${escHtml(
+        `${n} of ${ANN_MIN} comments. ${ANN_MIN - n} more makes this reading an entry.`)}">○</span>`;
+      return `<span class="drawer-tick" title="${escHtml(
+        `No comments yet. ${ANN_MIN} makes a reading an entry.`)}"></span>`;
+    };
     const row = (r, i) => {
       const named = shelfLabel(r);
       const ov = rosterOverrides()[r.id];
       return `<div class="drawer-row${i===activeReading?' on':''}">`
+      + (r.builtin ? '<span class="drawer-tick"></span>' : mark(r))
       + `<button class="drawer-pick" data-i="${i}" title="${escHtml(r.name)}">${escHtml(named)}${
           ov && ov !== 'own' ? '<span class="drawer-id" title="You identified this one yourself">·</span>' : ''}</button>`
       + `<button class="drawer-q" data-id="${escHtml(r.id)}" title="${escHtml('Which reading is this? — file: ' + r.name)}" aria-label="Identify ${escHtml(named)}">?</button>`
@@ -5509,7 +5525,9 @@ You: Really. The first line only has to exist, not be good.`;
       ? (builtin.map(x => row(x.r, x.i)).join('')
          + (anyGrouped
             ? groups.filter(([, xs]) => xs.length).map(([label, xs]) =>
-                `<div class="drawer-sec">${escHtml(label)}<span class="drawer-n">${xs.length}</span></div>`
+                `<div class="drawer-sec">${escHtml(label)}<span class="drawer-n" title="${escHtml(
+                   `${xs.filter(x => commentCount(x.r.id) >= ANN_MIN).length} of these ${xs.length} have reached ${ANN_MIN} comments and count as entries.`)
+                 }">${xs.filter(x => commentCount(x.r.id) >= ANN_MIN).length} of ${xs.length}</span></div>`
                 + xs.map(x => row(x.r, x.i)).join('')).join('')
             // No roster loaded — one flat shelf, exactly as before.
             : indexed.filter(x => !x.r.builtin).map(x => row(x.r, x.i)).join('')))

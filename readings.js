@@ -1,6 +1,6 @@
 // GENERATED FILE — do not edit by hand.
 //   python3 tools/build-readings.py /home/todd/Repos/tce284-fa26
-// 35 readings: 24 Romano, 8 currere, 3 articles.
+// 37 readings: 26 Romano, 8 currere, 3 articles.
 window.COURSE_READINGS = [
  {
   "kind": "romano",
@@ -265,6 +265,28 @@ window.COURSE_READINGS = [
   "due": "2026-11-18",
   "dueLabel": "Wed, Nov 18",
   "outline": "week-13-cohere-and-review/week-13-wed.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154858",
+  "title": "ch24, \"Swimming Through Sunlight\"",
+  "ch": 24,
+  "week": 15,
+  "day": "Mon",
+  "due": "2026-11-30",
+  "dueLabel": "Mon, Nov 30",
+  "outline": "week-15-revise-and-share/week-15-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154859",
+  "title": "ch25, \"Faith.\"",
+  "ch": 25,
+  "week": 15,
+  "day": "Mon",
+  "due": "2026-11-30",
+  "dueLabel": "Mon, Nov 30",
+  "outline": "week-15-revise-and-share/week-15-mon.html"
  },
  {
   "kind": "currere",
