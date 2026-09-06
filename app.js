@@ -6743,6 +6743,24 @@ You: Really. The first line only has to exist, not be good.`;
     // has to go back and write a second time -- and ANN_MIN comments is what makes it
     // one. A row short of that says exactly how many more, because a threshold the
     // student cannot see is a threshold they cannot meet on purpose.
+    // ⚠ ONE READING, THREE STATES (Todd, 2026-09-06): "I've told students I'm expecting at
+    // least 3 comments per paper. Could we implement that here? Green circle if 3 or more
+    // comments, half amber circle if 2 or fewer, open circle if none?"
+    // The rule was already ANN_MIN, but it lived only in sentences — "2 of 3 comments · 1
+    // more" — so the roster could not be READ, only read through. These are the same three
+    // marks the acts use in row 4 and the same three colours, because My Progress should not
+    // hold two vocabularies for done, begun and not started.
+    // A reading marked but not yet commented takes the half circle: the app has always
+    // called that begun, and it is the state a student is most able to act on.
+    const mark = (comments, marked) => {
+      const done = comments >= ANN_MIN, part = !done && (comments || marked);
+      return `<span class="rr-m${done ? ' on' : part ? ' part' : ''}" aria-hidden="true" title="${escHtml(
+        done      ? `${comments} comments — this reading is one entry in your notebook.`
+        : comments ? `${comments} of ${ANN_MIN} comments. ${ANN_MIN - comments} more makes it an entry.`
+        : marked   ? `${marked} passage${marked===1?'':'s'} marked, none commented on yet. ${ANN_MIN} comments makes it an entry.`
+                   : `Nothing kept here yet. ${ANN_MIN} comments makes a reading an entry.`)}">${
+        done ? '✓' : part ? '◐' : '○'}</span>`;
+    };
     const badges = (st, entry) => {
       const open = (label, tip) =>
         `<button class="rr-b rr-b-part rr-go" data-open="reading:${escHtml(st.hit.id)}" title="${escHtml(tip)}">${label} →</button>`;
@@ -6791,6 +6809,7 @@ You: Really. The first line only has to exist, not be good.`;
       else if(marked) state = `<button class="rr-b rr-b-part rr-go" data-open="reading:${escHtml(f.id)}" title="${escHtml(`${marked} passage${marked===1?'':'s'} kept, none commented on yet.`)}">${marked} marked · add your comments →</button>`;
       else state = `<span class="rr-when" title="${escHtml('Not assigned — it came with the book.')}">not assigned</span>`;
       return { kept, comments, html: `<div class="rr-row ${kept ? 'rr-done' : comments || marked ? 'rr-part' : 'rr-future'}">
+          ${f ? mark(comments, marked) : `<span class="rr-m" title="Not loaded.">○</span>`}
           <span class="rr-t">${escHtml(name)}</span><span class="rr-s">${state}</span></div>` };
     };
     const section = ([kind, label]) => {
@@ -6809,6 +6828,7 @@ You: Really. The first line only has to exist, not be good.`;
         const cls = st.commented ? 'rr-done' : st.marked ? 'rr-part'
                   : (e.due > today ? 'rr-future' : 'rr-owed-row');
         return `<div class="rr-row ${cls}">
+          ${mark(st.comments || 0, st.marked || 0)}
           <a class="rr-t" href="${escHtml(e.url)}" target="_blank" rel="noopener">${escHtml(rosterLabel(e))}</a>
           <span class="rr-s">${badges(st, e)}</span>
         </div>`;
@@ -6857,7 +6877,7 @@ You: Really. The first line only has to exist, not be good.`;
               : marked
                 ? `<button class="rr-b rr-b-part rr-go" data-open="reading:${escHtml(r.id)}" title="${escHtml(`${marked} passage${marked===1?'':'s'} kept, none commented on yet.`)}">${marked} marked · add your comments →</button>`
                 : '';
-          return `<div class="rr-row ${kept ? 'rr-done' : comments || marked ? 'rr-part' : ''}"><span class="rr-t">${escHtml(shelfLabel(r))}</span>
+          return `<div class="rr-row ${kept ? 'rr-done' : comments || marked ? 'rr-part' : ''}">${mark(comments, marked)}<span class="rr-t">${escHtml(shelfLabel(r))}</span>
             <span class="rr-s">${badge}</span></div>`;
         }).join('')}</details>` : '';
 
