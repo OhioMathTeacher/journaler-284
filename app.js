@@ -6730,7 +6730,8 @@ You: Really. The first line only has to exist, not be good.`;
       const c = hit ? caps.find(x => x.rid === hit.id) : null;
       const comments = hit ? commentCount(hit.id) : 0;
       return { hit, marked: c ? c.items.length : 0, wrote: c ? c.reflected : 0,
-               comments, kept: comments >= ANN_MIN };
+               comments, kept: comments >= ANN_MIN,
+               doneOn: hit && comments >= ANN_MIN ? commentDoneKey(hit.id) : '' };
     };
 
     // ⚠ A NUMBER THAT DOES NOTHING IS THE DISCONNECTION AGAIN (Todd, 2026-09-06):
@@ -6765,8 +6766,15 @@ You: Really. The first line only has to exist, not be good.`;
       const open = (label, tip) =>
         `<button class="rr-b rr-b-part rr-go" data-open="reading:${escHtml(st.hit.id)}" title="${escHtml(tip)}">${label} →</button>`;
       const out = [];
-      if(st.kept) out.push(`<span class="rr-b rr-b-done" title="${escHtml(
-        `You commented on this reading ${st.comments} times, so it is one entry in your notebook. One reading is one entry however many comments it holds — the count travels with it.`)}">entry · ${st.comments} comments</span>`);
+      // The pill is where the eye already goes, so it carries the answer: green when the
+      // third comment landed by the day it was set for, amber when it landed after. Both
+      // say "entry" -- the work counts either way, and nothing is late until December.
+      const lateDone = st.kept && st.doneOn && entry && entry.due && st.doneOn > entry.due;
+      if(st.kept) out.push(`<span class="rr-b ${lateDone ? 'rr-b-donelate' : 'rr-b-done'}" title="${escHtml(
+        `You commented on this reading ${st.comments} times, so it is one entry in your notebook. `
+        + (lateDone ? `It became an entry on ${shortDate(st.doneOn)}, after the ${entry.dueLabel} it was set for — it still counts; the notebook is not due until the last week.`
+                    : `It became an entry on ${shortDate(st.doneOn)}, by the day it was set for.`))}">entry · ${st.comments} comments${
+        lateDone ? ' · late' : ''}</span>`);
       if(st.wrote) out.push(`<span class="rr-b rr-b-done" title="You also wrote a page about this reading. That is a second entry — it is separate writing.">wrote about it</span>`);
       if(out.length) return out.join('');
 
@@ -6779,8 +6787,10 @@ You: Really. The first line only has to exist, not be good.`;
       // The chip rides along with the started states instead of replacing them: how far in
       // you are and whether you are behind are two facts, and the row has room for both.
       const owed = entry.due <= today;
+      // Was "overdue", which read as a penalty. Nothing is late until December; this only
+      // says the day has passed and the work is not done, which is a nudge, not a mark.
       const late = owed ? `<span class="rr-b rr-late" title="${escHtml(
-        'Due ' + entry.dueLabel + ', and not an entry yet.')}">overdue</span>` : '';
+        'The day set for this was ' + entry.dueLabel + '. It still counts whenever you do it — the notebook is due in the last week of class.')}">not done yet</span>` : '';
       if(st.comments){
         const need = ANN_MIN - st.comments;
         return open(`${st.comments} of ${ANN_MIN} comments · ${need} more`,
@@ -6841,18 +6851,21 @@ You: Really. The first line only has to exist, not be good.`;
       // The counter could not see this at all: four readings overdue read the same as four
       // not yet assigned.
       const late = states.filter(([e, st]) => !(st.kept || st.wrote) && e.due <= today).length;
+      const doneLate = states.filter(([e, st]) => st.kept && st.doneOn && st.doneOn > e.due).length;
       const total = rows.length + backRows.length;
       // The counter is the group's whole story in one line, so it says what it counts
       // and what is still owed rather than making the student open the group to find out.
       const tip = `${done} of these ${total} reading${total===1?'':'s'} `
         + `${done===1?'counts':'count'} as an entry in your notebook — a reading becomes one at ${ANN_MIN} comments.`
         + (marked ? ` ${marked} more ${marked===1?'is':'are'} started but short of ${ANN_MIN}.` : '')
-        + (late ? ` ${late} ${late===1?'is':'are'} past ${late===1?'its':'their'} due date and not ${late===1?'an entry':'entries'} yet, the started ones included.` : '')
+        + (doneLate ? ` ${doneLate} of them became ${doneLate===1?'an entry':'entries'} after the day set for it — still counted; nothing is late until the notebook is due.` : '')
+        + (late ? ` ${late} ${late===1?'is':'are'} past the day set for ${late===1?'it':'them'} and not done yet, the started ones included.` : '')
         + ' One reading is one entry, however many comments it holds.';
       return `<details class="rr-grp"><summary><span class="rr-g">${escHtml(label)}</span>
         <span class="rr-c" title="${escHtml(tip)}">${done} of ${total} kept as entries${
+          doneLate ? ` · <span class="rr-c-late">${doneLate} late</span>` : ''}${
           marked ? ` · ${marked} started` : ''}${
-          late ? ` · <span class="rr-c-late">${late} overdue</span>` : ''}</span></summary>${built}</details>`;
+          late ? ` · ${late} not done` : ''}</span></summary>${built}</details>`;
     };
 
     const groups = ROSTER_GROUPS.map(section).join('');
@@ -7215,6 +7228,21 @@ You: Really. The first line only has to exist, not be good.`;
     for(const h of getHighlights(rid))
       for(const pass of notePasses(h)) if(String(pass.text || '').trim()) n++;
     return n;
+  }
+  // ⚠ DONE ON TIME, NOT DUE OR NOT DUE (Todd, 2026-09-06): "The 'due' or 'not due' isn't
+  // as important as 'done' or 'not done.' Remember, although due dates are assigned, the
+  // notebook itself isn't due until last week of class. It would genuinely be good to see
+  // if they finished the work on time though."
+  // So the question a due date can honestly answer is not "are you late" -- nothing is late
+  // until December -- but "was this done by the day it was set for". A reading becomes an
+  // entry on the day of its ANN_MIN-th comment, so that day is the one to compare.
+  function commentDoneKey(rid){
+    const ts = [];
+    for(const h of getHighlights(rid))
+      for(const pass of notePasses(h)) if(String(pass.text || '').trim()) ts.push(pass.ts || h.ts || 0);
+    if(ts.length < ANN_MIN) return '';
+    ts.sort((a, b) => new Date(a) - new Date(b));
+    return hlDayKey({ ts: ts[ANN_MIN - 1] });
   }
   function annotationEntries(){
     const out = [];
@@ -7725,7 +7753,10 @@ You: Really. The first line only has to exist, not be good.`;
     // answer the app already had — it opens By day, the one lens guaranteed to list any
     // entry, scrolls to it and flashes it.
     frame.querySelectorAll('[data-goto]').forEach(b => { if(!b.dataset.goto) return;
-      b.onclick = () => revealEntry((DB.journal || []).find(x => x.id === b.dataset.goto));
+      // allEntries, NOT DB.journal: an annotated reading is a synthetic entry that exists
+      // only in annotationEntries(), so looking in the journal found nothing and the click
+      // silently did nothing — on exactly the entries row 4 most wants opened.
+      b.onclick = () => revealEntry(allEntries().find(x => x.id === b.dataset.goto));
     });
   }
   function shortDate(k){ const [y,m,d]=String(k).split('-').map(Number);

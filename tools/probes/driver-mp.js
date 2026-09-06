@@ -17,7 +17,23 @@
       return { id: 'mp' + i, pieceId: 'free', pieceKind: 'freewrite', date: d,
                ts: d + 'T10:0' + i + ':00', text: 'Probe page ' + i + '. ' + new Array(60).join('word ') };
     });
-    var st = { v: 6, journal: entries, turnin: { flag1: 'mp1' }, readings: [], highlights: {}, qa: {} };
+    // ⚠ SEED A KEPT READING, ON TIME AND LATE. The roster's done-pill path was never
+    // exercised -- no seeded reading ever had comments -- which is how a fmtDate() out of
+    // its scope reached a build. Two Romano rows: one finished the day before it was set
+    // for, one five days after.
+    var roster = (window.COURSE_READINGS || []).filter(function(e){ return e.kind === 'romano' && e.due; });
+    var readings = [], highlights = {};
+    var shift = function(day, n){ var d = new Date(day + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString(); };
+    roster.slice(0, 2).forEach(function(e, i){
+      var name = String(e.title).toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.pdf';
+      var rid = 'f:' + name;
+      readings.push({ id: rid, name: name, type: 'pdf' });
+      var when = shift(e.due, i === 0 ? -1 : 5);
+      highlights[rid] = [{ id: 'h' + i, page: 1, passes: [
+        { text: 'one', ts: when }, { text: 'two', ts: when }, { text: 'three', ts: when }] }];
+    });
+    var st = { v: 6, journal: entries, turnin: { flag1: 'mp1' },
+               readings: readings, highlights: highlights, qa: {} };
     localStorage.setItem('cr284_state', JSON.stringify(st));
     sessionStorage.setItem('mpProbe', '1');
     location.reload();
@@ -62,6 +78,12 @@
        green.length === 0 && amber.length >= 1, green.length + ' green / ' + amber.length + ' amber');
     ok('M11 every option carries its word count', document.querySelectorAll('.pj-w').length === document.querySelectorAll('.pj-opt').length,
        document.querySelectorAll('.pj-w').length + ' counts');
+    var onTime = document.querySelectorAll('.rr-b-done').length;
+    var doneLate = document.querySelectorAll('.rr-b-donelate').length;
+    ok('M12 a reading finished by its day is green, one finished after it is not',
+       onTime >= 1 && doneLate >= 1, onTime + ' on time / ' + doneLate + ' late');
+    ok('M13 the roster rows carry the three-state mark', document.querySelectorAll('.rr-m').length > 0,
+       document.querySelectorAll('.rr-m.on').length + ' done marks');
     var link = document.querySelector('.pj-opt[data-goto]');
     var beforeT = JSON.stringify((JSON.parse(localStorage.getItem('cr284_state'))||{}).turnin||{});
     if(link){ link.click(); await sleep(400);
