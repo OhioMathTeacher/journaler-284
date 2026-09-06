@@ -6922,22 +6922,56 @@ You: Really. The first line only has to exist, not be good.`;
       // rather than as a complaint after it. Short ones stay choosable — you may flag what
       // you like — they simply do not complete the row.
       const opt = (e, bad) => { const w = wordsIn(e), thin = w < FLAG_MIN_WORDS, on = T[k] === e.id;
-        const el = actOfDate(e.date), home = ACTS[el] ? 'in ' + ACTS[el][0] : 'before the term';
-        return `<span class="pj-optrow${bad || thin ? ' bad' : ''}">`
-        + `<button class="pj-mark${on ? ' on' : ''}" data-flagpick="${k}" data-flagent="${escHtml(e.id)}"
+        const el = actOfDate(e.date), home = ACTS[el] ? 'written in ' + ACTS[el][0] : 'written before the term';
+        // ⚠ A TICK MEANS IT COUNTS (Todd, 2026-09-06): "this makes me feel like I'm 2/3 of
+        // the way done, when I've only written like 12 words!" It did, because the tick was
+        // keyed to "this slot points at this entry" and nothing else — so a four-word page
+        // from July, flagged for Act II, wore the same green ✓ as finished work. Chosen and
+        // COUNTING are different states and now look different: green ✓ only when the entry
+        // belongs to this act and clears the floor, amber ! when it is chosen but does not,
+        // and the reason said out loud on the row rather than hidden in a tooltip.
+        const why = bad ? home : thin ? w + 'w — needs ' + FLAG_MIN_WORDS : '';
+        const good = on && !why;
+        return `<span class="pj-optrow${why ? ' bad' : ''}">`
+        + `<button class="pj-mark${on ? (good ? ' on' : ' on warn') : ''}" data-flagpick="${k}" data-flagent="${escHtml(e.id)}"
              aria-pressed="${on}"
-             title="${escHtml(on ? 'Take this off as your ' + act + ' entry' : 'Make this your ' + act + ' entry')}">${on ? '✓' : '○'}</button>`
+             title="${escHtml(on ? 'Take this off as your ' + act + ' entry' : 'Make this your ' + act + ' entry')}">${on ? (good ? '✓' : '!') : '○'}</button>`
+        // ⚠ THE WORD COUNT IS THE COLUMN YOU SCAN (Todd, 2026-09-06): "I see it already has
+        // word counts (77w, 133w . . . ). that is NOT prominent." It was set mid-line in the
+        // same weight and colour as the date and the title, so reading it meant reading past
+        // two other things first. It is the number the choice turns on, so it gets its own
+        // right-hand column: tabular figures, bold, and coloured against the floor — the eye
+        // runs down one edge and sees which pages are long enough to be read closely.
         + `<button class="pj-opt" data-goto="${escHtml(e.id)}"
-             title="${escHtml('Open this entry.' + (bad ? ' Flagged for ' + act + ', but written ' + home + '.'
-                              : thin ? ' ' + w + ' words — too short to read closely; a flagged entry needs ' + FLAG_MIN_WORDS + '.' : ''))}">`
-        + `entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))} · ${w}w`
-        + `<em>${escHtml(entryLabel(e, 34))}</em></button></span>`; };
+             title="${escHtml('Open this entry.' + (why ? ' Chosen for ' + act + ', but it does not count: ' + why + '.' : ''))}">`
+        + `<span class="pj-opt-t">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))}`
+        + `<em>${escHtml(entryLabel(e, 30))}</em></span>`
+        + (on && bad ? `<b class="pj-why">${escHtml(home)}</b>` : '')
+        + `<b class="pj-w${thin ? ' short' : ''}">${w}w</b></button></span>`; };
+      // ⚠ SAY THE NUMBER, NOT JUST THE RULE (Todd, 2026-09-06): "I think it should say
+      // something about the current words in the highlighted entry. Is it 150? Is it more?
+      // less?" A floor the reader cannot measure themselves against is a rule they can only
+      // discover by failing it. So the head carries the chosen entry's count AND its distance
+      // from the floor, and the act's own totals underneath — because "nothing long enough
+      // here" and "nothing here" are different problems with different answers.
+      const chosen = T[k] && ord.find(e => e.id === T[k]);
+      const cw = chosen ? wordsIn(chosen) : 0;
+      const total = mine.reduce((n, e) => n + wordsIn(e), 0);
+      const sum = (chosen
+          ? `<span class="${flagOK[i] ? 'pj-sum-ok' : 'pj-sum-no'}">chosen: ${cw.toLocaleString()} words —
+             ${actOfDate(chosen.date) !== i ? 'not from this act'
+               : cw >= FLAG_MIN_WORDS ? 'clears ' + FLAG_MIN_WORDS
+               : (FLAG_MIN_WORDS - cw).toLocaleString() + ' short of ' + FLAG_MIN_WORDS}</span><br>`
+          : '')
+        + `${mine.length} ${mine.length === 1 ? 'entry' : 'entries'} in this act · ${total.toLocaleString()} words`;
       return `<div class="pj-act${flagOK[i] ? ' done' : ''}">
         <div class="pj-act-h">${flagOK[i] ? '✓' : '○'} ${escHtml(act)}<em>${escHtml(title)} · ${escHtml(when)}</em></div>
+        <div class="pj-act-sum">${sum}</div>
         <div class="pj-act-l">${
           (stray ? opt(stray, true) : '')
           + (mine.length ? mine.map(e => opt(e, false)).join('')
-             : `<span class="pj-none">nothing kept in this act yet</span>`)}</div></div>`;
+             : `<span class="pj-none">${stray ? 'and nothing yet from this act to choose instead'
+                                              : 'nothing kept in this act yet'}</span>`)}</div></div>`;
     }).join('');
     // The points ride with the name. The handout scores these four rows out of 50 and
     // names a band for each; a panel that shows the bands but not what they are worth

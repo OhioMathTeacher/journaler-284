@@ -51,6 +51,17 @@
         ok('M7 the circle sets that act\'s entry', T[slot] === ent, slot + '=' + T[slot]);
       }
     }
+    var sums = [].slice.call(document.querySelectorAll('.pj-act-sum')).map(function(n){ return n.textContent.replace(/\s+/g,' ').trim(); });
+    ok('M9 each act reports its own words, and the chosen entry against the floor',
+       sums.length === 3 && /chosen: \d+ words/.test(sums[0]) && /short of 150|clears 150/.test(sums[0]), sums.join(' || '));
+    // Todd's complaint made a check: a four-word page from before the term, flagged for an
+    // act, must not wear the same green tick as work that counts.
+    var green = document.querySelectorAll('.pj-mark.on:not(.warn)');
+    var amber = document.querySelectorAll('.pj-mark.on.warn');
+    ok('M10 a chosen entry that does not qualify is not ticked green',
+       green.length === 0 && amber.length >= 1, green.length + ' green / ' + amber.length + ' amber');
+    ok('M11 every option carries its word count', document.querySelectorAll('.pj-w').length === document.querySelectorAll('.pj-opt').length,
+       document.querySelectorAll('.pj-w').length + ' counts');
     var link = document.querySelector('.pj-opt[data-goto]');
     var beforeT = JSON.stringify((JSON.parse(localStorage.getItem('cr284_state'))||{}).turnin||{});
     if(link){ link.click(); await sleep(400);
