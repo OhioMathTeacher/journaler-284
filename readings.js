@@ -203,7 +203,7 @@ window.COURSE_READINGS = [
  {
   "kind": "romano",
   "url": "https://miamioh.instructure.com/courses/258319/files/40154850",
-  "title": "ch17, \"Leading the Way.\"",
+  "title": "ch17, \"Leding the Way.\"",
   "ch": 17,
   "week": 9,
   "day": "Mon",
