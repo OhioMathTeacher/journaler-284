@@ -629,6 +629,18 @@ const REFLECT_LABEL = 'Reflecting on Writing';
 //    One box serves op1-op5, so this cannot name dialog, or the senses, or Grammar B --
 //    OP4 forbids the dialogue OP3 requires. It asks about choices, which every one of
 //    them involves.
+// ── Generation Loss (OP5). The one AI surface in this app that is SUPPOSED to rewrite
+//    the student's words -- because watching it do that IS the assignment. Everything
+//    the machine returns is stored and printed as evidence on its own sheet, and never
+//    goes near the composed page. The student pastes nothing.
+//
+//    The prompt is fixed and dull on purpose: "the point isn't the prompt, it's watching
+//    what each pass erases" (OP5). Changing it per student would make the passes
+//    incomparable across the room.
+const GENLOSS_PROMPT = 'Clean this up and correct it. Return only the corrected text.';
+const GENLOSS_PASSES = 10;                 // pass zero is the student's own page
+const GENLOSS_SHOWN  = [0, 1, 5, 10];      // the four the assignment asks them to save
+
 const REFLECT_PROMPT_SOLO = 'How did the writing go? What did you leave out, '
   + 'and what do you most want a reader to notice?';
 
@@ -2042,7 +2054,7 @@ async function runReflection(rf, text, hooks) {
       <p class="hint">One requirement, from the mentor texts: land at least one simile, metaphor, or bit of personification. The dog is a simile, the knight is a metaphor, and the IKEA desk that “snuggles up next to the foot of my bed” is personification. (Metaphor gets a whole day in Week 9.)</p>`,ph:'One page: place and process, 2–3 photos embedded. Use the image button.',photos:true},
     op3:{n:3,t:'Voice Print',f:'A voice you don’t hear anymore — one moment, in <em>pure dialogue</em>. <span class="hint">Just the voices. No narration.</span>',ph:'One page, mostly pure dialogue. New paragraph per speaker.'},
     op4:{n:4,t:'Show, Don’t Tell',f:'One small moment, through the senses. <span class="hint">Light, sound, smell, touch, taste. No dialogue. Make us feel it.</span>',ph:'One page. Cut every word that tells instead of shows.'},
-    op5:{n:5,t:'Breaking the Rules',f:'Something that matters, rules broken on purpose. <span class="hint">At least two Grammar B moves: fragments, labyrinths, purposeful misspelling, double voice.</span>',ph:'One page. Every “error” one you meant.'},
+    op5:{n:5,genloss:true,t:'Breaking the Rules',f:'Something that matters, rules broken on purpose. <span class="hint">At least two Grammar B moves: fragments, labyrinths, purposeful misspelling, double voice.</span>',ph:'One page. Every “error” one you meant.'},
   };
   const STEMS = ['A door you were afraid to open.','A room that no longer exists.','Something you were told not to say.','The first time a teacher was wrong about you.','A smell that returns you somewhere.','A voice you can still hear.','A rule you were glad to break.','The letter you never sent.','The teacher you’re trying not to become.'];
   let fwCur = 'op1';
@@ -2363,7 +2375,18 @@ async function runReflection(rf, text, hooks) {
         <input type="file" id="imgInput" accept="image/*" hidden ${M.photos?'multiple':''}>
         <div class="composer-foot"><button class="btn" id="opExport">Export One-Pager (1-page PDF)</button><span class="note">The PDF you submit: your One-Pager, then your writing session and AI-use log.</span></div>
        </div>
-      </div>`;
+      </div>
+      ${M.genloss ? `
+      <section class="genloss" id="genloss">
+        <div class="stagelabel"><span class="n">3</span> Generation Loss — what the machine corrects away</div>
+        <p class="stagenote">Your One-Pager is <strong>pass zero</strong>. Journaler asks the machine to clean it up, then cleans up the cleanup, ten times over. Nothing it returns enters your page — it prints on its own sheet as evidence.</p>
+        <div class="gushbar">
+          <button class="btn go" id="glRun">Run Generation Loss</button>
+          <button class="btn ghost sm" id="glStop" style="display:none">Stop</button>
+          <span class="note" id="glStatus"></span>
+        </div>
+        <div id="glOut"></div>
+      </section>` : ''}`;
     wireTimer();
     // Restore a saved gush + shaped one-pager for this OP.
     const saved = DB.freewrite[fwCur] || {};
@@ -2424,6 +2447,77 @@ async function runReflection(rf, text, hooks) {
     //    pointed at a pane that is to the RIGHT. Now just "Copy →" — the destination lives
     //    in the note beside it, because a long label re-wrapped and shoved the timer row's
     //    height around every time the text changed. Short button, talkative note.
+    // ── Generation Loss. Ten sequential calls, each fed the PREVIOUS pass -- that
+    //    compounding is the whole point; ten calls on the original would just be ten
+    //    first drafts. Passes live on the session so they survive a reload and can
+    //    print, and they are never written into #page.
+    const glRun = document.getElementById('glRun');
+    if (glRun) {
+      let glAbort = false;
+      const st = document.getElementById('glStatus');
+      const stopBtn = document.getElementById('glStop');
+
+      function glSaved(){ return ((DB.freewrite[fwCur] || {}).session || {}).genloss || null; }
+
+      function glPaint(){
+        const out = document.getElementById('glOut');
+        const g = glSaved();
+        if (!out) return;
+        if (!g || !g.passes || !g.passes.length) { out.innerHTML = ''; return; }
+        const n = g.passes.length - 1;
+        const chips = g.passes.map((_, i) =>
+          `<button class="gl-chip${GENLOSS_SHOWN.includes(i) ? ' key' : ''}" data-i="${i}">${i}</button>`).join('');
+        out.innerHTML = `
+          <p class="gl-meta">${escHtml(g.model || 'unknown model')} · ${n} pass${n === 1 ? '' : 'es'}</p>
+          <div class="gl-pick"><span class="note">Compare</span><span class="gl-chips" data-side="a">${chips}</span>
+            <span class="note">with</span><span class="gl-chips" data-side="b">${chips}</span></div>
+          <div class="gl-two"><div class="gl-pane" id="glA"></div><div class="gl-pane" id="glB"></div></div>`;
+        let a = 0, b = Math.min(GENLOSS_PASSES, n);
+        const draw = () => {
+          out.querySelectorAll('.gl-chips[data-side="a"] .gl-chip').forEach(c => c.classList.toggle('on', +c.dataset.i === a));
+          out.querySelectorAll('.gl-chips[data-side="b"] .gl-chip').forEach(c => c.classList.toggle('on', +c.dataset.i === b));
+          document.getElementById('glA').innerHTML = `<h4>Pass ${a}${a ? '' : ' — yours'}</h4><p>${escHtml(g.passes[a]).replace(/\n+/g, '</p><p>')}</p>`;
+          document.getElementById('glB').innerHTML = `<h4>Pass ${b}</h4><p>${escHtml(g.passes[b]).replace(/\n+/g, '</p><p>')}</p>`;
+        };
+        out.querySelectorAll('.gl-chip').forEach(c => c.addEventListener('click', () => {
+          const side = c.closest('.gl-chips').dataset.side;
+          if (side === 'a') a = +c.dataset.i; else b = +c.dataset.i;
+          draw();
+        }));
+        draw();
+      }
+
+      glRun.addEventListener('click', async () => {
+        if (getProvider() === 'none') {
+          st.textContent = 'This one needs AI on — turn it on under ⚙ Settings → AI. It is the experiment.';
+          return;
+        }
+        const pg = document.getElementById('page');
+        const zero = pg ? pg.innerText.trim() : '';
+        if (!zero) { st.textContent = 'Shape your One-Pager first — that is pass zero.'; return; }
+        if (glSaved() && !confirm('Run again? This replaces the passes you already have.')) return;
+
+        glAbort = false;
+        glRun.disabled = true; stopBtn.style.display = 'inline-flex';
+        const passes = [zero];
+        try {
+          for (let i = 1; i <= GENLOSS_PASSES; i++) {
+            if (glAbort) break;
+            st.textContent = `Pass ${i} of ${GENLOSS_PASSES}…`;
+            passes.push(String(await callModel(GENLOSS_PROMPT + '\n\n"""\n' + passes[i - 1] + '\n"""')).trim());
+            sessionPatch(fwCur, { genloss: { passes: passes.slice(), model: aiLabel(), ranAt: new Date().toISOString() } });
+            glPaint();
+          }
+          st.textContent = glAbort ? `Stopped at pass ${passes.length - 1}.` : `Done — ${passes.length - 1} passes.`;
+        } catch (e) {
+          st.textContent = 'The model stopped responding. The passes so far are saved.';
+        }
+        glRun.disabled = false; stopBtn.style.display = 'none';
+      });
+      stopBtn.addEventListener('click', () => { glAbort = true; });
+      glPaint();
+    }
+
     const liftBtn = document.getElementById('liftBtn');
     if(liftBtn) liftBtn.onclick = ()=>{
       const ta = document.getElementById('gush'), pg = document.getElementById('page');
@@ -6534,6 +6628,25 @@ You: Really. The first line only has to exist, not be good.`;
       </section>`;
   }
 
+  // Machine output, printed as evidence and labelled as such on every pass. It follows
+  // the session record on its own page and is never measured against the one-page rule:
+  // none of it is the student's writing.
+  function genlossHTML(M){
+    const g = ((DB.freewrite['op' + M.n] || {}).session || {}).genloss;
+    if (!g || !g.passes || g.passes.length < 2) return '';
+    const para = t => String(t || '').split(/\n+/).filter(Boolean).map(x => `<p>${escHtml(x)}</p>`).join('');
+    const shown = GENLOSS_SHOWN.filter(i => i < g.passes.length);
+    return `
+      <section class="op-session gl-sheet">
+        <h2>Generation Loss · One-Pager ${M.n}</h2>
+        <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}${escHtml(g.model || '')}</p>
+        <p>Pass zero is my writing. Every later pass is machine output, produced by asking it to
+        &ldquo;clean this up and correct it&rdquo; and then repeating that on its own answer.
+        None of it appears in my One-Pager.</p>
+        ${shown.map(i => `<h3>Pass ${i}${i ? ' — machine' : ' — mine'}</h3>${para(g.passes[i])}`).join('')}
+      </section>`;
+  }
+
   function exportOnePagerPDF(M){
     const pg = document.getElementById('page');
     const shaped = pg ? pg.innerHTML.trim() : '';
@@ -6566,7 +6679,7 @@ You: Really. The first line only has to exist, not be good.`;
       const pages = Math.ceil(measured / SHEET_PX.h);
       if(!confirm(`Your One-Pager runs about ${pages} pages at print size. A One-Pager is one page.\n\nCancel to cut it down, or OK to print it as it is.`)) return;
     }
-    printDoc('printOnePager', sheet + sessionRecordHTML(M), `One-Pager ${M.n} — ${M.t}`);
+    printDoc('printOnePager', sheet + sessionRecordHTML(M) + genlossHTML(M), `One-Pager ${M.n} — ${M.t}`);
   }
 
   // Eight dropdowns, each listing every entry as "17 · Sep 22 · Free-writes". Dropdowns

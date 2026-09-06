@@ -1845,3 +1845,21 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .pdf-doc.two-up .pdf-page { flex: 0 0 auto; }
 .pdfnav-note { font-family: var(--sans); font-size: 12.5px; color: var(--muted); margin-left: 10px; }
 @media (max-width: 900px){ .pdf-doc.two-up { flex-direction: column; align-items: center; } }
+
+/* ── Generation Loss (OP5). A full-width band UNDER .op-cols, never inside it: that
+   grid is subgrid over exactly five row tracks and a sixth child overlaps the fifth. */
+.genloss { margin: 26px 0 0; padding-top: 18px; border-top: 1px solid var(--panel-line); }
+.gl-meta { font-size: 13px; opacity: .75; margin: 10px 0 6px; }
+.gl-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.gl-chips { display: inline-flex; gap: 4px; }
+.gl-chip { min-width: 28px; padding: 3px 6px; font: inherit; font-size: 13px; cursor: pointer;
+  border: 1px solid var(--panel-line); border-radius: 4px; background: var(--panel-fill); color: inherit; }
+.gl-chip.key { font-weight: 700; }
+.gl-chip.on { background: var(--panel-fill-hi); border-color: var(--panel-accent); }
+.gl-chip:hover { background: var(--panel-fill-hi); }
+.gl-two { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 900px) { .gl-two { grid-template-columns: 1fr 1fr; } }
+.gl-pane { border: 1px solid var(--panel-line); border-radius: 6px; padding: 10px 14px;
+  background: var(--panel-fill); max-height: 46vh; overflow: auto; }
+.gl-pane h4 { margin: 0 0 6px; font-size: 13px; opacity: .8; }
+.gl-pane p { margin: 0 0 8px; }
