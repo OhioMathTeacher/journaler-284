@@ -7263,8 +7263,9 @@ You: Really. The first line only has to exist, not be good.`;
         <span class="ti-txt">${ready ? 'Ready to turn in' : 'Before you turn it in'}
           <em>${done} of ${all} tagged</em></span>
         <span class="ti-pips">${pips}</span></summary>
-      <p class="runline">Every column needs at least one filled box.
-        Only the three you flag get read closely; everything else stays unread.</p>
+      <p class="runline">Each of these needs one page against it. Tag a page from the page
+        itself — <em>＋ Tag this page…</em> under By day or By piece — or choose one from
+        the rows above. Only the three you flag get read closely; everything else stays unread.</p>
       ${noteMode === 'tags' ? '' : `<p class="runline"><button class="btn sm" id="goTags">Open My Progress →</button></p>`}
       ${TURNIN_SLOTS.map(([k,label,hint]) => {
         const id = T[k], e = id && ordered.find(x => x.id === id);
@@ -7528,11 +7529,14 @@ You: Really. The first line only has to exist, not be good.`;
         <div class="tagsgrid">
           ${draftTray()}
           ${projectPanel()}
-          <p class="runline"><strong>Every column needs at least one filled box.</strong>
-            A tagged page is printed in full in your report; everything else appears in the
-            Contents as one line, which is what keeps the report short.</p>
-          ${ordered.length ? `<table class="tgtable"><thead><tr><th></th><th>Date</th><th></th><th>Entry</th>${head}</tr></thead><tbody>${rows}</tbody></table>`
-            : `<p class="empty">Nothing kept yet, so there is nothing to mark. Once you keep entries they appear here as rows, and you tick the box that says which required entry each one answers — or which three you want read closely.</p>`}
+          <!-- ⚠ THE TAGS GRID IS GONE (Todd, 2026-09-06): "I still don't get this chart.
+               It looks pretty, but I think I'd like to remove it. No one knows what that
+               means! I guarantee you my students don't!" Eight abbreviated columns —
+               BASE CURR MAP SRC LETTER ★1 ★2 ★3 — against every entry of the term asked
+               the reader to hold the whole rubric in their head to read one row.
+               Nothing is lost with it: every entry carries its own "＋ Tag this page…"
+               under By day and By piece, the four required slots and the Letter are
+               chosen from their own rows above, and a named page tags itself when kept. -->
           ${noteFoot()}
         </div>`;
       frame.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
