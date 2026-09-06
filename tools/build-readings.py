@@ -13,7 +13,7 @@ where it is ASSIGNED (its link in that day's wrap-up, which sends it home for
 the next session). A reading with only a wrap-up appearance has not been
 taught yet; a reading with neither has not been written into an outline.
 """
-import re, sys, json, glob, html, os
+import re, sys, json, glob, html, os, pathlib
 from urllib.parse import urlparse
 
 SRC = sys.argv[1] if len(sys.argv) > 1 else '/home/todd/Repos/tce284-fa26'
@@ -31,6 +31,31 @@ A = re.compile(r'<a class="rdg" data-rdg="(romano|currere|article)" href="([^"]+
 # Promotion only. A currere-tagged reading published somewhere else keeps its tag,
 # because the rule says what CEJ links ARE, not what everything else is not.
 CEJ = re.compile(r'^(?:www\.)?(?:cej\.lib\.miamioh\.edu|currereexchange\.com)$', re.I)
+
+# The reading's real name, where we know it. A roster title is the outline's anchor
+# text -- "ch1" -- while the file on Canvas is "ch1-who-are-you-to-presume-to-write.pdf",
+# which is what the student already sees on their own shelf. Carrying the filename lets
+# the app show the same name in both places. The title is left alone: it is what the
+# matcher tokenises and what an identification is keyed by, and changing it would break
+# both. Cache written by tools/fetch-canvas-names.py; absent, nothing here happens.
+_CACHE = HERE / 'canvas-files.json' if (HERE := pathlib.Path(__file__).parent) else None
+CANVAS_NAMES = json.loads(_CACHE.read_text()) if _CACHE and _CACHE.exists() else {}
+
+def canvas_file(url):
+    m = re.search(r'/files/(\d+)', url or '')
+    return CANVAS_NAMES.get(m.group(1), '') if m else ''
+
+# The introduction is chapter zero. It has no number of its own, so it sorted to the end
+# of every list of chapters (99) and then landed mid-pack on its due date, between ch2
+# and ch3. Numbering it 0 puts it first, where a reader looks for it, and lets the app
+# call it "Ch 0 · Introduction" alongside "Ch 1 · ...". Matching still treats 0 as front
+# matter, not as a chapter numbered zero -- no file is called ch0.
+FRONT_TITLE = re.compile(r'^(intro|introduction|front\s*matter|preface|foreword)$', re.I)
+
+def chapter_no(kind, title, ch):
+    if kind == 'romano' and ch is None and FRONT_TITLE.match((title or '').strip()):
+        return 0
+    return ch
 
 def classify(kind, url):
     if kind != 'romano' and CEJ.match(urlparse(url).netloc or ''):
@@ -57,7 +82,8 @@ for f in sorted(glob.glob(os.path.join(SRC, 'week-*/week-*.html'))):
         title = clean(inner)
         key = url.split('?')[0]
         r = rows.setdefault(key, {'kind': kind, 'url': url, 'title': title,
-                                  'ch': chapter(title), 'taught': [], 'assigned': []})
+                                  'file': canvas_file(url),
+                                  'ch': chapter_no(kind, title, chapter(title)), 'taught': [], 'assigned': []})
         # A conference-day outline has no wrap-up section, so its reading links
         # ARE homework even though nothing marks them as such: ch18 is set at the
         # topic conference for the Wednesday, ch19 at the draft conference for the

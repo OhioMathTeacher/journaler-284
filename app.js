@@ -2824,15 +2824,18 @@ async function runReflection(rf, text, hooks) {
     return m ? parseInt(m[1], 10) : null;
   }
   const FRONT_RE = /^\s*\d*[\s._-]*(intro|front[\s._-]*matter|preface|foreword)/i;
-  const BACK_RE  = /^\s*\d*[\s._-]*(end[\s._-]*matter|back[\s._-]*matter|appendix|index|works[\s._-]*cited|bibliograph)/i;
+  // acknowledg… is here because the book's back matter is called
+  // "acknowledgments_and_works_cited.pdf" and the anchored "works cited" never reached it.
+  const BACK_RE  = /^\s*\d*[\s._-]*(end[\s._-]*matter|back[\s._-]*matter|appendix|index|acknowledg|works[\s._-]*cited|bibliograph)/i;
   function readingRank(r){
     if(r.builtin) return [0, 0, ''];
     const low = r.name.toLowerCase();
     // Front and back matter are numbered too (0-front-matter, 26-end-matter), so
     // they must be classified BEFORE the numeric branch or they sort as chapters.
-    if(FRONT_RE.test(r.name)) return [1, 0, low];
-    if(BACK_RE.test(r.name))  return [4, 0, low];
-    const n = chapterNum(r.name);
+    const bare = bareName(r);
+    if(FRONT_RE.test(bare) || chapterNum(bare) === 0) return [1, 0, low];
+    if(BACK_RE.test(bare)  || chapterNum(bare) === 26) return [4, 0, low];
+    const n = chapterNum(bare);
     if(n !== null) return [2, n, low];
     return [3, 0, low];
   }
@@ -5411,9 +5414,23 @@ You: Really. The first line only has to exist, not be good.`;
   // My Progress uses — one classifier, so the drawer and the roster can never disagree
   // about what a file is. Anything unclaimed is the student's own, which is also how it
   // reads in My Progress.
+  // Todd, 2026-09-06: "let's call Acknowledgments 'Ch 26 · Acknowledgments' (that's a
+  // Romano chapter too!)". It is — it is the back of the same book — so it shelves with
+  // Romano, and readingRank already sorts back matter to the bottom, its own comment
+  // calling it "26-end-matter". It is NOT a roster row: no outline assigns it, so it
+  // counts toward no coverage total. Shelved with the book, not counted as homework.
+  // Front and back matter answer to a NUMBER as well as a word. Renaming the Canvas
+  // files to "ch0-introduction.pdf" and "ch26-acknowledgments-and-works-cited.pdf" puts
+  // the number first, which is what makes them sort with the chapters — but it also
+  // means neither filename begins with "intro" or "acknowledg" any more, so the
+  // word-anchored tests alone would stop seeing them. Both spellings work now, and a
+  // copy downloaded under the old name keeps matching.
+  function isFrontMatter(r){ const b = bareName(r); return FRONT_RE.test(b) || chapterNum(b) === 0; }
+  function isBackMatter(r){ const b = bareName(r); return !r.builtin && (BACK_RE.test(b) || chapterNum(b) === 26); }
   function loadedKinds(){
     const roster = (window.COURSE_READINGS || []);
     const out = new Map();
+    for(const r of readings) if(isBackMatter(r)) out.set(r.id, 'romano');
     if(!roster.length) return out;
     for(const [ri, r] of rosterAssign(roster, readings)) out.set(r.id, roster[ri].kind);
     return out;
@@ -5424,64 +5441,136 @@ You: Really. The first line only has to exist, not be good.`;
     ['article', 'Articles'],
     ['own',     'Your own'],
   ];
-  // ── "WHICH READING IS THIS?" (Todd, 2026-09-06)
+  // ── ONE DIALOG, TWO SEPARATE JOBS (Todd, 2026-09-06).
   //
-  // Todd: "I have a currere that's currently labeled as 2Wiederhold... I'm hopeful that
-  // I can be given a list of the 8 currere and identify that one." A filename the
-  // matcher cannot read is not the reader's fault, and the fix should not be renaming a
-  // file on disk.
+  // "The question mark thing is super confusing" — it was, because ? asks a question
+  // and this button does something. And picking a course reading used to rename the
+  // file, which is how "Ch 1 · Who Are You to Presume to Write?" became "ch1".
   //
-  // The list offers the course readings NOT already claimed by another file, so picking
-  // one can never produce two files on one row. Choosing sets the displayed title too --
-  // identifying the reading and naming it are the same act, so there is no second
-  // rename step to forget.
+  // So the dialog does the naming FIRST, in the reader's own words, pre-filled with
+  // what the shelf shows. The course list underneath answers a different question —
+  // which row this fills, for the counts — and changes no name. The roster's own title
+  // is offered as one button beside the field, because for the currere it is the better
+  // name and for Romano it is plainly worse; the reader can see both and choose.
   function openIdentify(rid){
     const r = readings.find(x => x.id === rid); if(!r) return;
     const roster = (window.COURSE_READINGS || []);
     const assigned = rosterAssign(roster, readings);
     const mineNow = [...assigned.entries()].find(([, x]) => x.id === rid);
     const takenRows = new Set([...assigned.entries()].filter(([, x]) => x.id !== rid).map(([i]) => i));
+    const rTitle = rosterTitleFor(rid);
     const groups = ROSTER_GROUPS.map(([kind, label]) => [label,
       roster.map((e, i) => [e, i]).filter(([e, i]) => e.kind === kind && !takenRows.has(i))]);
     const host = document.createElement('div');
     host.className = 'rf-overlay'; host.id = 'idOverlay';
-    host.innerHTML = `<div class="rf-box" role="dialog" aria-modal="true" aria-label="Identify this reading">
-      <h3 class="rf-h">Which reading is this?</h3>
-      <p class="runline">Your file is <strong>${escHtml(r.name)}</strong>. Pick what it actually is and
-        Journaler will show it under that name and count it on that row. Readings another file
-        already claims are not listed.</p>
+    host.innerHTML = `<div class="rf-box" role="dialog" aria-modal="true" aria-label="This reading">
+      <h3 class="rf-h">This reading</h3>
+      <p class="runline">Your file is <strong>${escHtml(r.name)}</strong>.</p>
+
+      <label class="id-lab" for="idName">Shown on your shelf</label>
+      <input class="id-name" id="idName" type="text" value="${escHtml(shelfLabel(r))}" spellcheck="false">
+      ${rTitle && rTitle !== shelfLabel(r)
+        ? `<p class="id-alt">Or use the course list's name: <button class="id-use" type="button">${escHtml(rTitle)}</button></p>` : ''}
+
+      <label class="id-lab">Which course reading is it? <span class="id-sub">— sets the counts, not the name</span></label>
       <div class="id-list">
         ${groups.filter(([, xs]) => xs.length).map(([label, xs]) => `<div class="id-sec">${escHtml(label)}</div>`
-          + xs.map(([e, i]) => `<button class="id-pick${mineNow && mineNow[0] === i ? ' on' : ''}" data-title="${escHtml(e.title)}">${escHtml(e.title)}</button>`).join('')).join('')}
+          + xs.map(([e, i]) => `<button class="id-pick${mineNow && mineNow[0] === i ? ' on' : ''}" type="button" data-title="${escHtml(e.title)}">${escHtml(rosterLabel(e))}</button>`).join('')).join('')}
         <div class="id-sec">Not a course reading</div>
-        <button class="id-pick${(rosterOverrides()[rid] === 'own') ? ' on' : ''}" data-title="own">This is my own reading</button>
+        <button class="id-pick${(rosterOverrides()[rid] === 'own') ? ' on' : ''}" type="button" data-title="own">This is my own reading</button>
       </div>
       <div class="rf-actions">
         <button class="popup-btn secondary" id="idCancel">Cancel</button>
-        <button class="popup-btn secondary" id="idClear">Clear — let Journaler guess</button>
+        <button class="popup-btn primary" id="idSave">Save</button>
       </div></div>`;
     document.body.appendChild(host);
     const close = () => host.remove();
+    const nameEl = document.getElementById('idName');
+    let pick = rosterOverrides()[rid] || null;      // null = leave the matcher alone
     host.addEventListener('click', e => { if(e.target === host) close(); });
     document.getElementById('idCancel').onclick = close;
-    document.getElementById('idClear').onclick = () => {
-      delete rosterOverrides()[rid]; saveDB(); close(); renderDrawer(); renderRead();
-      toast('Journaler will work it out from the filename again.');
-    };
+    const use = host.querySelector('.id-use');
+    if(use) use.onclick = () => { nameEl.value = use.textContent; nameEl.focus(); };
     host.querySelectorAll('.id-pick').forEach(b => b.onclick = () => {
-      rosterOverrides()[rid] = b.dataset.title; saveDB(); close(); renderDrawer(); renderRead();
-      toast(b.dataset.title === 'own' ? 'Filed under Your own' : 'Identified as ' + b.dataset.title);
+      const already = b.classList.contains('on');
+      host.querySelectorAll('.id-pick').forEach(x => x.classList.remove('on'));
+      // Clicking the row it already sits on clears the choice — the matcher takes over.
+      if(already){ pick = null; return; }
+      b.classList.add('on'); pick = b.dataset.title;
     });
+    document.getElementById('idSave').onclick = () => {
+      const typed = (nameEl.value || '').trim();
+      // Storing a name identical to the filename's own label would freeze it: rename the
+      // file later and the shelf would keep showing the old one. Only a real change sticks.
+      if(typed && typed !== readingLabel(r)) readingNames()[rid] = typed;
+      else delete readingNames()[rid];
+      if(pick) rosterOverrides()[rid] = pick; else delete rosterOverrides()[rid];
+      saveDB(); close(); renderDrawer(); renderRead();
+      toast('Saved');
+    };
+    nameEl.focus(); nameEl.select();
   }
-  // What a reading is CALLED on the shelf: the course reading it was identified as, if
-  // it was, otherwise whatever its filename yields.
+
+  // ⚠ IDENTIFYING IS NOT RENAMING (Todd, 2026-09-06): "The app replaced my meaningful
+  // file name (i.e., Ch 1 - Who Are You to Presume to Write?) with a truncated one
+  // (i.e., ch1)."
+  //
+  // It did, and that was one idea doing two jobs. WHICH ROW a file fills and WHAT IT IS
+  // CALLED are separate: the roster's Romano titles are the outlines' anchor text, so
+  // ch1 really is "ch1", while the reader's own filename carries the chapter's actual
+  // name. Identifying now fills the row and touches nothing else; the name changes only
+  // when someone types one.
+  function readingNames(){ return (DB.readingNames = DB.readingNames || {}); }
+  // The roster's display name. entry.title is the outline's anchor text, which for
+  // Romano is bare shorthand — "ch1", "Intro" — while entry.file is what the reading is
+  // actually called on Canvas. Run that through the same readingLabel() the shelf uses
+  // and both say "Ch 1 · Who are you to presume to write".
+  //
+  // Only for the bare ones. A currere row's title is 'Edwards, "Who's Cheating Whom?"',
+  // which is better than the filename it was uploaded under, so it stands.
+  // Todd, 2026-09-06: "For the Curreres, let's use the filenames you used when uploading
+  // to CANVAS", and "could we call Introduction 'Ch 0 · Introduction' and have it listed
+  // first". So wherever a Canvas filename exists it is the name, because that filename
+  // was chosen to be read: "Edwards - Whos Cheating Whom (Currere)" says more than the
+  // outline's anchor text ever did, and the student sees the same words on their shelf.
+  //
+  // Romano goes through readingLabel(), which turns ch1-who-are-you-to-presume-to-write
+  // into "Ch 1 · Who are you to presume to write". The others keep the filename as typed,
+  // hyphens and parentheses and all, because it was written by hand and tidying it would
+  // only mangle "O'Hara" and the (Currere) tag. The three readings hosted off Canvas have
+  // no filename and keep their title.
+  function rosterLabel(e){
+    if(!e) return '';
+    if(e.ch === 0) return 'Ch 0 · Introduction';
+    if(!e.file) return e.title || '';
+    if(e.kind === 'romano') return readingLabel({ name: e.file });
+    return String(e.file).replace(/\.(pdf|docx|txt)$/i, '');
+  }
+  // Precedence: a name the reader typed, then the course list's name for the reading it
+  // was matched to, then the filename. The middle one keeps the shelf and My Progress
+  // saying the same words — "Daspit - None of Us (Currere)" in both, rather than the
+  // shelf quietly tidying the hyphen out of it.
   function shelfLabel(r){
-    const want = rosterOverrides()[r.id];
-    if(want && want !== 'own'){
-      const e = (window.COURSE_READINGS || []).find(x => x.title === want);
-      if(e) return e.title;
-    }
-    return readingLabel(r);
+    const own = (readingNames()[r.id] || '').trim();
+    if(own) return own;
+    // readingLabel already writes "Ch 26 · …" when the filename carries the number; the
+    // prefix is only added for a copy named the old way, so neither doubles up.
+    const lab = readingLabel(r);
+    const numbered = /^Ch\s+\d+\s+·/.test(lab);
+    if(isBackMatter(r)) return numbered ? lab : 'Ch 26 · ' + lab;
+    const fromRoster = rosterTitleFor(r.id);
+    if(fromRoster) return fromRoster;
+    if(isFrontMatter(r)) return numbered ? lab : 'Ch 0 · ' + lab;
+    return lab;
+  }
+  // The roster's name for a file, offered in the dialog as one option among the
+  // reader's own words -- never imposed.
+  function rosterTitleFor(rid){
+    const roster = (window.COURSE_READINGS || []);
+    const want = rosterOverrides()[rid];
+    if(want && want !== 'own') return rosterLabel(roster.find(e => e.title === want));
+    const hit = [...rosterAssign(roster, readings).entries()].find(([, x]) => x.id === rid);
+    return hit ? rosterLabel(roster[hit[0]]) : '';
   }
   function renderDrawer(){
     const host = document.getElementById('drawerList');
@@ -5510,8 +5599,8 @@ You: Really. The first line only has to exist, not be good.`;
       return `<div class="drawer-row${i===activeReading?' on':''}">`
       + (r.builtin ? '<span class="drawer-tick"></span>' : mark(r))
       + `<button class="drawer-pick" data-i="${i}" title="${escHtml(r.name)}">${escHtml(named)}${
-          ov && ov !== 'own' ? '<span class="drawer-id" title="You identified this one yourself">·</span>' : ''}</button>`
-      + `<button class="drawer-q" data-id="${escHtml(r.id)}" title="${escHtml('Which reading is this? — file: ' + r.name)}" aria-label="Identify ${escHtml(named)}">?</button>`
+          readingNames()[r.id] ? '<span class="drawer-id" title="You named this one yourself">·</span>' : ''}</button>`
+      + `<button class="drawer-q" data-id="${escHtml(r.id)}" title="${escHtml('Rename this, or say which course reading it is — file: ' + r.name)}" aria-label="Rename or identify ${escHtml(named)}">✎</button>`
       + `<button class="drawer-x" data-x="${i}" title="Remove this chapter from your shelf" aria-label="Remove ${escHtml(named)}">🗑</button>`
       + `</div>`;
     };
@@ -6259,7 +6348,11 @@ You: Really. The first line only has to exist, not be good.`;
   function rosterRomanoHit(r, entry){
     if(r.builtin) return false;
     const bare = bareName(r);
-    return entry.ch != null ? chapterNum(bare) === entry.ch : FRONT_RE.test(bare);
+    // ch 0 is the introduction, not a chapter numbered zero: no file is called ch0, so
+    // it matches on front matter the way it always did.
+    return (entry.ch != null && entry.ch > 0)
+      ? chapterNum(bare) === entry.ch
+      : (FRONT_RE.test(bare) || chapterNum(bare) === 0);
   }
   function rosterScore(r, entry){
     if(r.builtin) return 0;
@@ -6374,7 +6467,7 @@ You: Really. The first line only has to exist, not be good.`;
         const cls = st.commented ? 'rr-done' : st.marked ? 'rr-part'
                   : (e.due > today ? 'rr-future' : 'rr-owed-row');
         return `<div class="rr-row ${cls}">
-          <a class="rr-t" href="${escHtml(e.url)}" target="_blank" rel="noopener">${escHtml(e.title)}</a>
+          <a class="rr-t" href="${escHtml(e.url)}" target="_blank" rel="noopener">${escHtml(rosterLabel(e))}</a>
           <span class="rr-s">${badges(st, e)}</span>
         </div>`;
       }).join('');
