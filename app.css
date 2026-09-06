@@ -1721,20 +1721,20 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .pj-act.done .pj-act-h { color: var(--go, #3f7a4d); }
 .pj-act-h em { display: block; font-style: normal; font-weight: 400; font-size: 11.5px; color: var(--muted); }
 .pj-act-l { display: flex; flex-direction: column; gap: 1px; max-height: 12.5rem; overflow-y: auto; }
-.pj-opt { display: inline-flex; align-items: baseline; gap: .3rem; width: 100%; text-align: left;
-  border: 0; background: none; font: inherit; font-size: 12.5px; color: var(--ink);
-  padding: 2px 3px; border-radius: 5px; cursor: pointer; min-width: 0; }
-.pj-opt:hover, .pj-opt:focus-visible { background: var(--highlight-soft); }
-.pj-opt.on { font-weight: 600; color: var(--go, #3f7a4d); }
-.pj-opt.bad, .pj-opt.bad .pj-opt-t em { color: #8a6d2f; }
-.pj-opt-m { flex: 0 0 auto; }
-.pj-opt-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pj-opt-t em { font-style: normal; color: var(--muted); margin-left: .35rem; }
-/* The reading route, kept separate from the choosing route: you often want to look before
-   you pick, and a single hit target cannot mean both. */
-.pj-open { border: 0; background: none; cursor: pointer; color: var(--muted);
-  font-size: 12px; padding: 0 3px; float: right; }
-.pj-open:hover, .pj-open:focus-visible { color: var(--accent); }
+.pj-optrow { display: flex; align-items: baseline; gap: .3rem; min-width: 0; }
+/* Small, round, and clearly a control rather than a label: it is the only thing here that
+   changes state, and everything beside it navigates. */
+.pj-mark { flex: 0 0 auto; border: 1px solid var(--comment-border); background: #fff;
+  border-radius: 999px; width: 18px; height: 18px; line-height: 1; padding: 0; cursor: pointer;
+  font-size: 11.5px; color: var(--muted); }
+.pj-mark:hover, .pj-mark:focus-visible { border-color: var(--accent); color: var(--accent); }
+.pj-mark.on { background: var(--go, #3f7a4d); border-color: var(--go, #3f7a4d); color: #fff; }
+.pj-opt { flex: 1; min-width: 0; text-align: left; border: 0; background: none; font: inherit;
+  font-size: 12.5px; color: var(--ink); padding: 2px 3px; border-radius: 5px; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pj-opt:hover, .pj-opt:focus-visible { background: var(--highlight-soft); text-decoration: underline; }
+.pj-optrow.bad .pj-opt, .pj-optrow.bad .pj-opt em { color: #8a6d2f; }
+.pj-opt em { font-style: normal; color: var(--muted); margin-left: .35rem; }
 .pj-flag-n { font-weight: 600; margin-right: .3rem; }
 .pj-flag-n.on { color: var(--go, #3f7a4d); }
 /* Filled, but from the wrong act. Not an error -- the entry is real and kept -- so it is

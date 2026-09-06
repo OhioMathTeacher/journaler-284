@@ -6911,24 +6911,27 @@ You: Really. The first line only has to exist, not be good.`;
       // A flag set before this check existed can point outside its act. Show it here
       // rather than nowhere, amber, so it can be seen and taken off.
       const stray = T[k] && !mine.some(e => e.id === T[k]) && ord.find(e => e.id === T[k]);
+      // ⚠ THE TEXT GOES THERE, THE CIRCLE CHOOSES (Todd, 2026-09-06): "When I click on those
+      // entries, I was expecting to be sent there, not just create a green checkmark next to
+      // the one I've selected." He described it that way from the start — "I click on one of
+      // the 'ones', I am sent to 'The one' and I see a checkbox I can check" — and I built it
+      // inverted, with the whole row selecting and reading hidden behind a small arrow.
+      // A line of text that names a page navigates to it. Choosing is a separate, smaller
+      // control, because you almost always want to read before you pick.
       // The word count rides on every option, so the floor is visible BEFORE the choice
-      // rather than as a complaint after it. Short ones stay clickable -- you may flag what
-      // you like -- they simply do not complete the row.
-      const opt = (e, bad) => { const w = wordsIn(e), thin = w < FLAG_MIN_WORDS;
-        // Where the entry actually sits, resolved ONCE and defensively. Calling actOfDate twice
-        // inside a template and indexing ACTS with the second call is how this threw
-        // "cannot read properties of undefined" and took the whole panel -- and therefore
-        // the My Progress button -- down with it.
+      // rather than as a complaint after it. Short ones stay choosable — you may flag what
+      // you like — they simply do not complete the row.
+      const opt = (e, bad) => { const w = wordsIn(e), thin = w < FLAG_MIN_WORDS, on = T[k] === e.id;
         const el = actOfDate(e.date), home = ACTS[el] ? 'in ' + ACTS[el][0] : 'before the term';
-        return `<button class="pj-opt${T[k] === e.id ? ' on' : ''}${bad || thin ? ' bad' : ''}"
-           data-flagpick="${k}" data-flagent="${escHtml(e.id)}"
-           title="${escHtml(bad ? 'Flagged for ' + act + ', but written ' + home + '. Click to take it off.'
-                    : thin ? w + ' words — too short to read closely. A flagged entry needs ' + FLAG_MIN_WORDS + '.'
-                    : 'Make this your ' + act + ' entry')}">`
-        + `<span class="pj-opt-m">${T[k] === e.id ? '✓' : '○'}</span>`
-        + `<span class="pj-opt-t">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))} · ${w}w`
-        + `<em>${escHtml(entryLabel(e, 34))}</em></span></button>`
-        + `<button class="pj-open" data-goto="${escHtml(e.id)}" title="Open this entry">↗</button>`; };
+        return `<span class="pj-optrow${bad || thin ? ' bad' : ''}">`
+        + `<button class="pj-mark${on ? ' on' : ''}" data-flagpick="${k}" data-flagent="${escHtml(e.id)}"
+             aria-pressed="${on}"
+             title="${escHtml(on ? 'Take this off as your ' + act + ' entry' : 'Make this your ' + act + ' entry')}">${on ? '✓' : '○'}</button>`
+        + `<button class="pj-opt" data-goto="${escHtml(e.id)}"
+             title="${escHtml('Open this entry.' + (bad ? ' Flagged for ' + act + ', but written ' + home + '.'
+                              : thin ? ' ' + w + ' words — too short to read closely; a flagged entry needs ' + FLAG_MIN_WORDS + '.' : ''))}">`
+        + `entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))} · ${w}w`
+        + `<em>${escHtml(entryLabel(e, 34))}</em></button></span>`; };
       return `<div class="pj-act${flagOK[i] ? ' done' : ''}">
         <div class="pj-act-h">${flagOK[i] ? '✓' : '○'} ${escHtml(act)}<em>${escHtml(title)} · ${escHtml(when)}</em></div>
         <div class="pj-act-l">${
@@ -7010,8 +7013,8 @@ You: Really. The first line only has to exist, not be good.`;
             // closely", which reads as an instruction TO the reader rather than a description
             // of what they picked, so three stale test entries looked like an assignment.
             + `<div class="pj-slot pj-hint"><span class="pj-slot-n">You flagged</span><span class="pj-aim">One entry from
-                 each act, at least ${FLAG_MIN_WORDS} words — pick the ones where something happened, not the ones that
-                 are tidiest. Click to choose, <em>↗</em> to read one first.</span></div>`
+                 each act, at least ${FLAG_MIN_WORDS} words — pick the ones where something happened, not the ones
+                 that are tidiest. Click an entry to read it; click its <em>○</em> to make it this act's.</span></div>`
             + `<div class="pj-acts">${actCols}</div>`,
               flagOK.every(Boolean) && ana)}
       </table>

@@ -37,9 +37,9 @@
     var st0 = JSON.parse(localStorage.getItem('cr284_state')) || {};
     ok('M4b the seed survived the reload', (st0.journal||[]).length === 4, (st0.journal||[]).length + ' entries');
     ok('M4c what the columns say', true, [].slice.call(acts).map(function(a){ return a.textContent.replace(/\s+/g,' ').slice(0,70); }).join(' || '));
-    var opts = document.querySelectorAll('.pj-opt');
+    var opts = document.querySelectorAll('.pj-mark');
     ok('M5 the acts list their entries as options', opts.length >= 3, opts.length + ' options');
-    var chosen = document.querySelectorAll('.pj-opt.on');
+    var chosen = document.querySelectorAll('.pj-mark.on');
     ok('M6 the seeded Act I flag is checked', chosen.length === 1, chosen.length + ' checked');
     if(opts.length){
       var target = [].slice.call(opts).filter(function(b){ return !b.classList.contains('on'); })[0];
@@ -48,9 +48,15 @@
         target.click();
         await sleep(300);
         var T = (JSON.parse(localStorage.getItem('cr284_state')) || {}).turnin || {};
-        ok('M7 clicking an option sets that act\'s entry', T[slot] === ent, slot + '=' + T[slot]);
+        ok('M7 the circle sets that act\'s entry', T[slot] === ent, slot + '=' + T[slot]);
       }
     }
+    var link = document.querySelector('.pj-opt[data-goto]');
+    var beforeT = JSON.stringify((JSON.parse(localStorage.getItem('cr284_state'))||{}).turnin||{});
+    if(link){ link.click(); await sleep(400);
+      ok('M8 clicking the entry text opens it, and changes no flag',
+         !!document.querySelector('.nbview[data-mode="day"].on')
+         && JSON.stringify((JSON.parse(localStorage.getItem('cr284_state'))||{}).turnin||{}) === beforeT); }
     ok('Z1 no uncaught errors', ERRS.length === 0, ERRS.join(' | '));
     done();
   }
