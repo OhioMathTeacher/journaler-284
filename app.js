@@ -2379,7 +2379,7 @@ async function runReflection(rf, text, hooks) {
       <div class="op-cols ${fwGushed[fwCur]?'two':''}">
        <div class="op-col gush">
         <div class="stagelabel"><span class="n">1</span> Gush — timed, editing locks · enters Focus</div>
-        <p class="stagenote">Write fast to find your material — nobody grades the gush.</p>
+        <p class="stagenote">Write fast to find your material — nobody grades the gush. <em>What Journaler knows about you, and what changes when AI is on: &#9881; Settings &rarr; AI.</em></p>
         <div class="gushbar"><div class="timerset" id="timerset"><button class="tadj" id="tminus">−</button><span class="timer editable" id="timer">8:00</span><button class="tadj" id="tplus">+</button></div>
           <button class="btn go" id="startBtn">Start the gush</button>
           <span class="liftbar" id="liftbar" style="display:${fwGushed[fwCur]?'inline-flex':'none'}">
