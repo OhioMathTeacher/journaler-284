@@ -17,7 +17,7 @@ import http.server, json, os, shutil, socket, subprocess, sys, tempfile, threadi
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HERE = os.path.join(ROOT, 'tools', 'probes')
-SUITES = ('undo', 'pages')
+SUITES = ('undo', 'pages', 'mp')
 CHROME = ['chromium-browser', 'chromium', 'google-chrome', 'google-chrome-stable', 'chrome']
 
 

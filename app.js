@@ -6290,6 +6290,18 @@ You: Really. The first line only has to exist, not be good.`;
   // after it, with no gap — a page written in the break between Act I and Act II still
   // belongs to one of them, and a student who wrote on Sep 25 should not be told their
   // entry belongs to no act. Only a date BEFORE the term is outside every act.
+  // ⚠ COMPLETE NEEDS A FLOOR (Todd, 2026-09-06): "I know you don't like my word count idea,
+  // but there needs to be some more rigorous method for determining what 'complete' is."
+  // He is right, and it is a different question from the one I argued against. Length is a
+  // poor measure of THINKING -- §7 says so, and a floor rewards padding. But it is a fair
+  // measure of whether there is anything to read: "I'm not sure if it's going to work." was
+  // a valid Act I flag, and no close reading of eight words is possible.
+  // So it gates COMPLETE, never quality, and it is deliberately low. §2 budgets 18-25 of
+  // the ~20 entries as in-class openers and quick-writes; an eight-minute gush runs 200-400
+  // words, so 150 passes real in-class writing and stops a one-line note. 750 would have
+  // excluded almost everything written in class, and with it most of Act I.
+  // ONE NUMBER, HERE. Change it and the columns, the tick and the explainer all move.
+  const FLAG_MIN_WORDS = 150;
   const TERM = '2026-08-24';
   const ACTS = [['Act I', 'Become a Writer', 'Aug 24 – Sep 23', '2026-09-27'],
                 ['Act II', 'The Currere', 'Sep 28 – Oct 30', '2026-11-01'],
@@ -6561,7 +6573,9 @@ You: Really. The first line only has to exist, not be good.`;
         <p class="runline"><strong>Flagging three.</strong> When you turn the notebook in, mark three
           entries you want read closely — one from each act of the course. Any entry can be one: a
           daily opener, a quick-write, a currere gush, a reading you wrote about. Those three, and
-          only those three, are what gets read for this row.</p>
+          only those three, are what gets read for this row. They have to be long enough to read —
+          <strong>${FLAG_MIN_WORDS} words</strong> — which is a floor on there being something there, not a
+          target: a class free-write clears it easily, a one-line note does not.</p>
         <p class="runline">Two reasons. Everything else stays genuinely unjudged, which is the promise
           this notebook runs on: you should be able to write badly in it, or write about something
           difficult, without wondering how it will be scored. And choosing which three is itself an
@@ -6874,7 +6888,7 @@ You: Really. The first line only has to exist, not be good.`;
       : `<span class="pj-none">not written yet</span> ${jump('Threads →','threads')}`;
     const flagOK = ['flag1','flag2','flag3'].map((k, i) => {
       const e = T[k] && ord.find(x => x.id === T[k]);
-      return !!e && actOf(e.date) === i;
+      return !!e && actOf(e.date) === i && wordsIn(e) >= FLAG_MIN_WORDS;
     });
     // ⚠ EACH ACT SHOWS ITS OWN (Todd, 2026-09-06): "each of the 'ones' from each act should
     // be listed/linked in its own column, and we should have one checked off from each
@@ -6891,13 +6905,24 @@ You: Really. The first line only has to exist, not be good.`;
       // A flag set before this check existed can point outside its act. Show it here
       // rather than nowhere, amber, so it can be seen and taken off.
       const stray = T[k] && !mine.some(e => e.id === T[k]) && ord.find(e => e.id === T[k]);
-      const opt = (e, bad) => `<button class="pj-opt${T[k] === e.id ? ' on' : ''}${bad ? ' bad' : ''}"
+      // The word count rides on every option, so the floor is visible BEFORE the choice
+      // rather than as a complaint after it. Short ones stay clickable -- you may flag what
+      // you like -- they simply do not complete the row.
+      const opt = (e, bad) => { const w = wordsIn(e), thin = w < FLAG_MIN_WORDS;
+        // Where the entry actually sits, resolved ONCE and defensively. Calling actOf twice
+        // inside a template and indexing ACTS with the second call is how this threw
+        // "cannot read properties of undefined" and took the whole panel -- and therefore
+        // the My Progress button -- down with it.
+        const el = actOf(e.date), home = ACTS[el] ? 'in ' + ACTS[el][0] : 'before the term';
+        return `<button class="pj-opt${T[k] === e.id ? ' on' : ''}${bad || thin ? ' bad' : ''}"
            data-flagpick="${k}" data-flagent="${escHtml(e.id)}"
-           title="${escHtml(bad ? 'Flagged for ' + act + ', but written ' + (actOf(e.date) < 0 ? 'before the term' : 'in ' + ACTS[actOf(e.date)][0]) + '. Click to take it off.' : 'Make this your ' + act + ' entry')}">`
+           title="${escHtml(bad ? 'Flagged for ' + act + ', but written ' + home + '. Click to take it off.'
+                    : thin ? w + ' words — too short to read closely. A flagged entry needs ' + FLAG_MIN_WORDS + '.'
+                    : 'Make this your ' + act + ' entry')}">`
         + `<span class="pj-opt-m">${T[k] === e.id ? '✓' : '○'}</span>`
-        + `<span class="pj-opt-t">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))}`
-        + `<em>${escHtml(entryLabel(e, 42))}</em></span></button>`
-        + `<button class="pj-open" data-goto="${escHtml(e.id)}" title="Open this entry">↗</button>`;
+        + `<span class="pj-opt-t">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))} · ${w}w`
+        + `<em>${escHtml(entryLabel(e, 34))}</em></span></button>`
+        + `<button class="pj-open" data-goto="${escHtml(e.id)}" title="Open this entry">↗</button>`; };
       return `<div class="pj-act${flagOK[i] ? ' done' : ''}">
         <div class="pj-act-h">${flagOK[i] ? '✓' : '○'} ${escHtml(act)}<em>${escHtml(title)} · ${escHtml(when)}</em></div>
         <div class="pj-act-l">${
@@ -6979,8 +7004,8 @@ You: Really. The first line only has to exist, not be good.`;
             // closely", which reads as an instruction TO the reader rather than a description
             // of what they picked, so three stale test entries looked like an assignment.
             + `<div class="pj-slot pj-hint"><span class="pj-slot-n">You flagged</span><span class="pj-aim">One entry from
-                 each act — pick the ones where something happened, not the ones that are tidiest. Click to choose,
-                 <em>↗</em> to read one first.</span></div>`
+                 each act, at least ${FLAG_MIN_WORDS} words — pick the ones where something happened, not the ones that
+                 are tidiest. Click to choose, <em>↗</em> to read one first.</span></div>`
             + `<div class="pj-acts">${actCols}</div>`,
               flagOK.every(Boolean) && ana)}
       </table>
