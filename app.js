@@ -5398,16 +5398,24 @@ You: Really. The first line only has to exist, not be good.`;
     persistReadings();
     renderRead();
     // Said after the shelf is drawn, so the offer describes something already on screen.
-    const marks = kept ? ' — your ' + kept + ' mark' + (kept === 1 ? '' : 's') + ' came with '
-                       + (kept === 1 ? 'it' : 'them') : '';
+    // ⚠ REASSURE FIRST, THE NAME IS THE FOOTNOTE (Todd, 2026-09-06). Todd read this bar
+    // as a question — "asking if I want to replace the one or something. That my notes
+    // would be preserved. I pressed cancel" — and the cautious-looking button UNDID the
+    // rename he wanted. A student does the same, and pays more for it: reverting to
+    // `2Wiederhold.pdf` reverts the roster MATCH too, because rosterScore reads the
+    // filename, so a careful reader quietly puts their reading back to uncounted.
+    // So the anxious question — did I lose my notes? — is answered before the buttons are
+    // reached, and Undo says what it undoes. It was never offering to replace anything.
+    const safe = kept ? 'Your ' + kept + ' mark' + (kept === 1 ? ' is' : 's are') + ' safe. ' : '';
     if(renamed.length){
-      undoably(renamed.length === 1
-        ? 'Renamed to “' + renamed[0].to + '”' + marks
-        : 'Renamed ' + renamed.length + ' readings to match your course files' + marks,
+      undoably(safe + (renamed.length === 1
+          ? 'Renamed ' + renamed[0].from + ' to match your course files'
+          : 'Renamed ' + renamed.length + ' readings to match your course files')
+        + ' — Undo restores the old name' + (renamed.length === 1 ? '.' : 's.'),
         () => { for(const x of renamed) x.r.name = x.from; persistReadings(); renderRead(); });
     } else if(same.length){
-      toast(same.length === 1 ? shelfLabel(same[0]) + ' is already on your shelf' + marks
-                              : same.length + ' of those were already on your shelf' + marks);
+      toast(safe + (same.length === 1 ? shelfLabel(same[0]) + ' was already on your shelf'
+                                      : same.length + ' of those were already on your shelf'));
     }
   }
 
@@ -7427,7 +7435,6 @@ You: Really. The first line only has to exist, not be good.`;
   }
   // Clicking a checklist row lands you on that entry in the Tags grid, highlighted, so
   // the next thing you do — change it — is one click away rather than a hunt.
-  let tagFocus = null;
   // Every lens ends the same way — the turn-in panel and the button that prints the
   // report. The Tags lens returns early from renderNote with its own markup, so this
   // wiring has to be callable from either branch rather than living in one of them.
@@ -7482,8 +7489,14 @@ You: Really. The first line only has to exist, not be good.`;
     frame.querySelectorAll('.tagx, .tclear').forEach(b => b.onclick = () => {
       delete turnin()[b.dataset.untag]; saveDB(); renderNote();
     });
+    // ⚠ THE ROW IT SCROLLED TO IS GONE (2026-09-06). These buttons carried the checklist's
+    // promise — Todd: "these aren't linked. difficult to edit after the fact" — by jumping
+    // to the entry's row in the tags grid. The grid was removed this morning and the jump
+    // became a no-op: switch to My Progress, find nothing, say nothing. revealEntry is the
+    // answer the app already had — it opens By day, the one lens guaranteed to list any
+    // entry, scrolls to it and flashes it.
     frame.querySelectorAll('[data-goto]').forEach(b => { if(!b.dataset.goto) return;
-      b.onclick = () => { tagFocus = b.dataset.goto; noteMode = 'tags'; renderNote(); };
+      b.onclick = () => revealEntry((DB.journal || []).find(x => x.id === b.dataset.goto));
     });
   }
   function shortDate(k){ const [y,m,d]=String(k).split('-').map(Number);
@@ -7647,20 +7660,6 @@ You: Really. The first line only has to exist, not be good.`;
       return;
     }
     if(noteMode === 'tags'){
-      const ordered = numberedEntries();
-      const T = turnin();
-      const head = TURNIN_SLOTS.map(([k,label]) =>
-        `<th class="tg-c" title="${escHtml(label)}">${escHtml(TAG_ABBR[k] || label)}</th>`).join('');
-      const rows = ordered.map((e,i) => {
-        const tagged = tagsOn(e.id).length;
-        return `<tr class="${tagged?'tg-in':''} ${tagFocus===e.id?'tg-focus':''}" data-row="${e.id}">
-          <td class="tg-n">${i+1}</td>
-          <td class="tg-d">${escHtml(shortDate(e.date))}</td>
-          <td class="tg-w">${wordsIn(e)}w</td>
-          <td class="tg-t">${escHtml(entryLabel(e, 64))}</td>
-          ${TURNIN_SLOTS.map(([k]) => `<td class="tg-c"><button class="tgbox ${T[k]===e.id?'on':''}" data-tg="${k}" data-tge="${e.id}" title="${escHtml(slotLabel(k))}" aria-pressed="${T[k]===e.id}"></button></td>`).join('')}
-        </tr>`;
-      }).join('');
       frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>What you are handing in, and where you stand on it. Below, every entry against every slot — click a box to mark a page; clicking one another page holds moves it here.</p>${toggle}</div>
         <div class="tagsgrid">
           ${draftTray()}
@@ -7678,12 +7677,6 @@ You: Really. The first line only has to exist, not be good.`;
       frame.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
       wireTray(); wireProjectLinks();
       wireTurninLinks(); wireNoteFoot();
-      if(tagFocus){
-        const row = frame.querySelector(`tr[data-row="${tagFocus}"]`);
-        if(row && row.scrollIntoView) row.scrollIntoView({ block: 'center' });
-        // One-shot: the highlight marks where you just arrived, not a persistent selection.
-        setTimeout(() => { tagFocus = null; }, 2500);
-      }
       frame.querySelectorAll('.tgbox').forEach(b => b.onclick = () => {
         const slot = b.dataset.tg, id = b.dataset.tge, TT = turnin();
         if(TT[slot] === id){ delete TT[slot]; saveDB(); renderNote(); return; }
