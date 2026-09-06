@@ -53,7 +53,7 @@
     }
     var sums = [].slice.call(document.querySelectorAll('.pj-act-sum')).map(function(n){ return n.textContent.replace(/\s+/g,' ').trim(); });
     ok('M9 each act reports its own words, and the chosen entry against the floor',
-       sums.length === 3 && /chosen: \d+ words/.test(sums[0]) && /short of 150|clears 150/.test(sums[0]), sums.join(' || '));
+       sums.length === 3 && /chosen: \d+ words/.test(sums[0]) && /short of \d+|clears \d+|not from this act/.test(sums[0]), sums.join(' || '));
     // Todd's complaint made a check: a four-word page from before the term, flagged for an
     // act, must not wear the same green tick as work that counts.
     var green = document.querySelectorAll('.pj-mark.on:not(.warn)');

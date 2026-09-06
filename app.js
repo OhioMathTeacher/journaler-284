@@ -6296,12 +6296,23 @@ You: Really. The first line only has to exist, not be good.`;
   // poor measure of THINKING -- §7 says so, and a floor rewards padding. But it is a fair
   // measure of whether there is anything to read: "I'm not sure if it's going to work." was
   // a valid Act I flag, and no close reading of eight words is possible.
-  // So it gates COMPLETE, never quality, and it is deliberately low. §2 budgets 18-25 of
-  // the ~20 entries as in-class openers and quick-writes; an eight-minute gush runs 200-400
-  // words, so 150 passes real in-class writing and stops a one-line note. 750 would have
-  // excluded almost everything written in class, and with it most of Act I.
+  // So it gates COMPLETE, never quality.
+  //
+  // 500, and Todd's argument for it beats mine against it. I read his shelf as a ceiling --
+  // eight Act I entries at 77, 158, 133, 303, 351, 178, 80, 157, so nothing clears 500 --
+  // and read it wrong. Those are six weeks into a term that runs to Dec 2, and a reading is
+  // ONE entry however many times it is returned to, so its comments accumulate across
+  // sittings rather than being written in one. "500 requires them to come back. And only 3
+  // of them that extensive. That's a fair ask." Three entries out of twenty-plus, each the
+  // record of a text worked over repeatedly: that is the row's own description of thinking,
+  // enforced by the one number the app can actually count.
+  //
+  // And it is 500 words the STUDENT typed. Passes are only ever written by editInPlace,
+  // Romano's answers live in DB.qa which annotationEntries never reads, and kept AI
+  // exchanges are filtered out of numberedEntries by pieceKind. Nothing the machine wrote
+  // can count toward it -- which is what makes the number mean anything.
   // ONE NUMBER, HERE. Change it and the columns, the tick and the explainer all move.
-  const FLAG_MIN_WORDS = 150;
+  const FLAG_MIN_WORDS = 500;
   const TERM = '2026-08-24';
   const ACTS = [['Act I', 'Become a Writer', 'Aug 24 – Sep 23', '2026-09-27'],
                 ['Act II', 'The Currere', 'Sep 28 – Oct 30', '2026-11-01'],
@@ -6927,15 +6938,19 @@ You: Really. The first line only has to exist, not be good.`;
         // the way done, when I've only written like 12 words!" It did, because the tick was
         // keyed to "this slot points at this entry" and nothing else — so a four-word page
         // from July, flagged for Act II, wore the same green ✓ as finished work. Chosen and
-        // COUNTING are different states and now look different: green ✓ only when the entry
-        // belongs to this act and clears the floor, amber ! when it is chosen but does not,
-        // and the reason said out loud on the row rather than hidden in a tooltip.
+        // COUNTING are different states and now look different, and the reason is said out
+        // loud on the row rather than hidden in a tooltip.
+        // The middle state is a HALF-FILLED circle, not a warning (Todd: "that green
+        // checkmark should be another symbol suggesting partially done (maybe a yellow
+        // circle?)"). Right — an exclamation mark reads as a mistake, and choosing a short
+        // entry is not a mistake. It is 300 words of a 500-word entry: begun, and worth
+        // going back to. ○ nothing yet · ◐ chosen, not there yet · ✓ counts.
         const why = bad ? home : thin ? w + 'w — needs ' + FLAG_MIN_WORDS : '';
         const good = on && !why;
         return `<span class="pj-optrow${why ? ' bad' : ''}">`
         + `<button class="pj-mark${on ? (good ? ' on' : ' on warn') : ''}" data-flagpick="${k}" data-flagent="${escHtml(e.id)}"
              aria-pressed="${on}"
-             title="${escHtml(on ? 'Take this off as your ' + act + ' entry' : 'Make this your ' + act + ' entry')}">${on ? (good ? '✓' : '!') : '○'}</button>`
+             title="${escHtml(on ? 'Take this off as your ' + act + ' entry' : 'Make this your ' + act + ' entry')}">${on ? (good ? '✓' : '◐') : '○'}</button>`
         // ⚠ THE WORD COUNT IS THE COLUMN YOU SCAN (Todd, 2026-09-06): "I see it already has
         // word counts (77w, 133w . . . ). that is NOT prominent." It was set mid-line in the
         // same weight and colour as the date and the title, so reading it meant reading past
@@ -6947,7 +6962,8 @@ You: Really. The first line only has to exist, not be good.`;
         + `<span class="pj-opt-t">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))}`
         + `<em>${escHtml(entryLabel(e, 30))}</em></span>`
         + (on && bad ? `<b class="pj-why">${escHtml(home)}</b>` : '')
-        + `<b class="pj-w${thin ? ' short' : ''}">${w}w</b></button></span>`; };
+        + `<b class="pj-w${thin ? ' short' : ''}">${w}w${
+             e.comments ? `<span class="pj-cc">${e.comments.length}c</span>` : ''}</b></button></span>`; };
       // ⚠ SAY THE NUMBER, NOT JUST THE RULE (Todd, 2026-09-06): "I think it should say
       // something about the current words in the highlighted entry. Is it 150? Is it more?
       // less?" A floor the reader cannot measure themselves against is a rule they can only
