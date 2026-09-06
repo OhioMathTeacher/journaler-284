@@ -6071,6 +6071,113 @@ You: Really. The first line only has to exist, not be good.`;
     </div>`;
   }
 
+  // ── THE COURSE READINGS, AS A LIST YOU CAN SEE.
+  //
+  // pendingPanel() below showed only what was OWED, and returned '' when nothing was --
+  // so a student who had opened nothing saw exactly what a student who had finished saw.
+  // The roster starts from the course list instead of from whatever happens to be
+  // loaded: 31 readings generated from the outlines by tools/build-readings.py, grouped
+  // the way the course talks about them.
+  //
+  // Two states per row, both read straight off capturesByPiece(): MARKED is
+  // items.length -- passages kept and cited -- and COMMENTED is `reflected`, an entry
+  // written about the reading. This panel is READ-ONLY. It writes nothing, migrates
+  // nothing and relabels nothing; it is a window onto data the app already held.
+  const ROSTER_GROUPS = [
+    ['romano',  'Romano · Write What Matters'],
+    ['currere', 'Currere'],
+    ['article', 'Articles'],
+  ];
+  function rosterNorm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+
+  // Match a file the student loaded to a row in the roster.
+  //   Romano is exact: the roster carries a chapter number and chapterNum() reads one off
+  //   the filename, so ch7 matches ch7 and nothing else. The rest match on the author
+  //   surname the roster title starts with PLUS one distinctive word from the title --
+  //   enough to catch "Daspit - None of Us.pdf" without letting a file that merely
+  //   mentions Daspit claim the row. A file that matches nothing is the student's own and
+  //   is listed as such; it never appears as a gap in the course list.
+  function rosterMatch(r, entry){
+    if(r.builtin) return false;
+    const bare = String(r.name||'').replace(/\.(pdf|docx|txt)$/i,'');
+    if(entry.kind === 'romano'){
+      if(entry.ch != null) return chapterNum(bare) === entry.ch;
+      return FRONT_RE.test(bare);
+    }
+    const n = rosterNorm(bare);
+    const words = rosterNorm(entry.title).split(' ').filter(w => w.length > 3);
+    if(words.length < 2) return words.length === 1 ? n.includes(words[0]) : false;
+    return n.includes(words[0]) && words.slice(1).some(w => n.includes(w));
+  }
+
+  function rosterPanel(){
+    const roster = (window.COURSE_READINGS || []);
+    if(!roster.length) return pendingPanel();   // no roster shipped — keep the old panel
+    const caps  = capturesByPiece();
+    const today = new Date().toISOString().slice(0,10);
+    const claimed = new Set();
+
+    const stateFor = entry => {
+      const hit = readings.find(r => !claimed.has(r.id) && rosterMatch(r, entry));
+      if(hit) claimed.add(hit.id);
+      const c = hit ? caps.find(x => x.rid === hit.id) : null;
+      return { hit, marked: c ? c.items.length : 0, commented: c ? c.reflected : 0 };
+    };
+
+    const badges = (st, entry) => {
+      const out = [];
+      if(st.commented) out.push('<span class="rr-b rr-b-done">commented</span>');
+      if(st.marked) out.push(`<span class="rr-b rr-b-part">${st.marked} marked</span>`);
+      if(!out.length){
+        const owed = entry.due <= today;
+        out.push(`<span class="rr-when${owed ? ' rr-owed' : ''}">${owed ? 'due' : 'not yet due ·'} ${escHtml(entry.dueLabel)}</span>`);
+      }
+      return out.join('');
+    };
+
+    const section = ([kind, label]) => {
+      const rows = roster.filter(e => e.kind === kind);
+      if(!rows.length) return '';
+      // stateFor() claims a loaded file as it goes, so each row is resolved exactly
+      // once and the summary counts those same results — never a second matching pass.
+      const states = rows.map(e => [e, stateFor(e)]);
+      const built = states.map(([e, st]) => {
+        const cls = st.commented ? 'rr-done' : st.marked ? 'rr-part'
+                  : (e.due > today ? 'rr-future' : 'rr-owed-row');
+        return `<div class="rr-row ${cls}">
+          <a class="rr-t" href="${escHtml(e.url)}" target="_blank" rel="noopener">${escHtml(e.title)}</a>
+          <span class="rr-s">${badges(st, e)}</span>
+        </div>`;
+      }).join('');
+      const done = states.filter(([, st]) => st.commented).length;
+      return `<details class="rr-grp"><summary><span class="rr-g">${escHtml(label)}</span>
+        <span class="rr-c">${done} of ${rows.length} commented</span></summary>${built}</details>`;
+    };
+
+    const groups = ROSTER_GROUPS.map(section).join('');
+
+    // Anything loaded that the roster did not claim — the student's own reading, and the
+    // manual, which is built in. Shown so a file never silently disappears from view.
+    const mine = readings.filter(r => !r.builtin && !claimed.has(r.id));
+    const own = mine.length ? `<details class="rr-grp"><summary><span class="rr-g">Your own</span>
+        <span class="rr-c">${mine.length} file${mine.length===1?'':'s'}</span></summary>${
+        mine.map(r => {
+          const c = caps.find(x => x.rid === r.id);
+          const st = { marked: c ? c.items.length : 0, commented: c ? c.reflected : 0 };
+          const cls = st.commented ? 'rr-done' : st.marked ? 'rr-part' : '';
+          return `<div class="rr-row ${cls}"><span class="rr-t">${escHtml(readingLabel(r))}</span>
+            <span class="rr-s">${st.commented ? '<span class="rr-b rr-b-done">commented</span>' : ''}${
+              st.marked ? `<span class="rr-b rr-b-part">${st.marked} marked</span>` : ''}</span></div>`;
+        }).join('')}</details>` : '';
+
+    return `<div class="roster">
+      <p class="rr-h">Course readings</p>
+      <p class="runline">Marking a passage keeps it and cites it, but it is <strong>not an entry
+        yet</strong>. An entry is what <em>you</em> write. Say what you make of a reading and it
+        counts toward Kept practice — you can come back and write about the same reading again.</p>
+      ${groups}${own}</div>`;
+  }
+
   function pendingPanel(){
     const pend = capturesByPiece().filter(g => !g.reflected);
     if(!pend.length) return '';
@@ -6102,9 +6209,13 @@ You: Really. The first line only has to exist, not be good.`;
     // which is the whole point: a row that names work you cannot reach from it is the
     // disconnection all over again.
     const jump = (label, to) => `<button class="pj-link" data-jump="${to}">${label}</button>`;
+    // The points ride with the name. The handout scores these four rows out of 50 and
+    // names a band for each; a panel that shows the bands but not what they are worth
+    // makes the student hold half the rubric in their head. Same four rows, same order,
+    // same points as the table in Writers Notebook Guidelines.docx.
     const row = (n, name, pts, feeds, state, ok) => `
       <tr class="${ok ? 'pj-ok' : ''}">
-        <td class="pj-name">${name}</td>
+        <td class="pj-name">${name}<span class="pj-pts">${pts} pts</span></td>
         <td class="pj-state">${state}</td>
       </tr>`;
 
@@ -6127,7 +6238,7 @@ You: Really. The first line only has to exist, not be good.`;
            is for; a third "My progress" here was the same words a third time. The
            About link keeps its place at the right of the row. -->
       <p class="pj-txt"><button class="pj-about" id="pjAbout">About this project →</button></p>
-      ${pendingPanel()}
+      ${rosterPanel()}
       <table class="pjtable">
         ${row(1, 'Kept practice', 20, `<strong>An entry is writing you did.</strong> Passages you
               mark in a reading are kept and cited, but they become an entry when you write what you
