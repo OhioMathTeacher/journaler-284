@@ -6521,6 +6521,16 @@ You: Really. The first line only has to exist, not be good.`;
         <p class="ap-h">Thinking on the page — 15 points</p>
         <p>Scored from your three flagged entries <em>and</em> this reading. Straight from the
           assignment:</p>
+        <p class="runline"><strong>Flagging three.</strong> When you turn the notebook in, mark three
+          entries you want read closely — one from each act of the course. Any entry can be one: a
+          daily opener, a quick-write, a currere gush, a reading you wrote about. Those three, and
+          only those three, are what gets read for this row.</p>
+        <p class="runline">Two reasons. Everything else stays genuinely unjudged, which is the promise
+          this notebook runs on: you should be able to write badly in it, or write about something
+          difficult, without wondering how it will be scored. And choosing which three is itself an
+          act of judgment. <strong>Pick the ones where something happened, not the ones that are
+          tidiest.</strong> Length is not the measure — a short entry that turns is worth more here
+          than a long one that arrives where it started.</p>
         <table class="ap-rows">
           <tr><td>Full marks</td><td></td><td>“the thinking moves. Entries turn — you arrive
             somewhere you were not heading. Your reading names something real that changed
@@ -6900,7 +6910,10 @@ You: Really. The first line only has to exist, not be good.`;
               `<div class="pj-slot">${slotPicker('letter', jump)}</div>`, !!letter)}
         ${row('Thinking on the page', 15,
               `<div class="pj-slot"><span class="pj-slot-n">Reading of a thread</span>${anaLine}</div>`
-            + `<div class="pj-slot"><span class="pj-slot-n">Read closely</span><span class="pj-flags">${flagLine}</span></div>`,
+            + `<div class="pj-slot"><span class="pj-slot-n">Read closely</span><span class="pj-flags">${flagLine}</span></div>`
+            + `<div class="pj-slot pj-hint"><span class="pj-slot-n"></span><span class="pj-aim">One from each act —
+                 pick the ones where something happened, not the ones that are tidiest. Flag a page from the page
+                 itself: <em>＋ Tag this page…</em> under <button class="pj-link" data-mode="day">By day →</button></span></div>`,
               flags === 3 && ana)}
       </table>
       ${aboutProjectHTML()}</div>`;

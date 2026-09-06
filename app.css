@@ -19,7 +19,14 @@
     /* The measure for a writing surface. 680 was set against a 1180 frame; with
        the cap gone the gush sat in the middle of a pane twice its width. */
     --writecol: 920px;
-    --cave-dark: #1A2A40; --cave-glow: var(--panel-accent);
+    /* ⚠ --cave-glow WAS NEVER LIT (Todd, 2026-09-06): "Can you make our clock more
+       readable. It became dark blue somehow." It went dark because this said
+       var(--panel-accent), and --panel-accent is declared inside .ai-modal, not here — so
+       at :root it resolves to nothing, .timer's `color` is invalid, and the digits fall
+       back to inherited ink on a #1A2A40 ground. Only the amber text-shadow was ever
+       showing, which is why it read as a glow around something unreadable.
+       A literal, and a brighter amber than the shadow it sits in: 8.4:1 on the cave. */
+    --cave-dark: #1A2A40; --cave-glow: #E8C05A;
   }
 
   /* ── Modern theme. Cool neutrals, sans throughout, tighter accent. Everything here is
@@ -1697,6 +1704,10 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
    pushing the state column wide, and an unset one still shows its ★ so the reader can see
    how many there are meant to be. */
 .pj-flags { display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+/* The hint belongs TO the flags above it, so it takes no dotted rule of its own -- a
+   divider there reads as a fifth nameless row rather than a note on the fourth. */
+.pj-slot.pj-hint { border-top: 0; padding-top: 0; }
+.pj-slot.pj-hint .pj-aim { flex: 1; min-width: 0; }
 .pj-flag { font-size: 13px; color: var(--mut, #6b7280); white-space: nowrap; }
 .pj-flag .pj-link { margin-left: .15rem; }
 .pj-flag .tclear { margin-left: .1rem; }
