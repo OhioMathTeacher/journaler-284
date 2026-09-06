@@ -1709,6 +1709,8 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .pj-slot.pj-hint { border-top: 0; padding-top: 0; }
 .pj-slot.pj-hint .pj-aim { flex: 1; min-width: 0; }
 .pj-flag { font-size: 13px; color: var(--mut, #6b7280); white-space: nowrap; }
+.pj-flag-n { font-weight: 600; margin-right: .3rem; }
+.pj-flag-n.on { color: var(--go, #3f7a4d); }
 .pj-flag .pj-link { margin-left: .15rem; }
 .pj-flag .tclear { margin-left: .1rem; }
 .pj-chip { background: var(--parchment); border: 1px solid var(--comment-border);

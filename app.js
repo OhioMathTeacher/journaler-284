@@ -6258,10 +6258,17 @@ You: Really. The first line only has to exist, not be good.`;
     ['topicmap',  'Topic map',       'Your research topic map'],
     ['sources',   'Source notes',    'Notes on a source you gathered'],
     ['letter',    'Look-Back Letter','Your letter to the writer who answered on day one'],
-    ['flag1',     'Flagged entry 1', 'Read closely — one from Act I'],
-    ['flag2',     'Flagged entry 2', 'Read closely — one from Act II'],
-    ['flag3',     'Flagged entry 3', 'Read closely — one from Act III'],
+    ['flag1',     'Act I entry',     'The Act I entry you want read closely — Become a Writer, Aug 24 – Sep 23'],
+    ['flag2',     'Act II entry',    'The Act II entry you want read closely — The Currere, Sep 28 – Oct 30'],
+    ['flag3',     'Act III entry',   'The Act III entry you want read closely — Multimodal Research Project, Nov 2 – Dec 2'],
   ];
+  // ⚠ ONE WHAT? (Todd, 2026-09-06). The row said "one from each act" over three stars, and
+  // ★1 ★2 ★3 name nothing — so the sentence had no noun to land on. The slots were ALREADY
+  // one per act; only the labels hid it. The acts are the course's own, names and dates
+  // from the schedule, so a column says which act it is and the count says one each.
+  const ACTS = [['Act I', 'Become a Writer', 'Aug 24 – Sep 23'],
+                ['Act II', 'The Currere', 'Sep 28 – Oct 30'],
+                ['Act III', 'Multimodal Research Project', 'Nov 2 – Dec 2']];
   function turnin(){ return (DB.turnin = DB.turnin || {}); }
 
   // ── READINESS INCLUDES THE ANALYSIS.
@@ -6836,11 +6843,13 @@ You: Really. The first line only has to exist, not be good.`;
       ? `<span class="pj-has">✓ kept</span>`
       : `<span class="pj-none">not written yet</span> ${jump('Threads →','threads')}`;
     const flagLine = ['flag1','flag2','flag3'].map((k, i) => {
+      const [act, title, when] = ACTS[i];
       const e = T[k] && ord.find(x => x.id === T[k]);
-      return `<span class="pj-flag">★${i + 1} ` + (e
+      return `<span class="pj-flag" title="${escHtml(act + ' — ' + title + ' · ' + when)}">`
+        + `<span class="pj-flag-n${e ? ' on' : ''}">${e ? '✓' : '○'} ${act}</span>` + (e
         ? `<button class="pj-link" data-goto="${escHtml(e.id)}">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))}</button>`
           + `<button class="tclear" data-untag="${k}" title="Unflag this page">×</button>`
-        : `<span class="pj-none">not flagged</span>`) + `</span>`;
+        : `<span class="pj-none">none yet</span>`) + `</span>`;
     }).join('');
     // The points ride with the name. The handout scores these four rows out of 50 and
     // names a band for each; a panel that shows the bands but not what they are worth
@@ -6910,10 +6919,19 @@ You: Really. The first line only has to exist, not be good.`;
               `<div class="pj-slot">${slotPicker('letter', jump)}</div>`, !!letter)}
         ${row('Thinking on the page', 15,
               `<div class="pj-slot"><span class="pj-slot-n">Reading of a thread</span>${anaLine}</div>`
-            + `<div class="pj-slot"><span class="pj-slot-n">Read closely</span><span class="pj-flags">${flagLine}</span></div>`
-            + `<div class="pj-slot pj-hint"><span class="pj-slot-n"></span><span class="pj-aim">One from each act —
-                 pick the ones where something happened, not the ones that are tidiest. Flag a page from the page
-                 itself: <em>＋ Tag this page…</em> under <button class="pj-link" data-mode="day">By day →</button></span></div>`,
+            + `<div class="pj-slot"><span class="pj-slot-n">You flagged</span><span class="pj-flags">${flagLine}</span></div>`
+            // ⚠ THESE ARE HIS, AND HE COULD NOT TELL (Todd, 2026-09-06): "this is truly
+            // confusing. So I should revise those three entries from July? Can't I pick any
+            // three I want?" He can. The row was listing his own choices under the heading
+            // "Read closely", which reads as an instruction TO the reader rather than a
+            // description of what they picked — so three stale test entries looked like an
+            // assignment. The label says whose they are, and the note leads with the freedom
+            // before the guidance, because "any three, change them whenever" is the fact and
+            // "one from each act" is the advice.
+            + `<div class="pj-slot pj-hint"><span class="pj-slot-n"></span><span class="pj-aim">One entry from each act —
+                 any entry you like, changed as often as you like. Pick the ones where something happened, not
+                 the ones that are tidiest. <em>×</em> takes one off; flag another from the page itself with
+                 <em>＋ Tag this page…</em> under <button class="pj-link" data-mode="day">By day →</button></span></div>`,
               flags === 3 && ana)}
       </table>
       ${aboutProjectHTML()}</div>`;
