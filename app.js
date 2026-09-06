@@ -5607,6 +5607,85 @@ You: Really. The first line only has to exist, not be good.`;
       : `${done} of the course's ${total} have reached ${ANN_MIN} comments and count as entries.`
         + (xs.length < total ? ` You have ${xs.length} of them loaded.` : '');
   }
+  // ── MATCH THEM ALL AT ONCE (Todd, 2026-09-06).
+  //
+  // "I wouldn't download all of them again. I'd rather click on the pencil 24 times.
+  // Maybe there's a way that you could match them all at once, like the CANVAS
+  // assignment date editor." Twenty-four dialogs is twenty-four chances to lose your
+  // place. One page, one row per file, one dropdown each, one Save.
+  //
+  // Two readings cannot hold one row, so a repeat selection is flagged AS IT IS MADE
+  // and Save is held until it is resolved — this is the one screen where a student
+  // could create four collisions without noticing, and discovering it afterwards, as a
+  // count that would not add up, is no way to find out.
+  function openMatchAll(){
+    const roster = (window.COURSE_READINGS || []);
+    const files = readings.filter(r => !r.builtin);
+    if(!roster.length || !files.length) return;
+    const assigned = rosterAssign(roster, readings);
+    const rowOf = new Map();                     // reading id → the roster title it holds
+    for(const [ri, r] of assigned) rowOf.set(r.id, roster[ri].title);
+    const ov = rosterOverrides();
+    const opts = f => {
+      const cur = ov[f.id] || '';                // '' = let the matcher decide
+      const o = [`<option value=""${cur===''?' selected':''}>— let Journaler work it out —</option>`];
+      for(const [kind, label] of ROSTER_GROUPS){
+        const rows = roster.filter(e => e.kind === kind);
+        if(!rows.length) continue;
+        o.push(`<option disabled>── ${escHtml(label)} ──</option>`);
+        for(const e of rows) o.push(`<option value="${escHtml(e.title)}"${cur===e.title?' selected':''}>${escHtml(rosterLabel(e))}</option>`);
+      }
+      o.push(`<option disabled>── ── ──</option>`);
+      o.push(`<option value="own"${cur==='own'?' selected':''}>This is my own reading</option>`);
+      return o.join('');
+    };
+    const host = document.createElement('div');
+    host.className = 'rf-overlay'; host.id = 'maOverlay';
+    host.innerHTML = `<div class="rf-box ma-box" role="dialog" aria-modal="true" aria-label="Match your readings">
+      <h3 class="rf-h">Match your readings</h3>
+      <p class="runline">One row per file on your shelf. Leave a row alone and Journaler keeps
+        working it out from the filename — which is right for most of them. Change only what it got wrong.</p>
+      <div class="ma-list">${files.map(f => `
+        <div class="ma-row" data-id="${escHtml(f.id)}">
+          <span class="ma-file" title="${escHtml(f.name)}">${escHtml(f.name)}</span>
+          <select class="ma-sel" data-id="${escHtml(f.id)}">${opts(f)}</select>
+          <span class="ma-now">${escHtml(rowOf.get(f.id) ? rosterLabel(roster.find(e => e.title === rowOf.get(f.id))) : 'Your own')}</span>
+        </div>`).join('')}</div>
+      <p class="ma-warn" id="maWarn" hidden></p>
+      <div class="rf-actions">
+        <button class="popup-btn secondary" id="maCancel">Cancel</button>
+        <button class="popup-btn primary" id="maSave">Save all</button>
+      </div></div>`;
+    document.body.appendChild(host);
+    const close = () => host.remove();
+    const sels = [...host.querySelectorAll('.ma-sel')];
+    const warn = document.getElementById('maWarn');
+    const save = document.getElementById('maSave');
+    const check = () => {
+      const seen = new Map();
+      sels.forEach(s => { s.classList.remove('dupe'); });
+      for(const s of sels){
+        const v = s.value;
+        if(!v || v === 'own') continue;
+        if(seen.has(v)){ s.classList.add('dupe'); seen.get(v).classList.add('dupe'); }
+        else seen.set(v, s);
+      }
+      const dupes = sels.filter(s => s.classList.contains('dupe'));
+      warn.hidden = !dupes.length;
+      if(dupes.length) warn.textContent = `Two files cannot be the same reading. ${dupes.length} rows are pointing at the same one — change one of each pair.`;
+      save.disabled = !!dupes.length;
+    };
+    sels.forEach(s => s.addEventListener('change', check));
+    check();
+    host.addEventListener('click', e => { if(e.target === host) close(); });
+    document.getElementById('maCancel').onclick = close;
+    save.onclick = () => {
+      const o = rosterOverrides();
+      for(const s of sels){ if(s.value) o[s.dataset.id] = s.value; else delete o[s.dataset.id]; }
+      saveDB(); close(); renderDrawer(); renderRead();
+      toast('Readings matched');
+    };
+  }
   function renderDrawer(){
     const host = document.getElementById('drawerList');
     if(!host) return;
@@ -5658,6 +5737,8 @@ You: Really. The first line only has to exist, not be good.`;
     host.querySelectorAll('.drawer-pick').forEach(b => b.onclick = () => pickReading(+b.dataset.i));
     host.querySelectorAll('.drawer-x').forEach(b => b.onclick = e => { e.stopPropagation(); removeReadingAt(+b.dataset.x); });
     host.querySelectorAll('.drawer-q').forEach(b => b.onclick = e => { e.stopPropagation(); openIdentify(b.dataset.id); });
+    const mb = document.getElementById('drawerMatch');
+    if(mb) mb.onclick = openMatchAll;
   }
 
   function renderRead(){
@@ -5673,6 +5754,7 @@ You: Really. The first line only has to exist, not be good.`;
       <div class="reader${drawerOpen ? ' drawer-open' : ''}">
         <aside class="drawer" id="readingDrawer">
           <button class="drawer-add" id="drawerAdd" title="Add chapter files from your computer. A whole folder at once lives in ⚙ Settings → Readings.">＋ Load readings</button>
+          <button class="drawer-match" id="drawerMatch" title="One page, every file, one dropdown each — for when several readings landed in the wrong place at once.">⇄ Match readings…</button>
           <div class="drawer-list" id="drawerList"></div>
         </aside>
         <div class="viewbar">
@@ -6491,9 +6573,31 @@ You: Really. The first line only has to exist, not be good.`;
         : 'Not assigned yet — it is here so you can see the whole term.')}">${owed ? 'due' : 'not yet due ·'} ${escHtml(entry.dueLabel)}</span>`;
     };
 
+    // Ch 26, built from whatever the reader actually has rather than from the roster.
+    const buildBackMatterRow = () => {
+      const f = readings.find(r => isBackMatter(r));
+      const comments = f ? commentCount(f.id) : 0;
+      const kept = comments >= ANN_MIN;
+      const marked = f ? (caps.find(x => x.rid === f.id) || { items: [] }).items.length : 0;
+      const name = 'Ch 26 · Acknowledgments and works cited';
+      let state;
+      if(!f) state = `<span class="rr-when" title="${escHtml('Part of the book, but no outline assigns it. Load it if you want to keep anything from it.')}">not loaded</span>`;
+      else if(kept) state = `<span class="rr-b rr-b-done" title="${escHtml(`You commented on this ${comments} times, so it is one entry.`)}">entry · ${comments} comments</span>`;
+      else if(comments) state = `<button class="rr-b rr-b-part rr-go" data-open="reading:${escHtml(f.id)}" title="${escHtml(`A reading becomes an entry at ${ANN_MIN} comments. You have ${comments}.`)}">${comments} of ${ANN_MIN} comments · ${ANN_MIN - comments} more →</button>`;
+      else if(marked) state = `<button class="rr-b rr-b-part rr-go" data-open="reading:${escHtml(f.id)}" title="${escHtml(`${marked} passage${marked===1?'':'s'} kept, none commented on yet.`)}">${marked} marked · add your comments →</button>`;
+      else state = `<span class="rr-when" title="${escHtml('Not assigned — it came with the book.')}">not assigned</span>`;
+      return { kept, comments, html: `<div class="rr-row ${kept ? 'rr-done' : comments || marked ? 'rr-part' : 'rr-future'}">
+          <span class="rr-t">${escHtml(name)}</span><span class="rr-s">${state}</span></div>` };
+    };
     const section = ([kind, label]) => {
       const rows = roster.filter(e => e.kind === kind);
       if(!rows.length) return '';
+      // The acknowledgments ship with the book and sit in the Romano section of the
+      // shelf, so this list has to hold them too — otherwise the two panels disagree
+      // about how many chapters there are, which is exactly what a student would notice
+      // first. No outline assigns it, so it has no roster row, no due date and no link:
+      // it is built from the file itself, or shown as one they simply do not have.
+      const backRows = kind === 'romano' ? [buildBackMatterRow()] : [];
       // stateFor() claims a loaded file as it goes, so each row is resolved exactly
       // once and the summary counts those same results — never a second matching pass.
       const states = rows.map(e => [e, stateFor(e)]);
@@ -6504,17 +6608,19 @@ You: Really. The first line only has to exist, not be good.`;
           <a class="rr-t" href="${escHtml(e.url)}" target="_blank" rel="noopener">${escHtml(rosterLabel(e))}</a>
           <span class="rr-s">${badges(st, e)}</span>
         </div>`;
-      }).join('');
-      const done = states.filter(([, st]) => st.kept || st.wrote).length;
-      const marked = states.filter(([, st]) => !(st.kept || st.wrote) && (st.marked || st.comments)).length;
+      }).join('') + backRows.map(b => b.html).join('');
+      const done = states.filter(([, st]) => st.kept || st.wrote).length + backRows.filter(b => b.kept).length;
+      const marked = states.filter(([, st]) => !(st.kept || st.wrote) && (st.marked || st.comments)).length
+                   + backRows.filter(b => !b.kept && b.comments).length;
+      const total = rows.length + backRows.length;
       // The counter is the group's whole story in one line, so it says what it counts
       // and what is still owed rather than making the student open the group to find out.
-      const tip = `${done} of these ${rows.length} reading${rows.length===1?'':'s'} `
+      const tip = `${done} of these ${total} reading${total===1?'':'s'} `
         + `${done===1?'counts':'count'} as an entry in your notebook — a reading becomes one at ${ANN_MIN} comments.`
         + (marked ? ` ${marked} more ${marked===1?'is':'are'} started but short of ${ANN_MIN}.` : '')
         + ' One reading is one entry, however many comments it holds.';
       return `<details class="rr-grp"><summary><span class="rr-g">${escHtml(label)}</span>
-        <span class="rr-c" title="${escHtml(tip)}">${done} of ${rows.length} kept as entries${
+        <span class="rr-c" title="${escHtml(tip)}">${done} of ${total} kept as entries${
           marked ? ` · ${marked} started` : ''}</span></summary>${built}</details>`;
     };
 
@@ -6522,7 +6628,9 @@ You: Really. The first line only has to exist, not be good.`;
 
     // Anything loaded that the roster did not claim — the student's own reading, and the
     // manual, which is built in. Shown so a file never silently disappears from view.
-    const mine = readings.filter(r => !r.builtin && !claimed.has(r.id));
+    // Back matter is listed above as Ch 26, so it must not appear here as well — it is
+    // shelved with the book, not among the reader's own finds.
+    const mine = readings.filter(r => !r.builtin && !claimed.has(r.id) && !isBackMatter(r));
     const own = mine.length ? `<details class="rr-grp"><summary><span class="rr-g">Your own</span>
         <span class="rr-c" title="${escHtml(`Reading you loaded yourself — ${mine.length} file${mine.length===1?'':'s'} the course list does not name. It counts the same way: mark passages, then write what you make of them.`)}">${mine.length} file${mine.length===1?'':'s'}</span></summary>${
         mine.map(r => {
