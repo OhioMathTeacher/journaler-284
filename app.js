@@ -616,18 +616,21 @@ const AI_TAG  = AI_NAME + ' \u00b7 AI';   // the attribution chip -- always mark
 // ── The reflection box is named for the WORK, not for the software.
 //
 //    Todd, 5 Sep 2026: students must never be required to talk to an AI. The box is
-//    "Reflecting on Dialog" whether or not a provider is connected -- with a key, Romano
+//    "Reflecting on Writing" whether or not a provider is connected -- with a key, Romano
 //    asks a question and the student answers it; without one, the student simply writes
 //    the commentary. Same box, same textarea, same save path, same printed record.
 //    Before this, the no-AI branch printed a nag to connect a provider and painted NO
 //    textarea at all, so a student without a key could not write in this pane at all.
-const REFLECT_LABEL = 'Reflecting on Dialog';
+const REFLECT_LABEL = 'Reflecting on Writing';
 
 //    Asked when there is no model to ask anything. Fixed, human-written, and deliberately
 //    about the dialog rather than about the experience of writing -- the AI is barred from
 //    the words themselves, but the student is not.
-const REFLECT_PROMPT_SOLO = 'Why these words? What did you leave out? '
-  + 'And what do you want us to hear in the voice?';
+//    One box serves op1-op5, so this cannot name dialog, or the senses, or Grammar B --
+//    OP4 forbids the dialogue OP3 requires. It asks about choices, which every one of
+//    them involves.
+const REFLECT_PROMPT_SOLO = 'How did the writing go? What did you leave out, '
+  + 'and what do you most want a reader to notice?';
 
 // ── Asked about the student's OWN writing, not the book.
 //
@@ -2393,7 +2396,7 @@ async function runReflection(rf, text, hooks) {
     //   columns are subgrid over exactly five row tracks (see .op-cols.two in app.css).
     //   Adding a sixth child to either column gives it no track to sit in and it lands
     //   on top of the fifth -- which is how "＋ Add gush to notebook" ended up printed
-    //   over "Reflecting on Dialog". Anything new here either goes INSIDE an existing
+    //   over "Reflecting on Writing". Anything new here either goes INSIDE an existing
     //   band or the track count has to grow to match.
     document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,reflect:reflectHooks(opKey),onEnd:()=>{fwDone[fwCur]=true;fwGushed[fwCur]=true;const gtxt=document.getElementById('gush').value;
       // The gush is a chalkboard: a new trial wipes the last one, by design. But the
