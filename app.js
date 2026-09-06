@@ -5258,6 +5258,35 @@ You: Really. The first line only has to exist, not be good.`;
     return 'f:' + String(name || '').trim().toLowerCase();
   }
 
+  // ⚠ THE SHELF THAT ALREADY EXISTS (Todd, 2026-09-06). Hashes were only ever RECORDED,
+  // never back-filled, so a reading loaded before fingerprinting shipped carried none —
+  // and those are precisely the ones a Canvas import lands beside. Todd's own shelf
+  // proved it: 2Wiederhold.pdf (Aug 30) and the Canvas copy have the same SHA-256 and
+  // still arrived as two readings, because the Aug 30 file had never been hashed. A miss
+  // against the recorded hashes is therefore not an answer yet: hash the unhashed shelf
+  // and ask again.
+  // One file at a time on purpose — a term of scans is a few hundred MB, and asking for
+  // all of it at once is how a tab dies (see zipReadings). It only ever runs when the
+  // FILENAME already missed, so the cost is paid on a possible duplicate, never on a
+  // routine load, and each file is hashed once for the life of the shelf.
+  async function twinBySha(sha, id){
+    const H = readingHashes();
+    const hit = k => k !== id && H[k] === sha && readings.some(r => r.id === k);
+    const known = Object.keys(H).find(hit);
+    if(known) return known;
+    for(const r of readings){
+      // txt has no bytes to weigh, and builtin would fetch the manual over the network.
+      if(r.id === id || H[r.id] || r.type === 'txt' || r.builtin) continue;
+      let s = '';
+      try { const b = await readingBytesFor(r); if(b) s = await fileSha(b); }
+      catch(e){ console.warn('twinBySha', r.id, e); }
+      if(!s) continue;                       // unreadable now; leave it unhashed to retry
+      H[r.id] = s;
+      if(s === sha) return r.id;
+    }
+    return '';
+  }
+
   // One-time re-key of readings shelved under the old random ids, carrying their
   // highlights and Romano threads across. Runs before anything reads them, and only
   // where the destination is free, so it can never merge two chapters into one.
@@ -5286,6 +5315,9 @@ You: Really. The first line only has to exist, not be good.`;
   async function addReadingFiles(fileList){
     const files = [...fileList].filter(f => /\.(pdf|docx|txt)$/i.test(f.name));
     if(!files.length) return;
+    let landed = -1;                 // shelf row to open when the batch is done
+    const renamed = [], same = [];   // twins this import resolved to, for one summary
+    let kept = 0;                    // marks carried across on those twins
     for(const f of files){
       const ext = (f.name.split('.').pop()||'').toLowerCase();
       // Id derives from the FILENAME, not from the clock. Random ids meant a reading
@@ -5304,13 +5336,14 @@ You: Really. The first line only has to exist, not be good.`;
       if(ext === 'txt'){
         const txt = await f.text();
         readings.push({ id, name: f.name, type: ext, html: `<p>${escHtml(txt).replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')}</p>` });
+        landed = readings.length - 1;
       } else {
         const buf = await f.arrayBuffer();
         if(!readings.some(r => r.id === id)){
           const sha = await fileSha(buf);
           if(sha){
-            const twin = Object.keys(readingHashes()).find(k => readingHashes()[k] === sha && k !== id);
-            if(twin && readings.some(r => r.id === twin)) id = twin;
+            const twin = await twinBySha(sha, id);
+            if(twin) id = twin;
             else readingHashes()[id] = sha;
           }
         }
@@ -5319,13 +5352,63 @@ You: Really. The first line only has to exist, not be good.`;
         // announced itself at render time.
         try { await saveReadingBytes(id, buf); }
         catch(e){ logEvent('error', 'could not store ' + f.name, String(e && e.message || e)); console.warn('saveReadingBytes', e); toast('Couldn’t store ' + f.name + ' — browser storage may be full. Try 📁 Use a readings folder.'); continue; }
+        // ⚠ A TWIN IS NOT A NEW READING (2026-09-06). When the hash resolves this file
+        // to one already shelved, pushing a record would put TWO entries on the shelf
+        // sharing one id — and therefore one set of comments, which is the duplicate
+        // this feature exists to prevent, wearing a better disguise. Select the copy that
+        // is already there, whose marks are intact, and say so out loud: a student who
+        // re-downloads from Canvas needs to know the load worked and nothing was lost.
+        const already = readings.find(r => r.id === id);
+        if(already){
+          // ⚠ THE NEWER NAME WINS (Todd, 2026-09-06): "I'm good with the app renaming the
+          // file now that we have canonical names that we agree on. Having the same
+          // filenames also helps the student."
+          //
+          // This is the ONE place renaming is right, and it is not the rename Todd
+          // objected to in `openIdentify`. That one guessed at a name from a roster row;
+          // this one takes the name off a file whose bytes are proven identical, so the
+          // shelf ends up saying what Canvas says. It also repairs the MATCH, because
+          // rosterScore reads r.name: a chapter shelved as `2Wiederhold.pdf` scores
+          // nothing and counts for nothing until some name arrives that the roster can
+          // recognise. The id deliberately does NOT move — comments hang off it, and
+          // nobody ever sees it.
+          //
+          // A name the student typed themselves still wins on the shelf: shelfLabel reads
+          // readingNames() first, so a deliberate choice survives the import untouched.
+          //
+          // ⚠ OFFERED, NOT IMPOSED (Todd, 2026-09-06): "I don't think the renaming should
+          // be wholly automated without a chance for the enduser to make modifications."
+          // So it is undoable, in one offer for the whole batch rather than one per file
+          // — a Canvas import is eight or twenty files at once, and eight stacked offers
+          // is not a choice, it is a queue. ✎ stays exactly as it was for the case this
+          // does not cover.
+          if(already.name !== f.name) renamed.push({ r: already, from: already.name, to: f.name });
+          else same.push(already);
+          already.name = f.name;
+          kept += getHighlights(id).length;
+          landed = readings.indexOf(already);
+          continue;
+        }
         readings.push({ id, name: f.name, type: ext });
+        landed = readings.length - 1;
       }
     }
-    activeReading = readings.length - 1;
+    if(landed >= 0) activeReading = landed;
     readPageNum = 1; dropPdf();
     persistReadings();
     renderRead();
+    // Said after the shelf is drawn, so the offer describes something already on screen.
+    const marks = kept ? ' — your ' + kept + ' mark' + (kept === 1 ? '' : 's') + ' came with '
+                       + (kept === 1 ? 'it' : 'them') : '';
+    if(renamed.length){
+      undoably(renamed.length === 1
+        ? 'Renamed to “' + renamed[0].to + '”' + marks
+        : 'Renamed ' + renamed.length + ' readings to match your course files' + marks,
+        () => { for(const x of renamed) x.r.name = x.from; persistReadings(); renderRead(); });
+    } else if(same.length){
+      toast(same.length === 1 ? shelfLabel(same[0]) + ' is already on your shelf' + marks
+                              : same.length + ' of those were already on your shelf' + marks);
+    }
   }
 
   // The shelf's folder control. Four states, because "connected" and "remembered
