@@ -1828,7 +1828,11 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
    Collapsed by default: four groups is a list of 31, and the panel sits above a table
    the student came to read. Colour never carries meaning on its own — every row states
    its condition in words beside the dot. */
-.roster { border: 1px solid var(--comment-border); border-left: 3px solid var(--go); border-radius: 8px; padding: 12px 14px; margin: 0 0 16px; background: var(--comment-bg); }
+/* No card. The readings are part of My Progress, not a notice pinned to it — boxing
+   them set them apart from the four scored rows they belong with. The group rules and
+   the heading carry the structure; only a closing rule separates it from Kept practice. */
+.roster { border: none; border-bottom: 1px solid var(--comment-border); border-radius: 0;
+  background: none; padding: 0 0 14px; margin: 0 0 16px; }
 .rr-h { font-family: var(--sans); font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
 .rr-grp { border-top: 1px solid var(--comment-border); margin-top: 8px; }
 .rr-grp > summary { cursor: pointer; padding: 8px 0 6px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; list-style: none; }
@@ -1847,6 +1851,9 @@ a.rr-t:hover { border-bottom-color: currentColor; }
 .rr-when { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .rr-when.rr-owed { font-style: italic; }
 .rr-future .rr-t { color: var(--muted); }
+.pj-cov { font-family: var(--sans); font-size: 11.5px; border: 1px solid var(--comment-border);
+  border-radius: 999px; padding: 1px 8px; margin-right: 4px; cursor: help; white-space: nowrap; }
+.pj-cov.ok { border-color: var(--go); color: var(--go); }
 .pj-pts { display: block; font-family: var(--sans); font-size: 11.5px; font-weight: 400; color: var(--muted); margin-top: 2px; }
 .rr-go { cursor: pointer; font-family: var(--sans); background: transparent; border: 1px solid var(--go); color: var(--go); }
 .rr-go:hover { background: var(--go); color: #fff; }

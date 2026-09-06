@@ -5244,6 +5244,16 @@ You: Really. The first line only has to exist, not be good.`;
   // Add one or many files (multi-select or a whole folder). txt inline, PDF/.docx bytes to IndexedDB.
   // Stable, filename-derived id. Mirrors the `d:` scheme the persistent-folder path
   // already used, so a chapter keeps its highlights whichever way it was loaded.
+  // SHA-256 of the bytes. crypto.subtle needs a secure context — https or localhost —
+  // so this returns '' on file://, where the name-based id simply carries on alone.
+  function readingHashes(){ return (DB.readingHashes = DB.readingHashes || {}); }
+  async function fileSha(buf){
+    try {
+      if(!(window.crypto && crypto.subtle)) return '';
+      const h = await crypto.subtle.digest('SHA-256', buf);
+      return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2,'0')).join('');
+    } catch(e){ console.warn('fileSha', e); return ''; }
+  }
   function readingIdForName(name){
     return 'f:' + String(name || '').trim().toLowerCase();
   }
@@ -5283,12 +5293,27 @@ You: Really. The first line only has to exist, not be good.`;
       // as DB.highlights and DB.qa were concerned — the work survived in the export and
       // had nothing to render against. Same filename now means the same reading, which
       // is what a student means by "my chapter 5".
-      const id = readingIdForName(f.name);
+      // ⚠ FINGERPRINTING (Todd, 2026-09-06). An id is 'f:' + the filename, so the SAME
+      // file downloaded under a NEW name — which is what happens to anyone who
+      // re-downloads a currere article or the introduction after today's renames — used
+      // to arrive as a different reading with none of its comments. The bytes are what
+      // the reader actually annotated, so they decide: if a shelved reading has the same
+      // SHA-256, this file IS that reading and keeps everything written on it.
+      // Same-name still wins first, which costs nothing and skips the hash entirely.
+      let id = readingIdForName(f.name);
       if(ext === 'txt'){
         const txt = await f.text();
         readings.push({ id, name: f.name, type: ext, html: `<p>${escHtml(txt).replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')}</p>` });
       } else {
         const buf = await f.arrayBuffer();
+        if(!readings.some(r => r.id === id)){
+          const sha = await fileSha(buf);
+          if(sha){
+            const twin = Object.keys(readingHashes()).find(k => readingHashes()[k] === sha && k !== id);
+            if(twin && readings.some(r => r.id === twin)) id = twin;
+            else readingHashes()[id] = sha;
+          }
+        }
         // Only shelve it if the bytes actually landed. This used to push
         // unconditionally, so a failed write produced a phantom reading that only
         // announced itself at render time.
@@ -6709,6 +6734,27 @@ You: Really. The first line only has to exist, not be good.`;
       : ord.length >= ENTRIES_BANDS.partial
         ? `partial band (${ENTRIES_BANDS.partial}–${ENTRIES_BANDS.full - 1}) — ${ENTRIES_BANDS.full - ord.length} more reaches full marks`
         : `under ${ENTRIES_BANDS.partial} scores nothing for this row — ${ENTRIES_BANDS.partial - ord.length} more reaches the partial band`;
+    // ⚠ COVERAGE (Todd, 2026-09-06): "at least 5 of those 8" currere, "at least 15 of the
+    // Romano". Counted from the roster, so the target does not move when a file is added.
+    // Romano's 27 includes the acknowledgments, which no outline assigns — that makes the
+    // bar slightly easier to clear, never harder, so no student is caught by it.
+    const coverLine = (() => {
+      const roster = (window.COURSE_READINGS || []);
+      if(!roster.length) return '';
+      const caps2 = capturesByPiece();
+      const asg = rosterAssign(roster, readings);
+      const doneOf = kind => [...asg.entries()]
+        .filter(([i, r]) => roster[i].kind === kind && commentCount(r.id) >= ANN_MIN).length;
+      const back = readings.find(r => isBackMatter(r));
+      const rom = doneOf('romano') + (back && commentCount(back.id) >= ANN_MIN ? 1 : 0);
+      const cur = doneOf('currere');
+      const bit = (n, need, total, name) =>
+        `<span class="pj-cov${n >= need ? ' ok' : ''}" title="${escHtml(
+          `${n} of the ${total} ${name} readings count as entries. The notebook asks for at least ${need}.`)
+        }">${name} ${n} of ${need}${n >= need ? ' ✓' : ''}</span>`;
+      return `<br><span class="pj-aim">Readings: ${bit(rom, COVER.romano, roster.filter(e=>e.kind==='romano').length + 1, 'Romano')}
+        · ${bit(cur, COVER.currere, roster.filter(e=>e.kind==='currere').length, 'currere')}</span>`;
+    })();
     const kept = ord.length
       ? `<strong>${ord.length}</strong> ${ord.length === 1 ? 'entry' : 'entries'} ·
          ${days} day${days === 1 ? '' : 's'} · ${words.toLocaleString()} words`
@@ -6724,7 +6770,7 @@ You: Really. The first line only has to exist, not be good.`;
         ${row(1, 'Kept practice', 20, `<strong>An entry is writing you did.</strong> Passages you
               mark in a reading are kept and cited, but they become an entry when you write what you
               make of them. Nothing to tag. ${jump('Open page →','open')}`,
-              kept + `<br><span class="pj-aim">${band}</span>`,
+              kept + `<br><span class="pj-aim">${band}</span>` + coverLine,
               ord.length >= ENTRIES_BANDS.full)}
         ${row(2, 'Required entries', 5, 'Keeping one of these tags it. Or choose from what you already kept.',
               ['baseline','currere','topicmap','sources'].map(k =>
@@ -6840,6 +6886,8 @@ You: Really. The first line only has to exist, not be good.`;
   // How many comments make a reading an entry. Read by the synthesiser AND by the
   // roster, so the number a student is asked for is the number they are measured on.
   const ANN_MIN = 3;
+  // How many of each group the notebook asks a student to have commented on.
+  const COVER = { romano: 15, currere: 5 };
   // Comments on one reading, in the student's own words. The roster and the synthesiser
   // must agree exactly, or the panel asks for a number the grade does not measure.
   function commentCount(rid){
