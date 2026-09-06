@@ -1455,26 +1455,8 @@ body.gushing .liftbar { display: none !important; }
 .tagadd { font-family: var(--sans); font-size: 13px; padding: 3px 5px; border: 1px dashed var(--comment-border, #ddd);
   border-radius: 6px; background: none; color: var(--mut, #6b7280); }
 
-/* ── Tags lens: every entry against every tag, one screen. Built because tagging lived
-   only on the individual entry, so finding which page held a tag meant clicking through
-   days, and changing your mind meant finding the old page first. */
+/* The wrapper survives the grid it was named for; the table itself went with 5a7acee. */
 .tagsgrid { max-width: 100%; }
-.tgtable { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 14.5px; margin: 10px 0 4px; }
-.tgtable th, .tgtable td { border-bottom: 1px solid var(--comment-border, #e5e7eb); padding: 5px 6px; text-align: left; }
-.tgtable thead th { font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--mut, #6b7280); white-space: nowrap; }
-.tgtable .tg-n { width: 2.4em; text-align: right; color: var(--mut, #6b7280); font-variant-numeric: tabular-nums; }
-.tgtable .tg-d { width: 5.2em; white-space: nowrap; color: var(--mut, #6b7280); }
-.tgtable .tg-w { width: 3.4em; text-align: right; color: var(--mut, #6b7280); font-variant-numeric: tabular-nums; }
-.tgtable .tg-t { max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tgtable .tg-c { width: 2.6em; text-align: center; padding: 5px 2px; }
-.tgtable tbody tr.tg-in { background: var(--highlight-soft, #fdf6ef); }
-/* A one-shot marker for "you just came from the checklist", not a persistent selection. */
-.tgtable tbody tr.tg-focus { box-shadow: inset 3px 0 0 var(--accent); }
-.tgbox { width: 17px; height: 17px; border-radius: 4px; border: 1px solid var(--comment-border, #ccc);
-  background: #fff; cursor: pointer; padding: 0; display: inline-block; vertical-align: middle; }
-.tgbox:hover { border-color: var(--accent); }
-.tgbox.on { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 2px #fff; }
-.tgbox:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .turnin .runline.tw { color: #8a6d2f; }
 /* Checklist rows act rather than just report. */
 .turnin-row .tl, .turnin-row .tv { border: 0; background: none; text-align: left; padding: 0; font: inherit; color: inherit; cursor: pointer; }
@@ -1711,6 +1693,13 @@ h4.thall { font-family: var(--sans); font-size: 15px; margin: 20px 0 4px; paddin
 .pj-none { font-size: 13px; color: var(--muted); font-style: italic; }
 .pj-more { font-size: 12px; color: var(--muted); }
 .pj-has { font-size: 13px; color: var(--go, #3f7a4d); font-weight: 600; }
+/* Row 4's three flags, named rather than counted. They wrap on a narrow screen instead of
+   pushing the state column wide, and an unset one still shows its ★ so the reader can see
+   how many there are meant to be. */
+.pj-flags { display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+.pj-flag { font-size: 13px; color: var(--mut, #6b7280); white-space: nowrap; }
+.pj-flag .pj-link { margin-left: .15rem; }
+.pj-flag .tclear { margin-left: .1rem; }
 .pj-chip { background: var(--parchment); border: 1px solid var(--comment-border);
   border-radius: 5px; padding: 1px 7px; font: inherit; font-size: 12.5px;
   color: var(--ink); cursor: pointer; white-space: nowrap; }

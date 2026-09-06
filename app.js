@@ -6806,11 +6806,42 @@ You: Really. The first line only has to exist, not be good.`;
     // which is the whole point: a row that names work you cannot reach from it is the
     // disconnection all over again.
     const jump = (label, to) => `<button class="pj-link" data-jump="${to}">${label}</button>`;
+    // ⚠ ROW 4 LEADS WITH THE HALF THAT ISN'T DONE (Todd, 2026-09-06): "What is Thinking on
+    // the page? I'm looking in My Progress. Not clear. What are the 3 flagged?"
+    //
+    // It read `3 of 3 flagged · reading not written`: a flattering fraction on the half
+    // that is only filing, and the half the 15 points actually turn on trailing it in
+    // lower case — the same false-progress shape as the tab badge deleted this morning.
+    // And it counted the flags without naming them, so the row raised the question "which
+    // three?" and was the one screen in the app that could not answer it.
+    //
+    // The thread reading goes first, with the way to write it, because that is where the
+    // points are. Then the three, named, each a way back to the entry it sits on.
+    // Setting a flag stays on the entry itself (＋ Tag this page): which page deserves a
+    // close reading is a judgement made while reading it. That is also why these are not
+    // slotPicker chips — that offers the five NEWEST candidates, and for Act I the five
+    // newest are precisely the wrong five.
+    const numOf = new Map(ord.map((e, i) => [e.id, i + 1]));
+    const anaLine = ana
+      ? `<span class="pj-has">✓ kept</span>`
+      : `<span class="pj-none">not written yet</span> ${jump('Threads →','threads')}`;
+    const flagLine = ['flag1','flag2','flag3'].map((k, i) => {
+      const e = T[k] && ord.find(x => x.id === T[k]);
+      return `<span class="pj-flag">★${i + 1} ` + (e
+        ? `<button class="pj-link" data-goto="${escHtml(e.id)}">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))}</button>`
+          + `<button class="tclear" data-untag="${k}" title="Unflag this page">×</button>`
+        : `<span class="pj-none">not flagged</span>`) + `</span>`;
+    }).join('');
     // The points ride with the name. The handout scores these four rows out of 50 and
     // names a band for each; a panel that shows the bands but not what they are worth
     // makes the student hold half the rubric in their head. Same four rows, same order,
     // same points as the table in Writers Notebook Guidelines.docx.
-    const row = (n, name, pts, feeds, state, ok) => `
+    // `n` and `feeds` are gone, not misplaced: a373cfc took the per-row description column
+    // out because Todd crossed it out — "only include the stuff I've circled" — and the
+    // assignment moved behind About this project →. The arguments outlived the column and
+    // went on building prose the table threw away, including a Threads → link no one could
+    // ever click. Anything a row must SAY now belongs in its state cell, which is read.
+    const row = (name, pts, state, ok) => `
       <tr class="${ok ? 'pj-ok' : ''}">
         <td class="pj-name">${name}<span class="pj-pts">${pts} pts</span></td>
         <td class="pj-state">${state}</td>
@@ -6858,19 +6889,19 @@ You: Really. The first line only has to exist, not be good.`;
       <p class="pj-txt"><button class="pj-about" id="pjAbout">About this project →</button></p>
       ${rosterPanel()}
       <table class="pjtable">
-        ${row(1, 'Kept practice', 20, `<strong>An entry is writing you did.</strong> Passages you
-              mark in a reading are kept and cited, but they become an entry when you write what you
-              make of them. Nothing to tag. ${jump('Open page →','open')}`,
+        ${row('Kept practice', 20,
               kept + `<br><span class="pj-aim">${band}</span>` + coverLine,
               ord.length >= ENTRIES_BANDS.full)}
-        ${row(2, 'Required entries', 5, 'Keeping one of these tags it. Or choose from what you already kept.',
+        ${row('Required entries', 5,
               ['baseline','currere','topicmap','sources'].map(k =>
                 `<div class="pj-slot"><span class="pj-slot-n">${escHtml(slotLabel(k))}</span>${slotPicker(k, jump)}</div>`).join(''),
               req === 4)}
-        ${row(3, 'Look-Back Letter', 10, 'Written in the last class, to your Week 1 answer.',
+        ${row('Look-Back Letter', 10,
               `<div class="pj-slot">${slotPicker('letter', jump)}</div>`, !!letter)}
-        ${row(4, 'Thinking on the page', 15, `Flag 3 kept entries — one per act — and write your reading of a thread. ${jump('Threads →','threads')}`,
-              `${flags} of 3 flagged · reading ${ana ? 'kept' : 'not written'}`, flags === 3 && ana)}
+        ${row('Thinking on the page', 15,
+              `<div class="pj-slot"><span class="pj-slot-n">Reading of a thread</span>${anaLine}</div>`
+            + `<div class="pj-slot"><span class="pj-slot-n">Read closely</span><span class="pj-flags">${flagLine}</span></div>`,
+              flags === 3 && ana)}
       </table>
       ${aboutProjectHTML()}</div>`;
   }
@@ -6897,10 +6928,6 @@ You: Really. The first line only has to exist, not be good.`;
       ok: starred.length === 3 && new Set(starred).size === 3 });
     return { checks, done: checks.filter(c => c.ok).length, all: checks.length };
   }
-  // Column heads for the Tags grid. Eight full labels would make the table wider than the
-  // screen; the full name rides in the title attribute and the tooltip.
-  const TAG_ABBR = { baseline:'Base', currere:'Curr', topicmap:'Map', sources:'Src',
-                     letter:'Letter', flag1:'★1', flag2:'★2', flag3:'★3' };
 
   // ── Naming an entry so a person can recognise it.
   //
@@ -7677,21 +7704,6 @@ You: Really. The first line only has to exist, not be good.`;
       frame.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { if(!b.dataset.mode) return; noteMode = b.dataset.mode; nbEditingId = null; renderNote(); });
       wireTray(); wireProjectLinks();
       wireTurninLinks(); wireNoteFoot();
-      frame.querySelectorAll('.tgbox').forEach(b => b.onclick = () => {
-        const slot = b.dataset.tg, id = b.dataset.tge, TT = turnin();
-        if(TT[slot] === id){ delete TT[slot]; saveDB(); renderNote(); return; }
-        if(/^flag/.test(slot)){
-          const clash = ['flag1','flag2','flag3'].find(f => f !== slot && TT[f] === id);
-          if(clash){ toast(`This page is already ${slotLabel(clash)}. Flag three different pages, one from each act.`); return; }
-        }
-        const prev = TT[slot];
-        TT[slot] = id; saveDB();
-        if(prev && prev !== id){
-          const n = numberedEntries().findIndex(x => x.id === prev) + 1;
-          toast(`${slotLabel(slot)} moved here from entry ${n}`);
-        }
-        renderNote();
-      });
       return;
     }
     let leftPane, rightPane;
