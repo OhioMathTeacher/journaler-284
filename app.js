@@ -6266,9 +6266,25 @@ You: Really. The first line only has to exist, not be good.`;
   // ★1 ★2 ★3 name nothing — so the sentence had no noun to land on. The slots were ALREADY
   // one per act; only the labels hid it. The acts are the course's own, names and dates
   // from the schedule, so a column says which act it is and the count says one each.
-  const ACTS = [['Act I', 'Become a Writer', 'Aug 24 – Sep 23'],
-                ['Act II', 'The Currere', 'Sep 28 – Oct 30'],
-                ['Act III', 'Multimodal Research Project', 'Nov 2 – Dec 2']];
+  // ⚠ IDENTIFYING IS NOT COMPLETING (Todd, 2026-09-06): "It's one thing to 'identify' and
+  // another to 'complete'." He proved it on his own screen — three entries dated Jul 29-30
+  // sat under ✓ Act I, ✓ Act II, ✓ Act III, checked off as done. July is before the term
+  // begins. Any entry can be tagged into any slot, so the tick was only ever reporting
+  // that a slot was FILLED, which is filing, not the work.
+  //
+  // The dates settle it. TERM is when the course starts; the cuts partition everything
+  // after it, with no gap — a page written in the break between Act I and Act II still
+  // belongs to one of them, and a student who wrote on Sep 25 should not be told their
+  // entry belongs to no act. Only a date BEFORE the term is outside every act.
+  const TERM = '2026-08-24';
+  const ACTS = [['Act I', 'Become a Writer', 'Aug 24 – Sep 23', '2026-09-27'],
+                ['Act II', 'The Currere', 'Sep 28 – Oct 30', '2026-11-01'],
+                ['Act III', 'Multimodal Research Project', 'Nov 2 – Dec 2', '9999-12-31']];
+  // ISO dates compare correctly as strings, which is why every date in this app is one.
+  function actOf(date){
+    if(!date || date < TERM) return -1;
+    return ACTS.findIndex(a => date <= a[3]);
+  }
   function turnin(){ return (DB.turnin = DB.turnin || {}); }
 
   // ── READINESS INCLUDES THE ANALYSIS.
@@ -6842,12 +6858,24 @@ You: Really. The first line only has to exist, not be good.`;
     const anaLine = ana
       ? `<span class="pj-has">✓ kept</span>`
       : `<span class="pj-none">not written yet</span> ${jump('Threads →','threads')}`;
+    const flagOK = ['flag1','flag2','flag3'].map((k, i) => {
+      const e = T[k] && ord.find(x => x.id === T[k]);
+      return !!e && actOf(e.date) === i;
+    });
     const flagLine = ['flag1','flag2','flag3'].map((k, i) => {
       const [act, title, when] = ACTS[i];
       const e = T[k] && ord.find(x => x.id === T[k]);
-      return `<span class="pj-flag" title="${escHtml(act + ' — ' + title + ' · ' + when)}">`
-        + `<span class="pj-flag-n${e ? ' on' : ''}">${e ? '✓' : '○'} ${act}</span>` + (e
+      const ok = flagOK[i];
+      // Say WHERE it is instead of only that it is wrong: "not in Act I" leaves the reader
+      // to work out what to do, "written in Act II" hands them the answer.
+      const el = e && actOf(e.date);
+      const why = !e ? '' : ok ? '' : el < 0 ? 'written before the term'
+                : 'written in ' + ACTS[el][0];
+      return `<span class="pj-flag" title="${escHtml(act + ' — ' + title + ' · ' + when
+                 + (why ? '. This one is ' + why + '.' : ''))}">`
+        + `<span class="pj-flag-n${ok ? ' on' : e ? ' off' : ''}">${ok ? '✓' : e ? '!' : '○'} ${act}</span>` + (e
         ? `<button class="pj-link" data-goto="${escHtml(e.id)}">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))}</button>`
+          + (why ? `<span class="pj-warn">${escHtml(why)}</span>` : '')
           + `<button class="tclear" data-untag="${k}" title="Unflag this page">×</button>`
         : `<span class="pj-none">none yet</span>`) + `</span>`;
     }).join('');
@@ -6932,7 +6960,7 @@ You: Really. The first line only has to exist, not be good.`;
                  any entry you like, changed as often as you like. Pick the ones where something happened, not
                  the ones that are tidiest. <em>×</em> takes one off; flag another from the page itself with
                  <em>＋ Tag this page…</em> under <button class="pj-link" data-mode="day">By day →</button></span></div>`,
-              flags === 3 && ana)}
+              flagOK.every(Boolean) && ana)}
       </table>
       ${aboutProjectHTML()}</div>`;
   }
