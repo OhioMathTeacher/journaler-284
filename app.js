@@ -613,6 +613,22 @@ async function callModel(prompt) {
 const AI_NAME = 'Romano';          // the name students see, everywhere
 const AI_TAG  = AI_NAME + ' \u00b7 AI';   // the attribution chip -- always marks it as AI
 
+// ── The reflection box is named for the WORK, not for the software.
+//
+//    Todd, 5 Sep 2026: students must never be required to talk to an AI. The box is
+//    "Reflecting on Dialog" whether or not a provider is connected -- with a key, Romano
+//    asks a question and the student answers it; without one, the student simply writes
+//    the commentary. Same box, same textarea, same save path, same printed record.
+//    Before this, the no-AI branch printed a nag to connect a provider and painted NO
+//    textarea at all, so a student without a key could not write in this pane at all.
+const REFLECT_LABEL = 'Reflecting on Dialog';
+
+//    Asked when there is no model to ask anything. Fixed, human-written, and deliberately
+//    about the dialog rather than about the experience of writing -- the AI is barred from
+//    the words themselves, but the student is not.
+const REFLECT_PROMPT_SOLO = 'Why these words? What did you leave out? '
+  + 'And what do you want us to hear in the voice?';
+
 // ── Asked about the student's OWN writing, not the book.
 //
 //    READING_PARTNER is grounded in a chapter; REFLECTION_PARTNER is forbidden to touch
@@ -693,14 +709,14 @@ function distressNote(text){ return DISTRESS.test(String(text || '')) ? ANSWER_I
 // so the question on its own is half a conversation. The answer is saved and prints
 // on the session record. Callers that pass no hooks get the question only.
 function paintReflection(rf, question, hooks) {
-  rf.innerHTML = '<span class="lbl">Reflecting with ' + AI_NAME + '</span>'
+  rf.innerHTML = '<span class="lbl">' + REFLECT_LABEL + '</span>'
     + '<span id="reflectBody"></span>';
   rf.querySelector('#reflectBody').textContent = question;
   if (!hooks) return;
   const ta = document.createElement('textarea');
   ta.className = 'reflect-answer';
   ta.id = 'reflectAnswer';
-  ta.placeholder = 'Your answer — how did the writing go?';
+  ta.placeholder = 'Your commentary';
   ta.value = hooks.answer || '';
   ta.addEventListener('input', () => hooks.onAnswer(ta.value));
   rf.appendChild(ta);
@@ -731,7 +747,7 @@ async function runReflection(rf, text, hooks) {
   // needs no model at all. The safety net cannot depend on a word count or a provider.
   const note = distressNote(text);
 
-  rf.innerHTML = '<span class="lbl">Reflecting with ' + AI_NAME + '</span>'
+  rf.innerHTML = '<span class="lbl">' + REFLECT_LABEL + '</span>'
     + '<span id="reflectBody"><em>Reading your pace…</em></span>';
   const bodyEl = rf.querySelector('#reflectBody');
   // Nothing was typed, so there is no session to reflect on. Without this the model
@@ -744,8 +760,11 @@ async function runReflection(rf, text, hooks) {
     return;
   }
   if (getProvider() === 'none') {
-    bodyEl.innerHTML = '<em>Connect an AI (top right) and ' + AI_NAME + ' will ask you '
-      + 'a couple of questions about how the gush went. Optional — the gush is what matters.</em>';
+    // No model, so no back-and-forth -- but the student still writes the commentary.
+    // paintReflection resets rf, so the distress note goes on AFTER it, exactly as in
+    // the success path below.
+    if (hooks) hooks.onQuestion(REFLECT_PROMPT_SOLO);
+    paintReflection(rf, REFLECT_PROMPT_SOLO, hooks);
     appendDistressNote(rf, note);
     return;
   }
@@ -2323,7 +2342,7 @@ async function runReflection(rf, text, hooks) {
             <span class="note" id="keepcount"></span></span>
           <span class="locknote" id="lockmsg">Set your minutes, then start — the page locks and Focus opens.</span></div>
         <textarea class="gush" id="gush" placeholder="Don’t stop, don’t fix. Stalled? Write that you stalled — and keep going." disabled></textarea>
-        <div class="reflect" id="reflect" style="display:none"><span class="lbl">Reflecting with ${AI_NAME}</span><span>How did it go? <em>(About the experience, never your words — stubbed.)</em></span></div>
+        <div class="reflect" id="reflect" style="display:none"><span class="lbl">${REFLECT_LABEL}</span><span>How did it go? <em>(About the experience, never your words — stubbed.)</em></span></div>
        </div>
        <div class="op-col shape" id="shapeCol">
         <div class="stagelabel"><span class="n">2</span> Shape — the One-Pager ${M.photos?'(image + text)':''}</div>
@@ -2370,7 +2389,7 @@ async function runReflection(rf, text, hooks) {
     //   columns are subgrid over exactly five row tracks (see .op-cols.two in app.css).
     //   Adding a sixth child to either column gives it no track to sit in and it lands
     //   on top of the fifth -- which is how "＋ Add gush to notebook" ended up printed
-    //   over "Reflecting with Romano". Anything new here either goes INSIDE an existing
+    //   over "Reflecting on Dialog". Anything new here either goes INSIDE an existing
     //   band or the track count has to grow to match.
     document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,reflect:reflectHooks(opKey),onEnd:()=>{fwDone[fwCur]=true;fwGushed[fwCur]=true;const gtxt=document.getElementById('gush').value;
       // The gush is a chalkboard: a new trial wipes the last one, by design. But the
@@ -2733,7 +2752,7 @@ async function runReflection(rf, text, hooks) {
       st.innerHTML=`<p class="kicker">${m.k}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
         <div class="gushbar"><div class="timerset" id="timerset"><button class="tadj" id="tminus">−</button><span class="timer editable" id="timer">8:00</span><button class="tadj" id="tplus">+</button></div><button class="btn go" id="startBtn">Start the gush</button><span class="locknote" id="lockmsg">Set your minutes, then start → locks + Focus.</span></div>
         <textarea class="gush" id="gush" placeholder="Don’t stop, don’t fix." disabled></textarea>
-        <div class="reflect" id="reflect" style="display:none"><span class="lbl">Reflecting with ${AI_NAME}</span><span>How did remembering go? <em>(stubbed)</em></span></div>
+        <div class="reflect" id="reflect" style="display:none"><span class="lbl">${REFLECT_LABEL}</span><span>How did remembering go? <em>(stubbed)</em></span></div>
         <div style="margin-top:12px"><button class="btn ghost sm" id="curAddNb">＋ Add to notebook</button></div>`;
       wireTimer();
       if(curBursts[curCur]){ document.getElementById('gush').value = curBursts[curCur]; }
