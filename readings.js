@@ -1,6 +1,6 @@
 // GENERATED FILE — do not edit by hand.
 //   python3 tools/build-readings.py /home/todd/Repos/tce284-fa26
-// 31 readings: 20 Romano, 8 currere, 3 articles.
+// 35 readings: 24 Romano, 8 currere, 3 articles.
 window.COURSE_READINGS = [
  {
   "kind": "romano",
@@ -221,6 +221,50 @@ window.COURSE_READINGS = [
   "due": "2026-10-26",
   "dueLabel": "Mon, Oct 26",
   "outline": "week-10-mentors-and-the-hinge/week-10-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154854",
+  "title": "ch20, \"It Ain't Bourbon Yet.\"",
+  "ch": 20,
+  "week": 12,
+  "day": "Wed",
+  "due": "2026-11-11",
+  "dueLabel": "Wed, Nov 11",
+  "outline": "week-12-sources-into-genres/week-12-wed.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154855",
+  "title": "ch21, \"Befriending Revision\"",
+  "ch": 21,
+  "week": 13,
+  "day": "Mon",
+  "due": "2026-11-16",
+  "dueLabel": "Mon, Nov 16",
+  "outline": "week-13-cohere-and-review/week-13-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154856",
+  "title": "ch22, \"Dwelling in Your Words.\"",
+  "ch": 22,
+  "week": 13,
+  "day": "Mon",
+  "due": "2026-11-16",
+  "dueLabel": "Mon, Nov 16",
+  "outline": "week-13-cohere-and-review/week-13-mon.html"
+ },
+ {
+  "kind": "romano",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40154857",
+  "title": "ch23, \"Revision Illustrated.\"",
+  "ch": 23,
+  "week": 13,
+  "day": "Wed",
+  "due": "2026-11-18",
+  "dueLabel": "Wed, Nov 18",
+  "outline": "week-13-cohere-and-review/week-13-wed.html"
  },
  {
   "kind": "currere",
