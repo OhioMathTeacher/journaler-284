@@ -1,6 +1,6 @@
 // GENERATED FILE — do not edit by hand.
 //   python3 tools/build-readings.py /home/todd/Repos/tce284-fa26
-// 31 readings: 20 Romano, 3 currere, 8 articles.
+// 31 readings: 20 Romano, 8 currere, 3 articles.
 window.COURSE_READINGS = [
  {
   "kind": "romano",
@@ -224,6 +224,28 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "currere",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/192",
+  "title": "Edwards, \"Who's Cheating Whom?\"",
+  "ch": null,
+  "week": 1,
+  "day": "Wed",
+  "due": "2026-08-26",
+  "dueLabel": "Wed, Aug 26",
+  "outline": "week-01-trust-the-gush/week-01-wed.html"
+ },
+ {
+  "kind": "currere",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/268",
+  "title": "Wiederhold, \"How to Read a Blank Page of Writing\"",
+  "ch": null,
+  "week": 2,
+  "day": "Mon",
+  "due": "2026-08-31",
+  "dueLabel": "Mon, Aug 31",
+  "outline": "week-02-writing-place/week-02-mon.html"
+ },
+ {
+  "kind": "currere",
   "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/149",
   "title": "Daspit, \"'None of Us'\"",
   "ch": null,
@@ -232,6 +254,28 @@ window.COURSE_READINGS = [
   "due": "2026-09-09",
   "dueLabel": "Wed, Sep 9",
   "outline": "week-03-voice-print/week-03-wed.html"
+ },
+ {
+  "kind": "currere",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/152",
+  "title": "J. Edwards, \"Beyond Presence\"",
+  "ch": null,
+  "week": 4,
+  "day": "Mon",
+  "due": "2026-09-14",
+  "dueLabel": "Mon, Sep 14",
+  "outline": "week-04-show-dont-tell/week-04-mon.html"
+ },
+ {
+  "kind": "currere",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/299",
+  "title": "O'Hara, \"Moviehouse Poems\"",
+  "ch": null,
+  "week": 5,
+  "day": "Mon",
+  "due": "2026-09-21",
+  "dueLabel": "Mon, Sep 21",
+  "outline": "week-05-breaking-the-rules/week-05-mon.html"
  },
  {
   "kind": "currere",
@@ -256,26 +300,15 @@ window.COURSE_READINGS = [
   "outline": "week-10-mentors-and-the-hinge/week-10-mon.html"
  },
  {
-  "kind": "article",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/192",
-  "title": "Edwards, \"Who's Cheating Whom?\"",
+  "kind": "currere",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/320",
+  "title": "Bird, \"Self-Coaching Emotions\"",
   "ch": null,
-  "week": 1,
-  "day": "Wed",
-  "due": "2026-08-26",
-  "dueLabel": "Wed, Aug 26",
-  "outline": "week-01-trust-the-gush/week-01-wed.html"
- },
- {
-  "kind": "article",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/268",
-  "title": "Wiederhold, \"How to Read a Blank Page of Writing\"",
-  "ch": null,
-  "week": 2,
+  "week": 10,
   "day": "Mon",
-  "due": "2026-08-31",
-  "dueLabel": "Mon, Aug 31",
-  "outline": "week-02-writing-place/week-02-mon.html"
+  "due": "2026-10-26",
+  "dueLabel": "Mon, Oct 26",
+  "outline": "week-10-mentors-and-the-hinge/week-10-mon.html"
  },
  {
   "kind": "article",
@@ -290,30 +323,8 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "article",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/152",
-  "title": "J. Edwards, \"Beyond Presence\"",
-  "ch": null,
-  "week": 4,
-  "day": "Mon",
-  "due": "2026-09-14",
-  "dueLabel": "Mon, Sep 14",
-  "outline": "week-04-show-dont-tell/week-04-mon.html"
- },
- {
-  "kind": "article",
   "url": "https://www.newyorker.com/tech/annals-of-technology/chatgpt-is-a-blurry-jpeg-of-the-web",
   "title": "Chiang, \"ChatGPT Is a Blurry JPEG of the Web\"",
-  "ch": null,
-  "week": 5,
-  "day": "Mon",
-  "due": "2026-09-21",
-  "dueLabel": "Mon, Sep 21",
-  "outline": "week-05-breaking-the-rules/week-05-mon.html"
- },
- {
-  "kind": "article",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/299",
-  "title": "O'Hara, \"Moviehouse Poems\"",
   "ch": null,
   "week": 5,
   "day": "Mon",
@@ -331,16 +342,5 @@ window.COURSE_READINGS = [
   "due": "2026-09-21",
   "dueLabel": "Mon, Sep 21",
   "outline": "week-05-breaking-the-rules/week-05-mon.html"
- },
- {
-  "kind": "article",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/320",
-  "title": "Bird, \"Self-Coaching Emotions\"",
-  "ch": null,
-  "week": 10,
-  "day": "Mon",
-  "due": "2026-10-26",
-  "dueLabel": "Mon, Oct 26",
-  "outline": "week-10-mentors-and-the-hinge/week-10-mon.html"
  }
 ];

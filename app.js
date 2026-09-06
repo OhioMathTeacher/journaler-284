@@ -1983,8 +1983,13 @@ async function runReflection(rf, text, hooks) {
     }
   }
 
-  function journalByDate(dateKey){ return DB.journal.filter(e=>e.date===dateKey); }
-  function journalByPiece(pieceId){ return DB.journal.filter(e=>e.pieceId===pieceId).sort((a,b)=>a.ts.localeCompare(b.ts)); }
+  // Everything the notebook DISPLAYS, which is the kept journal plus the entries
+  // synthesised from annotated readings. Anything that WRITES -- updateEntry,
+  // deleteEntry -- still goes to DB.journal alone, because a synthesised entry has no
+  // row to write to; entryCard renders those read-only so nothing offers to try.
+  function allEntries(){ return (DB.journal || []).concat(annotationEntries()); }
+  function journalByDate(dateKey){ return allEntries().filter(e=>e.date===dateKey); }
+  function journalByPiece(pieceId){ return allEntries().filter(e=>e.pieceId===pieceId).sort((a,b)=>String(a.ts).localeCompare(String(b.ts))); }
   // [group, number] for a reading piece's title — same buckets as readingRank, so
   // the notebook's piece list reads in the same order as the Readings shelf.
   function readingPieceOrder(title){
@@ -1996,7 +2001,7 @@ async function runReflection(rf, text, hooks) {
   }
   function journalPieces(){
     const m = {};
-    for(const e of DB.journal){ (m[e.pieceId] = m[e.pieceId] || { id:e.pieceId, kind:e.pieceKind, title:e.pieceTitle, entries:[] }).entries.push(e); }
+    for(const e of allEntries()){ (m[e.pieceId] = m[e.pieceId] || { id:e.pieceId, kind:e.pieceKind, title:e.pieceTitle, entries:[] }).entries.push(e); }
     return Object.values(m).sort((a,b) => {
       const d = pieceRank(a.id) - pieceRank(b.id);
       if(d) return d;
@@ -5659,6 +5664,21 @@ You: Really. The first line only has to exist, not be good.`;
   function entryCard(e, opts){
     opts = opts || {};
     const when = new Date(e.ts).toLocaleString(undefined, {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
+    // An annotation entry is SYNTHESISED from the marks on a reading, so it has no row
+    // in DB.journal to edit or delete -- a Delete button here would be a button that
+    // does nothing. It is read-only, it carries its comment count, and every comment
+    // keeps its own date and time. The way to change it is to change the note on the
+    // reading, which is where the student wrote it.
+    if(e.synthetic && e.pieceKind === 'annotation'){
+      const n = e.comments.length;
+      const log = e.comments.map(c => `<li><span class="ann-when">${escHtml(new Date(c.ts)
+        .toLocaleString(undefined, {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}))}</span>${escHtml(c.text)}</li>`).join('');
+      return `<div class="entryrow ann" data-entryrow="${escHtml(e.id)}">
+        <div class="k"><span class="k-head">${escHtml(e.pieceTitle)} · ${when}</span>
+          <span class="k-tools"><span class="ann-n" title="One reading is one entry. This is how many comments you wrote on it, each with its own date and time.">${n} comment${n===1?'':'s'}</span></span></div>
+        <ul class="ann-log">${log}</ul>
+        <div class="entacts"><button class="entlink" data-open="${escHtml(e.pieceId)}">Open the reading →</button></div></div>`;
+    }
     if(nbEditingId === e.id){
       return `<div class="entryrow" data-entryrow="${e.id}"><div class="k">${escHtml(e.pieceTitle)} · ${when}</div>
         <textarea id="edit_${e.id}" class="entry-edit" data-autogrow="1">${escHtml(e.text)}</textarea>
@@ -6166,41 +6186,42 @@ You: Really. The first line only has to exist, not be good.`;
     const stateFor = entry => {
       const hit = assigned.get(idxOf.get(entry)) || null;
       const c = hit ? caps.find(x => x.rid === hit.id) : null;
-      return { hit, marked: c ? c.items.length : 0, commented: c ? c.reflected : 0 };
+      const comments = hit ? commentCount(hit.id) : 0;
+      return { hit, marked: c ? c.items.length : 0, wrote: c ? c.reflected : 0,
+               comments, kept: comments >= ANN_MIN };
     };
 
     // ⚠ A NUMBER THAT DOES NOTHING IS THE DISCONNECTION AGAIN (Todd, 2026-09-06):
     // "When I see the page as a student, I'm like 'What the fuck is this? What do I
     // need to do?'" A badge reading "5 marked" reported a fact and left the student to
-    // work out that the fact was a TASK, and where to go to do it.
+    // work out that the fact was a TASK, and where to go to do it. So every unfinished
+    // state is a BUTTON carrying the verb, and it opens the reading itself.
     //
-    // So the marked state is a BUTTON, carrying the verb: it says what to do and goes
-    // there. data-reflect is bound in the note frame already -- the same handler the
-    // old pending list used -- and openReflect() looks the reading up in
-    // capturesByPiece(), which only holds readings with passages. That is why the
-    // button appears only when there is something marked: with nothing kept there is
-    // nothing for it to open.
-    //
-    // "commented" was jargon this app invented; nobody outside it knows what it means.
-    // The words are the handout's now -- an entry is writing you did -- and every state
-    // carries a title, because a state that needs explaining should explain itself.
+    // The states follow the rule now: commenting on a reading IS the entry -- nobody
+    // has to go back and write a second time -- and ANN_MIN comments is what makes it
+    // one. A row short of that says exactly how many more, because a threshold the
+    // student cannot see is a threshold they cannot meet on purpose.
     const badges = (st, entry) => {
-      const go = (label, tip) =>
-        `<button class="rr-b rr-b-part rr-go" data-reflect="reading:${escHtml(st.hit.id)}" title="${escHtml(tip)}">${label} →</button>`;
-      if(st.commented){
-        const done = `<span class="rr-b rr-b-done" title="You wrote an entry about this reading. That is what counts toward Kept practice — marking passages alone does not.">entry written</span>`;
-        return done + (st.marked
-          ? go(`${st.marked} marked · write again`,
-               `You kept ${st.marked} passage${st.marked===1?'':'s'} from this reading. Writing about it again is a second entry, not a correction.`)
-          : '');
+      const open = (label, tip) =>
+        `<button class="rr-b rr-b-part rr-go" data-open="reading:${escHtml(st.hit.id)}" title="${escHtml(tip)}">${label} →</button>`;
+      const out = [];
+      if(st.kept) out.push(`<span class="rr-b rr-b-done" title="${escHtml(
+        `You commented on this reading ${st.comments} times, so it is one entry in your notebook. One reading is one entry however many comments it holds — the count travels with it.`)}">entry · ${st.comments} comments</span>`);
+      if(st.wrote) out.push(`<span class="rr-b rr-b-done" title="You also wrote a page about this reading. That is a second entry — it is separate writing.">wrote about it</span>`);
+      if(out.length) return out.join('');
+
+      if(st.comments){
+        const need = ANN_MIN - st.comments;
+        return open(`${st.comments} of ${ANN_MIN} comments · ${need} more`,
+          `A reading becomes an entry at ${ANN_MIN} comments. You have ${st.comments}. Open it and add ${need} more.`);
       }
       if(st.marked){
-        return go(`${st.marked} marked · write what you make of it`,
-          `You kept ${st.marked} passage${st.marked===1?'':'s'} here. Marking keeps and cites a passage, but it is not an entry yet — write what you make of it and it counts toward Kept practice.`);
+        return open(`${st.marked} marked · add your comments`,
+          `You kept ${st.marked} passage${st.marked===1?'':'s'} here but have not written on any of them. Marking files the words; commenting is the writing. ${ANN_MIN} comments makes this reading an entry.`);
       }
       const owed = entry.due <= today;
       return `<span class="rr-when${owed ? ' rr-owed' : ''}" title="${escHtml(owed
-        ? 'Nothing marked here yet. Open it under Readings, mark the passages worth keeping, then write what you make of them.'
+        ? `Nothing kept here yet. Open it under Readings, mark what is worth keeping, and comment on it — ${ANN_MIN} comments makes it an entry.`
         : 'Not assigned yet — it is here so you can see the whole term.')}">${owed ? 'due' : 'not yet due ·'} ${escHtml(entry.dueLabel)}</span>`;
     };
 
@@ -6218,17 +6239,17 @@ You: Really. The first line only has to exist, not be good.`;
           <span class="rr-s">${badges(st, e)}</span>
         </div>`;
       }).join('');
-      const done = states.filter(([, st]) => st.commented).length;
-      const marked = states.filter(([, st]) => !st.commented && st.marked).length;
+      const done = states.filter(([, st]) => st.kept || st.wrote).length;
+      const marked = states.filter(([, st]) => !(st.kept || st.wrote) && (st.marked || st.comments)).length;
       // The counter is the group's whole story in one line, so it says what it counts
       // and what is still owed rather than making the student open the group to find out.
       const tip = `${done} of these ${rows.length} reading${rows.length===1?'':'s'} `
-        + `${done===1?'has':'have'} an entry written about ${done===1?'it':'them'} — writing is what counts toward Kept practice.`
-        + (marked ? ` ${marked} more ${marked===1?'has passages':'have passages'} marked but nothing written yet.` : '')
-        + ' Marking a passage keeps and cites it; it is not an entry until you write.';
+        + `${done===1?'counts':'count'} as an entry in your notebook — a reading becomes one at ${ANN_MIN} comments.`
+        + (marked ? ` ${marked} more ${marked===1?'is':'are'} started but short of ${ANN_MIN}.` : '')
+        + ' One reading is one entry, however many comments it holds.';
       return `<details class="rr-grp"><summary><span class="rr-g">${escHtml(label)}</span>
-        <span class="rr-c" title="${escHtml(tip)}">${done} of ${rows.length} written about${
-          marked ? ` · ${marked} waiting` : ''}</span></summary>${built}</details>`;
+        <span class="rr-c" title="${escHtml(tip)}">${done} of ${rows.length} kept as entries${
+          marked ? ` · ${marked} started` : ''}</span></summary>${built}</details>`;
     };
 
     const groups = ROSTER_GROUPS.map(section).join('');
@@ -6239,19 +6260,28 @@ You: Really. The first line only has to exist, not be good.`;
     const own = mine.length ? `<details class="rr-grp"><summary><span class="rr-g">Your own</span>
         <span class="rr-c" title="${escHtml(`Reading you loaded yourself — ${mine.length} file${mine.length===1?'':'s'} the course list does not name. It counts the same way: mark passages, then write what you make of them.`)}">${mine.length} file${mine.length===1?'':'s'}</span></summary>${
         mine.map(r => {
+          // Reading you brought yourself counts exactly as the course list does — the
+          // rule is about what you wrote, not about whose list the reading came from.
           const c = caps.find(x => x.rid === r.id);
-          const st = { marked: c ? c.items.length : 0, commented: c ? c.reflected : 0 };
-          const cls = st.commented ? 'rr-done' : st.marked ? 'rr-part' : '';
-          return `<div class="rr-row ${cls}"><span class="rr-t">${escHtml(readingLabel(r))}</span>
-            <span class="rr-s">${st.commented ? '<span class="rr-b rr-b-done">commented</span>' : ''}${
-              st.marked ? `<span class="rr-b rr-b-part">${st.marked} marked</span>` : ''}</span></div>`;
+          const comments = commentCount(r.id), marked = c ? c.items.length : 0;
+          const kept = comments >= ANN_MIN;
+          const badge = kept
+            ? `<span class="rr-b rr-b-done" title="${escHtml(`You commented on this ${comments} times, so it is one entry.`)}">entry · ${comments} comments</span>`
+            : comments
+              ? `<button class="rr-b rr-b-part rr-go" data-open="reading:${escHtml(r.id)}" title="${escHtml(`A reading becomes an entry at ${ANN_MIN} comments. You have ${comments}.`)}">${comments} of ${ANN_MIN} comments · ${ANN_MIN - comments} more →</button>`
+              : marked
+                ? `<button class="rr-b rr-b-part rr-go" data-open="reading:${escHtml(r.id)}" title="${escHtml(`${marked} passage${marked===1?'':'s'} kept, none commented on yet.`)}">${marked} marked · add your comments →</button>`
+                : '';
+          return `<div class="rr-row ${kept ? 'rr-done' : comments || marked ? 'rr-part' : ''}"><span class="rr-t">${escHtml(readingLabel(r))}</span>
+            <span class="rr-s">${badge}</span></div>`;
         }).join('')}</details>` : '';
 
     return `<div class="roster">
       <p class="rr-h">Course readings</p>
-      <p class="runline">Marking a passage keeps it and cites it, but it is <strong>not an entry
-        yet</strong>. An entry is what <em>you</em> write. Say what you make of a reading and it
-        counts toward Kept practice — you can come back and write about the same reading again.</p>
+      <p class="runline">Commenting on a reading <strong>is</strong> the entry — there is nothing to
+        write up afterwards. Mark what is worth keeping, write what you make of it, and at
+        <strong>${ANN_MIN} comments</strong> the reading counts as one entry toward Kept practice.
+        One reading is one entry however many comments it holds, and every comment keeps its own date.</p>
       ${groups}${own}</div>`;
   }
 
@@ -6401,7 +6431,83 @@ You: Really. The first line only has to exist, not be good.`;
   //
   // elevateHighlight was the ONLY producer of pieceKind 'reading' before today, so an
   // entry with no .reflection flag is a capture whenever it came from.
+  //
+  // ── ANNOTATING A READING IS WRITING (Todd, 2026-09-06). THIS NARROWS THE RULE ABOVE
+  //    WITHOUT REVERSING IT.
+  //
+  // Todd: "they'll be surprised to have to go back and take more notes about readings.
+  // Maybe annotating the readings is enough?" It is. A mark is not a bare yellow band:
+  // each carries `passes`, dated lines the student wrote in their own words. That is
+  // writing, it is dated, and the handout's own arithmetic never asked for a reading
+  // entry at all -- in-class writing alone reaches 20. Nobody has to go back and write
+  // a second time about a reading they already annotated.
+  //
+  // ONE READING IS ONE ENTRY. Todd: "If I made 17 comments on a reading or 5 comments,
+  // both indicate ONE entry. But additionally, the number of comments is recorded."
+  // So the count travels with the entry rather than multiplying it, and every comment
+  // keeps its own date and time -- which is what shows whether the reading was worked
+  // once or returned to across weeks.
+  //
+  // The August objection ("otherwise, we'll just get a bunch of highlights with minimal
+  // reflection") still holds where it was actually about measurement:
+  //   1. A reading needs at least ANN_MIN comments to be an entry (Todd, 2026-09-06:
+  //      "a minimum of 3 comments per reading is fair"). Highlighting alone still
+  //      reaches no part of the 20, and neither does one word on one passage. The
+  //      shortfall is shown on the reading's row rather than left to be guessed at.
+  //   2. Only the STUDENT'S words become .text. The quoted passage never enters it, so
+  //      it cannot inflate the word total.
+  // What is gone is the part that assumed bad faith. Annotating a reading and also
+  // writing a reflection on it is two entries, because it is two pieces of writing.
+  //
+  // Synthesised on read from DB.highlights, never stored. Nothing is migrated, and a
+  // student who edits or deletes a comment sees the entry follow.
   function isCapture(e){ return !!e && e.pieceKind === 'reading' && !e.reflection; }
+
+  // How many comments make a reading an entry. Read by the synthesiser AND by the
+  // roster, so the number a student is asked for is the number they are measured on.
+  const ANN_MIN = 3;
+  // Comments on one reading, in the student's own words. The roster and the synthesiser
+  // must agree exactly, or the panel asks for a number the grade does not measure.
+  function commentCount(rid){
+    let n = 0;
+    for(const h of getHighlights(rid))
+      for(const pass of notePasses(h)) if(String(pass.text || '').trim()) n++;
+    return n;
+  }
+  function annotationEntries(){
+    const out = [];
+    for(const r of (readings || [])){
+      if(r.builtin) continue;
+      const marks = getHighlights(r.id);
+      if(!marks.length) continue;
+      const comments = [];
+      for(const h of marks){
+        for(const pass of notePasses(h)){
+          const txt = String(pass.text || '').trim();
+          if(!txt) continue;                       // a bare mark is not writing
+          comments.push({ ts: pass.ts || h.ts || Date.now(), text: txt });
+        }
+      }
+      if(comments.length < ANN_MIN) continue;
+      comments.sort((a, b) => new Date(a.ts) - new Date(b.ts));
+      const first = comments[0];
+      out.push({
+        id: 'ann:' + r.id,
+        synthetic: true,
+        pieceId: 'reading:' + r.id,
+        pieceKind: 'annotation',
+        pieceTitle: 'Reading · ' + readingLabel(r),
+        // Dated from the first comment -- when the reading was taken up. The whole run
+        // of dates rides along in .comments, so a reading returned to in Week 10 shows
+        // that on its face instead of collapsing to one day.
+        date: hlDayKey({ ts: first.ts }),
+        ts: new Date(first.ts).toISOString(),
+        comments,                                  // count AND each one's date and time
+        text: comments.map(c => c.text).join('\n\n'),   // guard 2: the student's words
+      });
+    }
+    return out;
+  }
   // A highlight's day, in the same local form the calendar builds its cell keys with.
   function hlDayKey(h){
     const d = new Date(h && h.ts ? h.ts : Date.now());
@@ -6429,15 +6535,19 @@ You: Really. The first line only has to exist, not be good.`;
     // dated, with its word count", and "Nothing gets counted twice". So they are
     // excluded from numbering, from Contents, and from the word count, and are
     // printed separately under their own heading instead.
-    return (DB.journal || []).filter(e => e.pieceKind !== 'conversation' && !isCapture(e)).slice().sort((a,b) =>
-      String(a.date).localeCompare(String(b.date)) || String(a.ts).localeCompare(String(b.ts)));
+    return (DB.journal || []).filter(e => e.pieceKind !== 'conversation' && !isCapture(e))
+      .concat(annotationEntries())
+      .sort((a,b) =>
+        String(a.date).localeCompare(String(b.date)) || String(a.ts).localeCompare(String(b.ts)));
   }
 
   // ── Bundle notebook → PDF. The 50-pt Writer's Notebook turn-in artifact.
   //    The bundle follows the lens you're in — By day shows kept practice in date
   //    order (what the notebook is graded on), By piece shows each piece growing.
   function bundleNotebookPDF(){
-    const entries = (DB.journal || []).slice();
+    // The bundle prints what the notebook holds, annotated readings included — they
+    // are entries now, so a report without them would not be the notebook.
+    const entries = allEntries();
     if(!entries.length){ toast('Nothing kept yet — add a page to your notebook first.'); return; }
     ensureName();
     const fmtDate = k => { const [y,m,d] = String(k).split('-').map(Number);

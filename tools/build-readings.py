@@ -14,9 +14,28 @@ the next session). A reading with only a wrap-up appearance has not been
 taught yet; a reading with neither has not been written into an outline.
 """
 import re, sys, json, glob, html, os
+from urllib.parse import urlparse
 
 SRC = sys.argv[1] if len(sys.argv) > 1 else '/home/todd/Repos/tce284-fa26'
 A = re.compile(r'<a class="rdg" data-rdg="(romano|currere|article)" href="([^"]+)"[^>]*>(.*?)</a>', re.S)
+
+# WHAT MAKES A READING A CURRERE READING IS WHERE IT WAS PUBLISHED (Todd, 2026-09-06):
+# "Anything linked to the Currere Exchange Journal site is a currere reading."
+#
+# The hand-tagging in the outlines got this wrong -- it called Daspit, Moore and the
+# Romano essay currere, and filed Edwards, Wiederhold, O'Hara and Bird as articles,
+# though all seven sit in the same journal. Reading the host instead of the tag fixes
+# those four and cannot drift again: a CEJ link added to an outline next month is a
+# currere reading whatever anyone types in data-rdg.
+#
+# Promotion only. A currere-tagged reading published somewhere else keeps its tag,
+# because the rule says what CEJ links ARE, not what everything else is not.
+CEJ = re.compile(r'^(?:www\.)?(?:cej\.lib\.miamioh\.edu|currereexchange\.com)$', re.I)
+
+def classify(kind, url):
+    if kind != 'romano' and CEJ.match(urlparse(url).netloc or ''):
+        return 'currere'
+    return kind
 
 def clean(s):
     return re.sub(r'\s+', ' ', html.unescape(re.sub(r'<[^>]*>', '', s))).strip().strip('.,')
@@ -34,7 +53,7 @@ for f in sorted(glob.glob(os.path.join(SRC, 'week-*/week-*.html'))):
     # the wrap-up is the last block; anything after its marker is homework
     cut = s.find('Wrap-up')
     for m in A.finditer(s):
-        kind, url, inner = m.group(1), m.group(2), m.group(3)
+        kind, url, inner = classify(m.group(1), m.group(2)), m.group(2), m.group(3)
         title = clean(inner)
         key = url.split('?')[0]
         r = rows.setdefault(key, {'kind': kind, 'url': url, 'title': title,
