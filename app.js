@@ -6752,16 +6752,26 @@ You: Really. The first line only has to exist, not be good.`;
       if(st.wrote) out.push(`<span class="rr-b rr-b-done" title="You also wrote a page about this reading. That is a second entry — it is separate writing.">wrote about it</span>`);
       if(out.length) return out.join('');
 
+      // ⚠ BEING LATE HAS TO LOOK LATE (Todd, 2026-09-06): "What, if anything, changes about
+      // a reading entry in My Progress if the due date passes?" Almost nothing did. The row
+      // swapped two words and went italic, .rr-owed-row was applied and styled by no rule at
+      // all, and a STARTED reading returned above this line and so never showed its due date
+      // — a reading three weeks late with two comments on it looked exactly like one due
+      // tomorrow. Romano ch1–ch8 came due Aug 26 – Sep 2, so this is most of the class.
+      // The chip rides along with the started states instead of replacing them: how far in
+      // you are and whether you are behind are two facts, and the row has room for both.
+      const owed = entry.due <= today;
+      const late = owed ? `<span class="rr-b rr-late" title="${escHtml(
+        'Due ' + entry.dueLabel + ', and not an entry yet.')}">overdue</span>` : '';
       if(st.comments){
         const need = ANN_MIN - st.comments;
         return open(`${st.comments} of ${ANN_MIN} comments · ${need} more`,
-          `A reading becomes an entry at ${ANN_MIN} comments. You have ${st.comments}. Open it and add ${need} more.`);
+          `A reading becomes an entry at ${ANN_MIN} comments. You have ${st.comments}. Open it and add ${need} more.`) + late;
       }
       if(st.marked){
         return open(`${st.marked} marked · add your comments`,
-          `You kept ${st.marked} passage${st.marked===1?'':'s'} here but have not written on any of them. Marking files the words; commenting is the writing. ${ANN_MIN} comments makes this reading an entry.`);
+          `You kept ${st.marked} passage${st.marked===1?'':'s'} here but have not written on any of them. Marking files the words; commenting is the writing. ${ANN_MIN} comments makes this reading an entry.`) + late;
       }
-      const owed = entry.due <= today;
       return `<span class="rr-when${owed ? ' rr-owed' : ''}" title="${escHtml(owed
         ? `Nothing kept here yet. Open it under Readings, mark what is worth keeping, and comment on it — ${ANN_MIN} comments makes it an entry.`
         : 'Not assigned yet — it is here so you can see the whole term.')}">${owed ? 'due' : 'not yet due ·'} ${escHtml(entry.dueLabel)}</span>`;
@@ -6806,16 +6816,23 @@ You: Really. The first line only has to exist, not be good.`;
       const done = states.filter(([, st]) => st.kept || st.wrote).length + backRows.filter(b => b.kept).length;
       const marked = states.filter(([, st]) => !(st.kept || st.wrote) && (st.marked || st.comments)).length
                    + backRows.filter(b => !b.kept && b.comments).length;
+      // Past its date and still not an entry — started ones included, because a reading
+      // half-commented three weeks after it was due is behind in the way that matters.
+      // The counter could not see this at all: four readings overdue read the same as four
+      // not yet assigned.
+      const late = states.filter(([e, st]) => !(st.kept || st.wrote) && e.due <= today).length;
       const total = rows.length + backRows.length;
       // The counter is the group's whole story in one line, so it says what it counts
       // and what is still owed rather than making the student open the group to find out.
       const tip = `${done} of these ${total} reading${total===1?'':'s'} `
         + `${done===1?'counts':'count'} as an entry in your notebook — a reading becomes one at ${ANN_MIN} comments.`
         + (marked ? ` ${marked} more ${marked===1?'is':'are'} started but short of ${ANN_MIN}.` : '')
+        + (late ? ` ${late} ${late===1?'is':'are'} past ${late===1?'its':'their'} due date and not ${late===1?'an entry':'entries'} yet, the started ones included.` : '')
         + ' One reading is one entry, however many comments it holds.';
       return `<details class="rr-grp"><summary><span class="rr-g">${escHtml(label)}</span>
         <span class="rr-c" title="${escHtml(tip)}">${done} of ${total} kept as entries${
-          marked ? ` · ${marked} started` : ''}</span></summary>${built}</details>`;
+          marked ? ` · ${marked} started` : ''}${
+          late ? ` · <span class="rr-c-late">${late} overdue</span>` : ''}</span></summary>${built}</details>`;
     };
 
     const groups = ROSTER_GROUPS.map(section).join('');
