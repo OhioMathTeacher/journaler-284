@@ -5398,15 +5398,48 @@ You: Really. The first line only has to exist, not be good.`;
       persistReadings(); renderRead();
     });
   }
+  // Which section of the shelf a loaded file belongs in, decided by the SAME assignment
+  // My Progress uses — one classifier, so the drawer and the roster can never disagree
+  // about what a file is. Anything unclaimed is the student's own, which is also how it
+  // reads in My Progress.
+  function loadedKinds(){
+    const roster = (window.COURSE_READINGS || []);
+    const out = new Map();
+    if(!roster.length) return out;
+    for(const [ri, r] of rosterAssign(roster, readings)) out.set(r.id, roster[ri].kind);
+    return out;
+  }
+  const SHELF_SECTIONS = [
+    ['romano',  'Romano · Write What Matters'],
+    ['currere', 'Currere'],
+    ['article', 'Articles'],
+    ['own',     'Your own'],
+  ];
   function renderDrawer(){
     const host = document.getElementById('drawerList');
     if(!host) return;
+    // The index is the handle every click uses, so it is captured BEFORE grouping and
+    // travels with the row. Sections are presentation only — reordering the shelf would
+    // silently rewire delete.
+    const row = (r, i) =>
+      `<div class="drawer-row${i===activeReading?' on':''}">`
+      + `<button class="drawer-pick" data-i="${i}" title="${escHtml(r.name)}">${escHtml(readingLabel(r))}</button>`
+      + `<button class="drawer-x" data-x="${i}" title="Remove this chapter from your shelf" aria-label="Remove ${escHtml(readingLabel(r))}">🗑</button>`
+      + `</div>`;
+    const kinds = loadedKinds();
+    const indexed = readings.map((r,i)=>({ r, i }));
+    const builtin = indexed.filter(x => x.r.builtin);
+    const groups = SHELF_SECTIONS.map(([kind, label]) => [label,
+      indexed.filter(x => !x.r.builtin && (kinds.get(x.r.id) || 'own') === kind)]);
+    const anyGrouped = groups.some(([, xs]) => xs.length);
     host.innerHTML = readings.length
-      ? readings.map((r,i)=>
-          `<div class="drawer-row${i===activeReading?' on':''}">`
-          + `<button class="drawer-pick" data-i="${i}" title="${escHtml(r.name)}">${escHtml(readingLabel(r))}</button>`
-          + `<button class="drawer-x" data-x="${i}" title="Remove this chapter from your shelf" aria-label="Remove ${escHtml(readingLabel(r))}">🗑</button>`
-          + `</div>`).join('')
+      ? (builtin.map(x => row(x.r, x.i)).join('')
+         + (anyGrouped
+            ? groups.filter(([, xs]) => xs.length).map(([label, xs]) =>
+                `<div class="drawer-sec">${escHtml(label)}<span class="drawer-n">${xs.length}</span></div>`
+                + xs.map(x => row(x.r, x.i)).join('')).join('')
+            // No roster loaded — one flat shelf, exactly as before.
+            : indexed.filter(x => !x.r.builtin).map(x => row(x.r, x.i)).join('')))
       : `<p class="drawer-empty">No chapters yet.<br><br>Use ＋ Load readings above, or point Journaler at a whole folder under ⚙ Settings → Readings.</p>`;
     host.querySelectorAll('.drawer-pick').forEach(b => b.onclick = () => pickReading(+b.dataset.i));
     host.querySelectorAll('.drawer-x').forEach(b => b.onclick = e => { e.stopPropagation(); removeReadingAt(+b.dataset.x); });
