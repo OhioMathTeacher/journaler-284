@@ -2122,6 +2122,20 @@ async function runReflection(rf, text, hooks) {
     frame.querySelectorAll('[data-untagpick]').forEach(b => b.onclick = () => {
       delete turnin()[b.dataset.untagpick]; saveDB(); renderNote();
     });
+    // Choosing an act's entry from its own column. Clicking the one already chosen takes it
+    // off, so the column needs no separate ×, and one entry cannot hold two acts' flags --
+    // the row is scored across three entries, one per act, and a page wearing two is not
+    // that. Silent on purpose: the tick moves in front of you, so a toast would only
+    // narrate what you just watched happen.
+    frame.querySelectorAll('[data-flagpick]').forEach(b => b.onclick = () => {
+      const slot = b.dataset.flagpick, id = b.dataset.flagent, T = turnin();
+      if(T[slot] === id) delete T[slot];
+      else {
+        for(const f of ['flag1','flag2','flag3']) if(f !== slot && T[f] === id) delete T[f];
+        T[slot] = id;
+      }
+      saveDB(); renderNote();
+    });
     frame.querySelectorAll('[data-reflect]').forEach(b => b.onclick = () => openReflect(b.dataset.reflect));
     frame.querySelectorAll('[data-piecemode]').forEach(b => b.onclick = () => {
       notePieceSel = b.dataset.piecemode; noteMode = 'piece'; nbEditingId = null; renderNote();
@@ -6862,22 +6876,34 @@ You: Really. The first line only has to exist, not be good.`;
       const e = T[k] && ord.find(x => x.id === T[k]);
       return !!e && actOf(e.date) === i;
     });
-    const flagLine = ['flag1','flag2','flag3'].map((k, i) => {
-      const [act, title, when] = ACTS[i];
-      const e = T[k] && ord.find(x => x.id === T[k]);
-      const ok = flagOK[i];
-      // Say WHERE it is instead of only that it is wrong: "not in Act I" leaves the reader
-      // to work out what to do, "written in Act II" hands them the answer.
-      const el = e && actOf(e.date);
-      const why = !e ? '' : ok ? '' : el < 0 ? 'written before the term'
-                : 'written in ' + ACTS[el][0];
-      return `<span class="pj-flag" title="${escHtml(act + ' — ' + title + ' · ' + when
-                 + (why ? '. This one is ' + why + '.' : ''))}">`
-        + `<span class="pj-flag-n${ok ? ' on' : e ? ' off' : ''}">${ok ? '✓' : e ? '!' : '○'} ${act}</span>` + (e
-        ? `<button class="pj-link" data-goto="${escHtml(e.id)}">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))}</button>`
-          + (why ? `<span class="pj-warn">${escHtml(why)}</span>` : '')
-          + `<button class="tclear" data-untag="${k}" title="Unflag this page">×</button>`
-        : `<span class="pj-none">none yet</span>`) + `</span>`;
+    // ⚠ EACH ACT SHOWS ITS OWN (Todd, 2026-09-06): "each of the 'ones' from each act should
+    // be listed/linked in its own column, and we should have one checked off from each
+    // column." Right — and the objection I made to a candidate list does not survive the
+    // partition. One flat list of a term's entries is no chooser; a column holding the
+    // eight or nine entries of ONE act is exactly a chooser, and it answers "one what?"
+    // by showing the things being chosen between.
+    // Choosing happens here, in the column. Reading happens on the page: every option
+    // carries ↗ to open the entry, because you cannot pick the one where something
+    // happened without going back and seeing which one that was.
+    const actCols = ACTS.map(([act, title, when], i) => {
+      const k = 'flag' + (i + 1);
+      const mine = ord.filter(e => actOf(e.date) === i);
+      // A flag set before this check existed can point outside its act. Show it here
+      // rather than nowhere, amber, so it can be seen and taken off.
+      const stray = T[k] && !mine.some(e => e.id === T[k]) && ord.find(e => e.id === T[k]);
+      const opt = (e, bad) => `<button class="pj-opt${T[k] === e.id ? ' on' : ''}${bad ? ' bad' : ''}"
+           data-flagpick="${k}" data-flagent="${escHtml(e.id)}"
+           title="${escHtml(bad ? 'Flagged for ' + act + ', but written ' + (actOf(e.date) < 0 ? 'before the term' : 'in ' + ACTS[actOf(e.date)][0]) + '. Click to take it off.' : 'Make this your ' + act + ' entry')}">`
+        + `<span class="pj-opt-m">${T[k] === e.id ? '✓' : '○'}</span>`
+        + `<span class="pj-opt-t">entry ${numOf.get(e.id)} · ${escHtml(shortDate(e.date))}`
+        + `<em>${escHtml(entryLabel(e, 42))}</em></span></button>`
+        + `<button class="pj-open" data-goto="${escHtml(e.id)}" title="Open this entry">↗</button>`;
+      return `<div class="pj-act${flagOK[i] ? ' done' : ''}">
+        <div class="pj-act-h">${flagOK[i] ? '✓' : '○'} ${escHtml(act)}<em>${escHtml(title)} · ${escHtml(when)}</em></div>
+        <div class="pj-act-l">${
+          (stray ? opt(stray, true) : '')
+          + (mine.length ? mine.map(e => opt(e, false)).join('')
+             : `<span class="pj-none">nothing kept in this act yet</span>`)}</div></div>`;
     }).join('');
     // The points ride with the name. The handout scores these four rows out of 50 and
     // names a band for each; a panel that shows the bands but not what they are worth
@@ -6947,19 +6973,15 @@ You: Really. The first line only has to exist, not be good.`;
               `<div class="pj-slot">${slotPicker('letter', jump)}</div>`, !!letter)}
         ${row('Thinking on the page', 15,
               `<div class="pj-slot"><span class="pj-slot-n">Reading of a thread</span>${anaLine}</div>`
-            + `<div class="pj-slot"><span class="pj-slot-n">You flagged</span><span class="pj-flags">${flagLine}</span></div>`
             // ⚠ THESE ARE HIS, AND HE COULD NOT TELL (Todd, 2026-09-06): "this is truly
             // confusing. So I should revise those three entries from July? Can't I pick any
-            // three I want?" He can. The row was listing his own choices under the heading
-            // "Read closely", which reads as an instruction TO the reader rather than a
-            // description of what they picked — so three stale test entries looked like an
-            // assignment. The label says whose they are, and the note leads with the freedom
-            // before the guidance, because "any three, change them whenever" is the fact and
-            // "one from each act" is the advice.
-            + `<div class="pj-slot pj-hint"><span class="pj-slot-n"></span><span class="pj-aim">One entry from each act —
-                 any entry you like, changed as often as you like. Pick the ones where something happened, not
-                 the ones that are tidiest. <em>×</em> takes one off; flag another from the page itself with
-                 <em>＋ Tag this page…</em> under <button class="pj-link" data-mode="day">By day →</button></span></div>`,
+            // three I want?" He can. The row listed his own choices under the heading "Read
+            // closely", which reads as an instruction TO the reader rather than a description
+            // of what they picked, so three stale test entries looked like an assignment.
+            + `<div class="pj-slot pj-hint"><span class="pj-slot-n">You flagged</span><span class="pj-aim">One entry from
+                 each act — pick the ones where something happened, not the ones that are tidiest. Click to choose,
+                 <em>↗</em> to read one first.</span></div>`
+            + `<div class="pj-acts">${actCols}</div>`,
               flagOK.every(Boolean) && ana)}
       </table>
       ${aboutProjectHTML()}</div>`;
