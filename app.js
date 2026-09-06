@@ -6497,7 +6497,12 @@ You: Really. The first line only has to exist, not be good.`;
     // is the app's own fixed text, and crediting Romano for it put a sentence on the
     // record that never happened -- "Romano - AI asked" above a question no model was
     // called to produce. Sessions saved before questionFrom existed were all AI-asked.
-    const askedByAI = !!s.question && s.questionFrom !== 'app';
+    // s.ai is aiLabel() captured at gush time and says 'None - no AI was connected'
+    // when no provider was set. Trust it over questionFrom: sessions gushed before
+    // questionFrom existed carry no flag, and defaulting those to 'ai' printed
+    // 'Romano - AI asked' over a prompt this app wrote. No provider, no asking.
+    const hadAI = !/^\s*None\b/.test(String(s.ai || ''));
+    const askedByAI = !!s.question && s.questionFrom !== 'app' && hadAI;
     const aiBits = [];
     if(askedByAI) aiBits.push(escHtml(AI_TAG) + ' asked how the writing went \u2014 about the experience, not the content.');
     if(asks) aiBits.push('I asked ' + escHtml(AI_TAG) + ' about a passage of my own writing '
