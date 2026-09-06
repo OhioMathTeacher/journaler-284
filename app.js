@@ -753,18 +753,22 @@ async function runReflection(rf, text, hooks) {
   // Nothing was typed, so there is no session to reflect on. Without this the model
   // cheerfully asks where your pace slowed down on a gush of zero words, and that
   // invented question gets printed on a submitted artifact. Say the true thing instead.
-  if ((String(text || '').trim().match(/\S+/g) || []).length < 10) {
-    bodyEl.innerHTML = '<em>Nothing came down on the page this time. Reset the clock and '
-      + 'gush again — there is nothing to reflect on yet.</em>';
-    appendDistressNote(rf, note);
-    return;
-  }
+  // BEFORE the ten-word floor, deliberately. That floor exists to stop the MODEL asking
+  // where your pace slowed on a gush of zero words and printing the invention on a
+  // submitted PDF. No model here, so nothing can be invented -- and a student who wrote
+  // one word still owes a commentary and needs somewhere to put it.
   if (getProvider() === 'none') {
     // No model, so no back-and-forth -- but the student still writes the commentary.
     // paintReflection resets rf, so the distress note goes on AFTER it, exactly as in
     // the success path below.
     if (hooks) hooks.onQuestion(REFLECT_PROMPT_SOLO, 'app');
     paintReflection(rf, REFLECT_PROMPT_SOLO, hooks);
+    appendDistressNote(rf, note);
+    return;
+  }
+  if ((String(text || '').trim().match(/\S+/g) || []).length < 10) {
+    bodyEl.innerHTML = '<em>Nothing came down on the page this time. Reset the clock and '
+      + 'gush again — there is nothing to reflect on yet.</em>';
     appendDistressNote(rf, note);
     return;
   }
