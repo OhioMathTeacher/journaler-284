@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Run the probe suites before anything leaves this machine.
+#
+# Tonight's three crashes were all the same shape -- a name resolved in the wrong scope,
+# silently -- and a render that throws fails INVISIBLY from outside: the My Progress button
+# simply appeared to do nothing. The suites are the only thing that sees that. Two of the
+# three reached a build because no suite had ever pressed that button; driver-mp exists now,
+# so the remaining risk is forgetting to run it. This is that risk, removed.
+#
+# Install:  ln -sf ../../tools/hooks/pre-push .git/hooks/pre-push
+# Skip once (a README typo at midnight):  git push --no-verify
+set -u
+root="$(git rev-parse --show-toplevel)"
+
+# No chromium, no suites -- warn, do not block. A machine that cannot run them must still
+# be able to push; refusing would just teach everyone to pass --no-verify by reflex.
+if ! command -v chromium >/dev/null 2>&1 \
+   && ! command -v chromium-browser >/dev/null 2>&1 \
+   && ! command -v google-chrome >/dev/null 2>&1 \
+   && ! command -v google-chrome-stable >/dev/null 2>&1; then
+  echo "pre-push: no chromium on PATH — skipping probes (they cannot run here)" >&2
+  exit 0
+fi
+
+echo "pre-push: running probe suites (~2 min)…" >&2
+if python3 "$root/tools/probes/run.py"; then
+  echo "pre-push: all checks passed" >&2
+  exit 0
+fi
+echo "" >&2
+echo "pre-push: PUSH BLOCKED — probes failed above." >&2
+echo "          Fix them, or 'git push --no-verify' if you truly mean to." >&2
+exit 1

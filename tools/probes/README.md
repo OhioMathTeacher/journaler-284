@@ -9,6 +9,11 @@ python3 tools/probes/run.py pages    # page eviction, note anchoring, canvas mem
 Needs `python3` and a `chromium`/`chrome` on `PATH`. Nothing else — no npm, no Playwright,
 no packages. Exit code is the number of failed checks, so it works as a gate.
 
+It IS the gate. `tools/hooks/pre-push` runs both suites before a push and blocks one that
+fails; install it with `ln -sf ../../tools/hooks/pre-push .git/hooks/pre-push`. On a machine
+with no chromium it warns and stands aside rather than refusing, and `git push --no-verify`
+skips it for the README-typo-at-midnight case.
+
 The probe page **is `index.html`** with one `<script>` tag added. Nothing is stubbed and
 nothing is reimplemented: a suite that tests a copy of the app tests the copy.
 
