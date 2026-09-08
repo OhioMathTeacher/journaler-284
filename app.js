@@ -5450,6 +5450,72 @@ You: Really. The first line only has to exist, not be good.`;
   // repackaging, not a download: it works with the network off.
   // ⚠ Reads them one at a time on purpose. A term of scans is a few hundred MB, and
   // asking IndexedDB for all of it at once is how a tab gets killed on an iPad.
+  // ── Download the chapter you are reading ────────────────────────────────
+  // Ported from journaler (318P) build 50-52 at Todd's request, 2026-09-07.
+  // The counterpart to zipReadings, and the one to reach for first: the zip holds
+  // every PDF in memory at once to build the archive (see the note above), and this
+  // never holds more than one. 284 is the more exposed of the two apps for that,
+  // since syncFolderReadings can shelve a whole folder in one go.
+  //
+  // Unlike 318P this needs no filename repair. A 284 reading carries r.name -- the
+  // actual file on disk -- so the canonical name is already here. 318P had to
+  // reconstruct one from PDF metadata, which is how Todd's Switzer article came
+  // back as "Hundred chart challenge.pdf" with the author dropped.
+  function clipWords(str, max){
+    str = String(str || '').trim();
+    if(str.length <= max) return str;
+    const cut = str.slice(0, max), sp = cut.lastIndexOf(' ');
+    return (sp > max * 0.5 ? cut.slice(0, sp) : cut).trim();
+  }
+  function sanitizeFileName(raw, fallbackExt){
+    raw = String(raw || '')
+      .replace(/[\\/:*?"<>|]/g, '-')
+      .replace(/[\x00-\x1f]/g, '')
+      .replace(/-{2,}/g, '-')
+      .replace(/\s+/g, ' ').trim().replace(/^[.\-\s]+/, '');
+    const m = raw.match(/\.([A-Za-z0-9]{1,6})$/);
+    const ext = m ? m[1] : (fallbackExt || 'pdf');
+    const base = clipWords(m ? raw.slice(0, -(m[0].length)) : raw, 100) || 'reading';
+    return base + '.' + ext;
+  }
+  const DL_MIME = {
+    pdf:  'application/pdf',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    txt:  'text/plain'
+  };
+  async function downloadActiveReading(btn){
+    const r = readings[activeReading];
+    if(!r) return;
+    const was = btn ? btn.innerHTML : '';
+    if(btn){ btn.disabled = true; btn.textContent = '⋯'; }
+    try {
+      let bytes = null;
+      try { bytes = await readingBytesFor(r); } catch(e){ bytes = null; }
+      if(!bytes){
+        // Same distinction missingBytesStub draws: a folder reading needs the folder
+        // back, not a re-load, and telling a student otherwise is wrong advice.
+        if(r.fromDir){
+          const where = readingsDirName() ? ' “' + readingsDirName() + '”' : '';
+          alert('Your readings folder' + where + ' is not connected right now.\n\nUse Reconnect folder in Settings → Readings — if it is on a thumb drive, plug it back in first.');
+        } else {
+          alert('“' + r.name + '” is not stored in this browser.\n\nLoad it again with ＋ Load readings.');
+        }
+        return;
+      }
+      const name = sanitizeFileName(r.name, r.type);
+      const url = URL.createObjectURL(new Blob([bytes], { type: DL_MIME[r.type] || 'application/octet-stream' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = name; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      logEvent('read', 'downloaded “' + name + '”');
+      toast('Saved ' + name);
+    } catch(e){
+      logEvent('error', 'download reading failed', String((e && e.message) || e));
+      alert('Could not save the file: ' + ((e && e.message) || e));
+    } finally { if(btn){ btn.disabled = false; btn.innerHTML = was; } }
+  }
+
   async function zipReadings(btn){
     const label = btn ? btn.textContent : '';
     const say = t => { if(btn) btn.textContent = t; };
@@ -5903,6 +5969,7 @@ You: Really. The first line only has to exist, not be good.`;
               <button class="vbtn vb-theme" id="viewThemeBtn">◑ Modern</button>
             </div></span>` : ''}
           ${COARSE_POINTER ? `<button class="vbtn vb-capture${marqueeArmed?' on':''}" id="vbCapture" title="Tap, then drag a box around the passage you want to keep. Scrolling comes back as soon as the box is drawn.">${marqueeArmed ? '✕<span class="vb-word"> Cancel</span>' : '💬<span class="vb-word"> Mark passage</span>'}</button>` : ''}
+          ${active ? `<button class="vbtn" id="dlReadingBtn" title="Download this chapter\u2019s file \u2014 the file itself, to keep on a thumb drive or open in another app. Your highlights and notebook are saved separately." aria-label="Download this chapter">\u2913</button>` : ''}
           <button class="vbtn" id="romanoBtn" title="Ask Romano about this chapter." aria-label="Ask Romano">🥫</button>
           <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧<span class="vb-word"> Hide notes</span>' : '◨<span class="vb-word"> Show notes</span>'}<span class="hl-count" id="hlCount"></span></button>
         </div>
@@ -5930,6 +5997,8 @@ You: Really. The first line only has to exist, not be good.`;
     if(da) da.onclick = () => document.getElementById('readInput').click();
     const rb = document.getElementById('romanoBtn');
     if(rb) rb.onclick = () => openRomanoChat('', readPageNum);
+    const dlb = document.getElementById('dlReadingBtn');
+    if(dlb) dlb.onclick = () => downloadActiveReading(dlb);
     // Closes on choosing an item and on a click anywhere else: a popover left open
     // over the page is worse than the two controls it replaced.
     const vBtn = document.getElementById('viewBtn'), vPop = document.getElementById('viewPop');
