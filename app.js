@@ -1386,15 +1386,63 @@ async function runReflection(rf, text, hooks) {
 </style>
 <h1>Conversations with Romano</h1>${h}`;
   }
-  function exportTranscript(btn){
+  // ── Handing a file to the reader ───────────────────────────────────────────
+  // ⚠ TWO THINGS iOS DOES DIFFERENTLY, and the backup must not be the file that finds
+  // out. Both were found in Todd's own iPad backup, 2026-09-08.
+  //
+  // 1. REVOKING TOO SOON. a.click() STARTS a download and returns; the browser reads
+  //    the blob afterwards. Revoking on the very next statement is a race, and on iOS
+  //    Safari it is one the reader loses -- the file arrives empty or not at all.
+  //    (Todd to a student the same day: "Does that generate a file that is larger than
+  //    0MB?") downloadActiveReading already waited 10s. Every other path -- including
+  //    ⤓ Save my work, the one that matters most -- revoked instantly.
+  //
+  // 2. THROWING THE NAME AWAY. iOS Safari ignores a.download for blob: URLs, so the
+  //    file is saved under the blob's UUID. Todd's iPad backup reached the thumb drive
+  //    as "39214aba-57f2-443f-a79e-9915651ba5b4.zip": undateable, unsortable, and
+  //    indistinguishable from the next one. A dated name is the whole point of a
+  //    backup you keep several of. navigator.share hands iOS a real File with a real
+  //    name and offers Save to Files, which is the only way to keep it.
+  //
+  // Share is used ONLY where the anchor is known to lose the name. On a desktop the
+  // anchor IS the right answer and a share sheet would be a worse one.
+  const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  async function saveBlob(blob, name, opts){
+    const quiet = opts && opts.quiet;
+    if(IOS && navigator.canShare){
+      try {
+        const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
+        if(navigator.canShare({ files: [file] })){
+          await navigator.share({ files: [file] });
+          logEvent('save', 'shared “' + name + '”');
+          if(!quiet) toast('Saved ' + name);
+          return true;
+        }
+      } catch(e){
+        // AbortError is the reader tapping Cancel on the share sheet. That is a
+        // decision, not a failure, and it must NOT fall through to a second silent
+        // download they did not ask for.
+        if(e && e.name === 'AbortError'){ logEvent('save', 'share cancelled: ' + name); return false; }
+        logEvent('error', 'share failed, falling back to a download', String((e && e.message) || e));
+      }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+    // ⚠ NOT on the next line, and not 0ms either. See (1) above.
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    logEvent('save', 'downloaded “' + name + '”');
+    if(!quiet) toast('Saved ' + name);
+    return true;
+  }
+
+  async function exportTranscript(btn){
     try{
       const blob = new Blob([buildTranscriptHTML()], { type:'text/html;charset=utf-8' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
       const d = new Date(), pad = n => String(n).padStart(2,'0');
-      a.download = `journaler-conversations-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.html`;
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
-      toast('Saved your conversations.');
+      await saveBlob(blob, `journaler-conversations-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.html`);
     }catch(e){ console.warn('exportTranscript', e); toast('Could not build the file: ' + (e.message||e)); }
   }
   // ── Export everything: the JSON plus the reading FILES, as one zip. Save my work is
@@ -1429,37 +1477,41 @@ async function runReflection(rf, text, hooks) {
       // of CPU for roughly nothing. Packing becomes a copy, which is what makes carrying
       // the readings cheap enough to do on every save.
       const blob = await zip.generateAsync({ type:'blob', compression: 'STORE' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
       // LOCAL date and time, not toISOString: the stamp is for a human sorting their own
       // saves, and UTC would show the wrong hour for most of the day.
       const d = new Date(), pad = n => String(n).padStart(2, '0');
       const stamp = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
-      a.download = 'journaler-284-' + stamp + '.zip';
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+      const fname = 'journaler-284-' + stamp + '.zip';
+      // quiet: this function says more below than saveBlob can -- how many readings
+      // packed, how big, and which ones did not fit. The NAME goes in those messages,
+      // because on an iPad it is the only thing telling two backups apart.
+      if(!await saveBlob(blob, fname, { quiet: true })) return;
       const mb = (packed/1048576).toFixed(1);
       if(missing.length){
         alert('Saved — but ' + missing.length + ' reading' + (missing.length>1?'s':'') +
           ' could NOT be included:\n\n' + missing.join('\n') +
           '\n\nIf these came from a readings folder, reconnect it in the Readings tab and save again. ' +
           'Otherwise load them with ＋ Load readings first.\n\n' +
-          'The ' + n + ' reading' + (n===1?'':'s') + ' that did pack came to ' + mb + ' MB.');
+          'The ' + n + ' reading' + (n===1?'':'s') + ' that did pack came to ' + mb + ' MB.\n' +
+          'Saved as ' + fname + '.');
       } else {
-        toast(n ? `Saved your work and ${n} reading${n>1?'s':''} (${mb} MB).` : 'Saved your work — no readings loaded.');
+        toast(n ? `Saved ${fname} — your work and ${n} reading${n>1?'s':''} (${mb} MB).`
+                : `Saved ${fname} — your work, no readings loaded.`);
       }
     } catch(e){ console.warn('exportEverything', e); toast('Could not build the zip: ' + (e.message||e)); }
     finally { if(btn){ btn.disabled = false; btn.textContent = label; } }
   }
 
   // Restore from a zip: write the reading bytes back under filename-derived ids so the
-  // highlights in the JSON find their pages, THEN hand the JSON to the normal restore.
-  // Opening a file REPLACES everything in this browser, and it is the only destructive
-  // act a student can reach in one click. It used to happen in silence: pick last
-  // month's backup by mistake and a term of writing is gone, no undo, nothing on screen
-  // to say so. Todd, 23 Aug 2026: "we have to be absolutely positive that a student's
-  // work will survive." Updates already do -- localStorage is keyed to the origin and a
-  // deploy never touches it. THIS is the path that loses work, so it now says what it
-  // is about to throw away, what it is about to put there, and counts both.
+  // highlights in the JSON find their pages, THEN hand the JSON to applyIncomingState.
+  // Opening a file no longer has to replace anything -- Add is the default and Replace
+  // is a deliberate second choice -- but Replace is still reachable in one click, and
+  // it used to happen in silence: pick last month's backup by mistake and a term of
+  // writing was gone, no undo, nothing on screen to say so. Todd, 23 Aug 2026: "we have
+  // to be absolutely positive that a student's work will survive." Updates already do --
+  // localStorage is keyed to the origin and a deploy never touches it. THIS is the path
+  // that can still lose work, so confirmReplace says what it is about to throw away,
+  // what it is about to put there, and counts both.
   // ⚠ COUNT THE MARKS TOO (Todd, 2026-08-26). This weighed notebook entries alone and
   // bailed out early on `if(!now) return true`. After marks stopped counting as entries,
   // a browser holding a whole term of marking and no reflections reported ZERO -- so a
@@ -5725,13 +5777,8 @@ You: Really. The first line only has to exist, not be good.`;
         return;
       }
       const name = sanitizeFileName(r.name, r.type);
-      const url = URL.createObjectURL(new Blob([bytes], { type: DL_MIME[r.type] || 'application/octet-stream' }));
-      const a = document.createElement('a');
-      a.href = url; a.download = name; a.rel = 'noopener';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      await saveBlob(new Blob([bytes], { type: DL_MIME[r.type] || 'application/octet-stream' }), name);
       logEvent('read', 'downloaded “' + name + '”');
-      toast('Saved ' + name);
     } catch(e){
       logEvent('error', 'download reading failed', String((e && e.message) || e));
       alert('Could not save the file: ' + ((e && e.message) || e));
@@ -5762,10 +5809,7 @@ You: Really. The first line only has to exist, not be good.`;
       }
       say('Zipping\u2026');
       const blob = await zip.generateAsync({ type: 'blob' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'journaler-284-readings-' + new Date().toISOString().slice(0,10) + '.zip';
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+      await saveBlob(blob, 'journaler-284-readings-' + new Date().toISOString().slice(0,10) + '.zip', { quiet: true });
       logEvent('read', 'downloaded ' + got + ' reading(s) as a zip');
       // Say what did NOT make it. A silently short archive is worse than none: it
       // looks like a backup right up until the moment someone needs it.
@@ -8883,9 +8927,7 @@ You: Really. The first line only has to exist, not be good.`;
   const _dDown = document.getElementById('diagDownload');
   if(_dDown) _dDown.addEventListener('click', async () => {
     const blob = new Blob([await diagnosticsText()], { type:'text/plain' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = 'journaler-diagnostics-' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.txt';
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+    await saveBlob(blob, 'journaler-diagnostics-' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.txt');
   });
   const _dClear = document.getElementById('diagClear');
   if(_dClear) _dClear.addEventListener('click', () => {
