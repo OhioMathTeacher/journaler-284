@@ -33,12 +33,28 @@ Legend: **✓** verified · **✗** fails · **—** untested · **n/a** does no
 | macOS · Chrome | — | — | — | — | — | — |
 | Windows · any | — | — | — | — | — | — |
 | ChromeOS · Chrome | — | — | — | — | — | — |
-| iPad · Safari | — | — | — | — | — | — |
+| iPad · Safari | ✓ | — | ✓ save · — restore | — | ✓ | ✓ |
 | iPhone · Safari | — | — | — | — | — | — |
 
-**Everything above the mobile rows is a boot check only.** Four green ticks in the first column
-means the app loads and reports sane state on Gecko, Blink and WebKit. It says nothing yet about
-the reader, the exports, or the lock.
+**The Linux rows are a boot check only.** Four green ticks in the first column means the app
+loads and reports sane state on Gecko, Blink and WebKit. It says nothing about the reader, the
+exports, or the lock on those machines.
+
+**iPad is the exception, and it is the device with real hours on it** (2026-09-08): chapters
+read, passages marked and the marks recovered intact from an export, focus mode entered and —
+eventually — left. Two of its cells stay open on purpose:
+
+* **Edit-lock — untested, and the one that matters.** See §1. Nothing so far has run a timed
+  gush on a soft keyboard, which is the whole question.
+* **Restore INTO an iPad — untested.** Saving *from* one is verified, and had two bugs found in
+  it the same day (see below), so the round trip is only half proven. `⤒ Open my file` also
+  changed shape in `2026-09-08-245`: it offers to ADD rather than replace, and that path has
+  never run on a touch device.
+
+⚠ **Re-test iPad saving on `2026-09-08-245` or later.** Before it, every file this app handed an
+iPad was named after the blob's UUID rather than dated, and four of the five download paths
+revoked the object URL on the statement after `click()` — a race that on iOS Safari lands an
+empty file. Any earlier "save works on iPad" result was measuring a different app.
 
 ## The five things, in order of what it costs to get them wrong
 

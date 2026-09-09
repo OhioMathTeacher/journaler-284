@@ -118,9 +118,16 @@ phantom bugs that were only ever the browser holding old JavaScript.
 ## Testing
 
 `TESTING.md` is the device checklist. Boot checks pass on Gecko, Blink and WebKit on
-Linux. **Every mobile row is still untested** — that is the open item, not a formality:
-the writing surfaces fill the pane now, and a soft keyboard on a small screen is exactly
-where that could turn out to be the wrong call.
+Linux — boot only; those rows say nothing about the reader or the exports.
+
+**iPad · Safari is the device with real hours on it**: reading, marking, and recovering
+those marks intact from an export. **iPhone is still untested.** Two iPad cells stay open
+deliberately, and the first is the one that matters: the **edit-lock has never run on a
+soft keyboard**. It is a `keydown` handler matching `Backspace`/`Delete`, touch keyboards
+do not reliably emit those, and it is the only graded integrity mechanism in the app — so
+it fails silently or not at all. Restoring a file *into* an iPad is the other; saving from
+one is verified, but `⤒ Open my file` learned to merge rather than replace in
+`2026-09-08-245` and that path has never run on a touch device.
 
 ## Licence
 
