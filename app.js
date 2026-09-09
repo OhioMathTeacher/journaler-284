@@ -301,8 +301,7 @@ function openAbout(which) {
 }
 document.addEventListener('click', e => {
   const t = e.target.closest && e.target.closest('#aboutTabs .set-tab');
-  if(t){ showAboutTab(t.dataset.about); return; }
-  if(e.target.id === 'aboutSafeLink'){ e.preventDefault(); showAboutTab('safe'); }
+  if(t) showAboutTab(t.dataset.about);
 });
 function closeAbout() {
   document.getElementById('aboutOverlay').classList.remove('open');
@@ -3295,8 +3294,30 @@ async function runReflection(rf, text, hooks) {
   }
 
   // Reading view state.
+  // ⚠ DECLARED HERE, not down in the marquee block where it used to live: readSpread
+  // below needs it, and a `const` read before its declaration is a TDZ crash rather
+  // than an undefined. It is a bare media query with no dependencies, so earlier is
+  // always safe.
+  const COARSE_POINTER = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
   let readPageMode = DB.readPageMode || 'continuous';   // 'single' | 'continuous'
-  let readSpread = (DB.readSpread === 2) ? 2 : 1;   // pages shown at once in 'single'
+  // ⚠ TOUCH IS UNTOUCHED BY THIS. Todd, 2026-09-08: "the current app is really best on
+  // iPad, believe it or not. Don't want to mess that up." So the automatic spread is
+  // gated on !COARSE_POINTER and an iPad takes exactly the path it took before -- not
+  // "it would probably collapse back to one page anyway", which is a prediction, but a
+  // branch it never enters, which is a guarantee.
+  //
+  // On a desktop the default was one page at Fit-page, and Fit-page on a wide short
+  // window sizes the sheet to the HEIGHT -- leaving a third of the pane empty on both
+  // sides (Todd, looking at 1045px of pane holding a 735px page: "so much wasted space
+  // on both sides. Why not just have the app span the window"). The app DID span the
+  // window; the page did not. Two pages is what that width is shaped for.
+  //
+  // Safe to default on because _effSpread already MEASURES the pane below and drops
+  // back to one page when two will not fit, so this can only ever take effect where
+  // there is genuinely room for it. An explicit choice still goes to DB.readSpread and
+  // turns the automatic behaviour off for good.
+  const _spreadAuto = DB.readSpread === undefined && !COARSE_POINTER;
+  let readSpread = (DB.readSpread === 2 || _spreadAuto) ? 2 : 1;   // pages shown at once in 'single'
   // What the reader ASKED for is readSpread; what the pane can actually SHOW is
   // _effSpread. They come apart at a fixed zoom, and everything that renders, labels
   // or turns a page uses the effective one -- so a spread that will not fit degrades
@@ -3587,7 +3608,6 @@ async function runReflection(rf, text, hooks) {
   // the always-on behaviour every existing reader already has in their hands.
   // (Ported from journaler-318P build 37, where box capture on an iPad was not awkward
   // but inert -- see the pointer-events note on attachMarquee below.)
-  const COARSE_POINTER = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
   let marqueeArmed = !COARSE_POINTER;
   // Everything that decides whether a drag draws a box or scrolls the page runs through
   // here, so the three can never disagree: the CSS touch-action, the overlay's
@@ -5462,7 +5482,9 @@ You: Really. The first line only has to exist, not be good.`;
           const shown = last > readPageNum
             ? `${tight ? '' : 'Pages '}${pageLabelFor(readPageNum)}–${pageLabelFor(last)}`
             : `${tight ? '' : 'Page '}${pageLabelFor(readPageNum)}`;
-          const squeezed = readSpread === 2 && _effSpread === 1
+          // Only when the reader ASKED for two pages. Under the automatic default this
+          // would sit on every narrow desktop window nagging about a choice nobody made.
+          const squeezed = readSpread === 2 && _effSpread === 1 && !_spreadAuto
             ? `<span class="pdfnav-note">Two pages needs a wider window, or a smaller zoom.</span>` : '';
           return `<button class="pdfnav-btn" id="pgPrev" ${readPageNum<=1?'disabled':''}>‹ Prev</button>`
             + `<span class="pdfnav-lbl">${shown}${tight ? '/' : ' of '}${pageLabelFor(doc.numPages)}</span>`
