@@ -21,7 +21,7 @@
      this sentence.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-09-07-243">
+<link rel="stylesheet" href="app.css?v=2026-09-08-244">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -30,7 +30,11 @@
 </script>
 </head>
 <body>
-<button class="focusbtn exitfocus" id="exitFocus" aria-label="Exit focus">✕<span class="vb-word"> Exit focus (Esc)</span></button>
+<!-- The corner exit, for focus mode OUTSIDE the Readings tab (a timed gush, say),
+     where there is no view bar to hold one. On Readings the exit is #vbExit, in the
+     view bar itself. It carries its word on every device now: "(Esc)" was advice for
+     a keyboard, and the reader who most needs this button is holding an iPad. -->
+<button class="focusbtn exitfocus" id="exitFocus" aria-label="Leave focus" title="Leave focus mode and bring the top bar back (Esc)">✕<span class="vb-word"> Leave focus</span></button>
 
 <div class="topbar">
   <!-- Lotus above an open book, after Todd's reference. Redrawn as SVG rather than traced
@@ -306,8 +310,8 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="readings.js?v=2026-09-07-243"></script>
-<script src="tips.js?v=2026-09-07-243"></script>
-<script src="app.js?v=2026-09-07-243"></script>
+<script src="readings.js?v=2026-09-08-244"></script>
+<script src="tips.js?v=2026-09-08-244"></script>
+<script src="app.js?v=2026-09-08-244"></script>
 </body>
 </html>

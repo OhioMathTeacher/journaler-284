@@ -525,12 +525,11 @@
   body.focus.reading { overflow: hidden; }
   body.focus.reading .frame { max-width: 1900px; padding: 0; height: 100vh;
     display: flex; flex-direction: column; }
-  /* ⚠ .exitfocus is position:fixed (top 14px, right 16px), so whatever is the top row
-     in focus mode has to hold a gap for it. That used to be the shelf. The shelf was
-     deleted in build 186 and this reservation went with it, which dropped the exit
-     button straight onto 🥫 Romano and ◧ Hide notes. The reservation belongs to
-     whatever is underneath, and that is now the view bar. */
-  body.focus.reading .viewbar { padding-right: 172px; }
+  /* The reservation this used to hold (172px, then 84px on touch) is GONE with the
+     thing it was holding room for: on the Readings tab the exit is #vbExit, a button
+     IN this bar, so nothing floats over it any more. .exitfocus keeps its fixed corner
+     only where there is no view bar to put a button in. */
+  body.focus.reading .viewbar { padding-right: 10px; }
   /* ⚠ width:100% IS LOAD-BEARING (Todd, 2026-08-26): "focus still makes the pages
      disappear... no matter what setting". .reader carries `margin: 0 auto`, and an
      AUTO CROSS-AXIS MARGIN cancels align-items:stretch in a flex column -- so once the
@@ -584,17 +583,46 @@
     .reader .viewbar .vbtn, .reader .viewbar .zoomsel, .pdfnav-btn {
       min-height: 44px; padding-top: 8px; padding-bottom: 8px; font-size: 15px; }
     .reader .viewbar .vbtn { padding-left: 14px; padding-right: 14px; min-width: 44px; }
-    /* ✕ alone: "(Esc)" is advice for a device with an Esc key. The button STAYS --
-       focus mode hides the top bar, so this is the only exit that needs no keyboard. */
-    .exitfocus .vb-word { display: none; }
+    /* The word STAYS on touch. It used to be stripped to a bare ✕ here because
+       "(Esc)" is advice for a device with an Esc key -- but the answer to that was to
+       stop saying "(Esc)", not to strip the only label off the only way out. */
     .exitfocus { min-height: 44px; padding: 9px 14px; font-size: 17px; }
-    body.focus.reading .viewbar { padding-right: 84px; }
   }
+  /* ⚠ THE TRAP THIS REPLACES (Todd, 2026-09-08: "I don't see how to get out of focus
+     mode", on an iPad, with no way to reach ⤓ Save my work either). The rules here
+     used to read:
+         body.focus .exitfocus { display: inline-flex; }
+         (pointer: coarse) { body.focus .exitfocus { display: none; } }
+     -- four lines under a comment insisting the button must stay BECAUSE it is the
+     only exit that needs no keyboard. Same specificity, later in the file, so the
+     coarse rule won and the exit vanished on precisely the devices with no Esc key.
+     Every other door shut at the same moment: ◱ Focus lives in .topbar (hidden just
+     above), Escape wants a keyboard, and the fullscreenchange fallback never fires
+     because iOS Safari has no element fullscreen. Reloading was the only way out.
+     Two rules, and neither may be narrowed by device again:
+       · Focus mode ALWAYS shows an exit, on every pointer type.
+       · On Readings that exit is #vbExit, in the view bar -- the one strip focus mode
+         is guaranteed to keep on screen (relocateReaderTools leaves it alone in focus,
+         and the reader fills the viewport, so it cannot scroll away). The corner
+         button would be a second exit there, so it stands down. */
   body.focus .exitfocus { display: inline-flex; }
-  @media (pointer: coarse) {
-    body.focus .exitfocus { display: none; }
-    body.focus.reading .viewbar { padding-right: 10px; }
-  }
+  body.focus.reading .exitfocus { display: none; }
+
+  /* ── Leave focus, in the view bar ──────────────────────────────────────────
+     order:99, NOT source order: relocateReaderTools appends #notesToggle last when the
+     bar comes back into reach, which would leave this button second from the end. */
+  .vb-exit { display: none; }
+  body.focus .viewbar .vb-exit { display: inline-flex; align-items: center; order: 99;
+    font-size: 15px; color: var(--accent); border: 1px solid var(--accent-light);
+    border-radius: 7px; padding: 6px 12px; }
+  body.focus .viewbar .vb-exit:hover { background: var(--comment-bg); }
+  /* ⚠ KEEPS ITS WORD WHERE EVERYTHING ELSE LOSES ONE. body.focus .viewbar .vb-word
+     strips every label on this bar and that is right -- a reader in focus already knows
+     what 🔍 and 💬 do, because they arrived with the words showing. The exit is the
+     exception: it is wanted by someone who does NOT recognise the glyphs, at the moment
+     they are hunting for a way out. Hence .vb-exit-word, which the blanket rule cannot
+     reach. Do not rename it to .vb-word for tidiness. */
+  body.focus .viewbar .vb-exit .vb-exit-word { display: inline; }
 
   @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } .spine { position: static; } .reader { grid-template-columns: 1fr; } .reader .notes { border-left: none; border-top: 1px solid var(--comment-border); display: block; overflow: visible; } .reader .notes .notes-scroll { overflow: visible; max-height: none; } }
 

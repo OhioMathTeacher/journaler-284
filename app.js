@@ -5972,6 +5972,7 @@ You: Really. The first line only has to exist, not be good.`;
           ${active ? `<button class="vbtn" id="dlReadingBtn" title="Download this chapter\u2019s file \u2014 the file itself, to keep on a thumb drive or open in another app. Your highlights and notebook are saved separately." aria-label="Download this chapter">\u2913</button>` : ''}
           <button class="vbtn" id="romanoBtn" title="Ask Romano about this chapter." aria-label="Ask Romano">🥫</button>
           <button class="vbtn" id="notesToggle" title="Show or hide the notes pane. Highlighting keeps working either way.">${notesOpen ? '◧<span class="vb-word"> Hide notes</span>' : '◨<span class="vb-word"> Show notes</span>'}<span class="hl-count" id="hlCount"></span></button>
+          <button class="vbtn vb-exit" id="vbExit" title="Leave focus mode and bring the top bar back — ⚙ Settings (and ⤓ Save my work), ▤ My Progress, and the tabs.">↩<span class="vb-exit-word"> Leave focus</span></button>
         </div>
         <div class="doc" id="docPane">${docBody(active)}</div>
         <aside class="notes">
@@ -5999,6 +6000,8 @@ You: Really. The first line only has to exist, not be good.`;
     if(rb) rb.onclick = () => openRomanoChat('', readPageNum);
     const dlb = document.getElementById('dlReadingBtn');
     if(dlb) dlb.onclick = () => downloadActiveReading(dlb);
+    const xb = document.getElementById('vbExit');
+    if(xb) xb.onclick = () => setFocus(false);
     // Closes on choosing an item and on a click anywhere else: a popover left open
     // over the page is worse than the two controls it replaced.
     const vBtn = document.getElementById('viewBtn'), vPop = document.getElementById('viewPop');
@@ -8346,7 +8349,8 @@ You: Really. The first line only has to exist, not be good.`;
     }));
   }
   document.getElementById('focusToggle').addEventListener('click',()=>setFocus(!body.classList.contains('focus')));
-  document.getElementById('exitFocus').addEventListener('click',()=>setFocus(false));
+  const _xf = document.getElementById('exitFocus');
+  if(_xf) _xf.addEventListener('click',()=>setFocus(false));
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!G.running) setFocus(false); });
   document.addEventListener('fullscreenchange', () => {
     if(!document.fullscreenElement && body.classList.contains('focus')) setFocus(false);
