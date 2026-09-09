@@ -21,7 +21,7 @@
      this sentence.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-09-08-245">
+<link rel="stylesheet" href="app.css?v=2026-09-08-246">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -233,27 +233,130 @@
   <div class="ai-modal about-modal">
     <button class="modal-x" onclick="closeAbout()" aria-label="Close" title="Close">✕</button>
     <h2>About Journaler-284</h2>
-    <p class="about-lead">Where you write for <b>TCE 284</b>. Everything stays on your computer.</p>
+    <p class="about-lead">Where you write for <b>TCE 284</b>. Everything stays on your own
+      device — which is the point, and the catch. <a href="#" id="aboutSafeLink">Keep it safe →</a></p>
 
+    <!-- ⚠ TAB ONE IS THE ONE THAT SAVES SOMEBODY'S TERM, so it is first and it is the
+         default. Tabs hide things; that is what they are for, and it is exactly the risk
+         here. The lead paragraph above therefore carries a permanent pointer into this
+         tab, and nagOnBoot opens the dialog ON this tab rather than trusting anyone to
+         go looking. Do not demote it to make room for something more interesting. -->
+    <div class="set-tabs" id="aboutTabs">
+      <button class="set-tab on" data-about="safe">Keeping your work</button>
+      <button class="set-tab" data-about="why">Why it works this way</button>
+      <button class="set-tab" data-about="ai">Romano &amp; AI</button>
+      <button class="set-tab" data-about="app">About</button>
+    </div>
+
+    <div class="about-pane on" id="about-safe">
     <div class="about-body">
-    <h3>Your work</h3>
-    <p>Saved in this browser as you type. Clearing browser data erases it, and lab machines
-      get wiped — so use <b>⤓ Save my work</b>, which downloads one file holding everything.</p>
+    <h3>Where your work lives</h3>
+    <p>Saved in this browser as you type — not on a server, not in an account. That means
+      it is kept by <i>this browser on this device</i>, and nothing else knows about it.
+      Clearing browser data erases it. Lab machines get wiped. And Safari has a rule of
+      its own, below.</p>
 
-    <h3>Drive or Dropbox?</h3>
-    <p>Yes. Keep that file anywhere and reopen it with <b>⤒ Open my file</b>, on any computer.
-      Your writing, notebook and highlights all come back. Your readings do not — reload the
-      same files with <b>＋ Load readings</b> and your highlights reattach to them.</p>
+    <h3 class="about-alert">⚠ Safari deletes this after a week</h3>
+    <p>Safari — on iPad, iPhone and Mac alike — erases a website’s stored data if you have
+      not opened that site in seven days. It does not warn you, and there is nothing the
+      app can do about it from the inside. Read in Week 1, take a week off, come back to
+      an empty Journaler.</p>
+    <p><b>The fix takes two minutes.</b> Add Journaler to your Home Screen and Safari stops
+      treating it as a website, so the seven-day rule no longer applies:</p>
+    <ul class="about-steps">
+      <li><b>iPad or iPhone:</b> open Journaler in Safari, tap <b>Share</b> (the square with
+        an arrow out of the top), scroll down, tap <b>Add to Home Screen</b>, then
+        <b>Add</b>. From then on, open it from that icon rather than a Safari tab.</li>
+      <li><b>Mac:</b> Safari’s <b>File → Add to Dock</b> does the same job.</li>
+      <li><b>Chrome, Edge or Firefox:</b> nothing to do — they do not sweep storage this way.</li>
+    </ul>
+    <p class="about-fine">The Home Screen copy starts with its own empty storage, so it opens
+      blank at first. If you have work in Safari already, run <b>⤓ Save my work</b> there
+      first, then open the new icon and load that file with <b>⤒ Open my file</b>.</p>
 
-    <h3>AI</h3>
-    <p>Optional, off by default. A local model keeps everything here. A hosted model receives
-      what you ask about, including the page you are reading.</p>
+    <h3>Back it up anyway</h3>
+    <p><b>⤓ Save my work</b> downloads one dated file holding everything — your writing, your
+      notebook, every marked passage. Keep it in Drive, Dropbox, or on a thumb drive, and
+      reopen it with <b>⤒ Open my file</b> on any computer. A backup is the only copy no
+      browser can decide to throw away.</p>
+    <p class="about-fine">Your readings are not in that file by default and do not need to be —
+      reload the same chapter files with <b>＋ Load readings</b> and your highlights reattach
+      to them by filename.</p>
 
+    <h3>Two devices?</h3>
+    <p>Each browser keeps its own copy and they do not sync — read on an iPad and write on a
+      laptop and you have two half-finished notebooks. <b>⤒ Open my file</b> offers to
+      <b>add</b> a file to what is already here rather than replacing it, so you can carry one
+      device’s work to the other and end up with both. Loading the same file twice adds
+      nothing the second time; it can tell what it already has.</p>
+    </div><!-- /.about-body -->
+    </div>
+
+    <div class="about-pane" id="about-why">
+    <div class="about-body">
+    <h3>No account, no server</h3>
+    <p>There is nothing to log into and nothing to sign up for. Your writing never leaves your
+      machine unless you send it somewhere yourself. There is no database of student work
+      behind this app, because there is no database at all.</p>
+
+    <h3>Why that matters here</h3>
+    <p>A writer’s notebook only works if it is candid, and candour needs privacy. You should
+      be able to write something half-formed, or unflattering, or wrong, without wondering
+      who can read it later. Nobody can — not the instructor, not the university, not us.</p>
+
+    <h3>The other half of the bargain</h3>
+    <p>Work that lives only on your device is work only you can lose. There is no “restore from
+      the cloud” here, because there is no cloud. That is the trade, made deliberately: you own
+      it outright, and backing it up is yours to do. Hence the reminders, and hence
+      <b>⤓ Save my work</b> being one file you can put anywhere.</p>
+
+    <h3>One file, no lock-in</h3>
+    <p>That backup is ordinary JSON inside an ordinary zip. It is readable without this app and
+      will outlive it. Nothing here is a format you need our permission to open.</p>
+
+    <h3>No build step, no CDN</h3>
+    <p>The whole app is a handful of plain files served as they are. It runs with the network
+      off, on a school laptop, on a borrowed iPad, in ten years. That is a deliberate limit,
+      not a missing feature.</p>
+    </div><!-- /.about-body -->
+    </div>
+
+    <div class="about-pane" id="about-ai">
+    <div class="about-body">
+    <h3>Optional, and off by default</h3>
+    <p>Journaler works completely without it. Nothing in the course requires the AI reading
+      partner, and no part of your grade depends on having used it.</p>
+
+    <h3>What leaves your machine</h3>
+    <p>A <b>local</b> model keeps everything here — nothing goes out at all. A <b>hosted</b>
+      model receives what you ask about, which includes the passage or the page you are asking
+      about. Nothing else is sent: not your notebook, not your other readings.</p>
+
+    <h3>Marking is not asking</h3>
+    <p>Highlighting a passage and writing what you think about it is note-taking, and it stays
+      note-taking. <b>Ask Romano</b> sits beside that as a separate button you can ignore for
+      the whole term.</p>
+
+    <p class="about-fine">Choose or change the provider under <b>⚙ Settings → AI</b>.</p>
+    </div><!-- /.about-body -->
+    </div>
+
+    <div class="about-pane" id="about-app">
+    <div class="about-body">
     <h3>Our icon</h3>
     <p>A lotus roots in mud and blooms anyway. You go back to what you did not choose, and write
       forward from it. The book is where that happens.</p>
 
+    <h3>New here?</h3>
+    <p>The chapter <b>How to use Journaler (start here)</b> is on your Readings shelf, and the
+      same thing prints as a manual.</p>
+
+    <h3>Something wrong?</h3>
+    <p><b>⚙ Settings → Diagnostics → Copy</b> puts one paste on your clipboard that answers most
+      questions about what your device is doing — build, storage, and what the app can see.
+      Send that along with anything you report.</p>
     </div><!-- /.about-body -->
+    </div>
 
     <div class="about-links">
       <!-- #readme lands on the README itself; without it GitHub opens on the file list. -->
@@ -310,8 +413,8 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="readings.js?v=2026-09-08-245"></script>
-<script src="tips.js?v=2026-09-08-245"></script>
-<script src="app.js?v=2026-09-08-245"></script>
+<script src="readings.js?v=2026-09-08-246"></script>
+<script src="tips.js?v=2026-09-08-246"></script>
+<script src="app.js?v=2026-09-08-246"></script>
 </body>
 </html>

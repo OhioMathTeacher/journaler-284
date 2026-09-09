@@ -6,6 +6,26 @@ python3 tools/probes/run.py undo     # deletes, the undo offer, the toast layer
 python3 tools/probes/run.py pages    # page eviction, note anchoring, canvas memory
 ```
 
+```
+node tools/probes/merge-import.js    # the add-only import merge
+node tools/probes/backup-nag.js      # when the backup reminder fires
+```
+
+These two need **node and nothing else** — no browser, no server. They guard logic whose
+failures are silent, which is why they are tests rather than something to eyeball:
+
+* `merge-import.js` covers the only path in the app that can destroy a student's work.
+  Every mark that goes in comes out, importing the same file twice adds nothing, and a
+  chapter renamed on disk stays one chapter. Point it at two real `journaler-284.json`
+  files with `--archives DIR` to check a specific pair; real archives are never
+  committed (this repo is public).
+* `backup-nag.js` pins down when the reminder speaks. Too eager and students learn to
+  dismiss it, so it is worthless on the day it matters; too shy and we believe we
+  shipped a safety net that does not exist. Neither shows up in ordinary use.
+
+Both pull their functions straight out of `app.js` by name rather than copying them — a
+copy would drift and go on passing.
+
 Needs `python3` and a `chromium`/`chrome` on `PATH`. Nothing else — no npm, no Playwright,
 no packages. Exit code is the number of failed checks, so it works as a gate.
 

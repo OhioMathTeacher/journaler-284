@@ -281,11 +281,29 @@ function updateAIBtn() {
 }
 
 // ── About. Global (inline onclick in index.html), same overlay pattern as the AI modal.
-function openAbout() {
+function showAboutTab(which){
+  document.querySelectorAll('#aboutTabs .set-tab').forEach(b =>
+    b.classList.toggle('on', b.dataset.about === which));
+  document.querySelectorAll('#aboutOverlay .about-pane').forEach(p =>
+    p.classList.toggle('on', p.id === 'about-' + which));
+  // Each pane has its own scroller, and a pane opened after another was scrolled would
+  // otherwise start halfway down.
+  const pane = document.querySelector('#about-' + which + ' .about-body');
+  if(pane) pane.scrollTop = 0;
+}
+// `which` lets a caller land on the tab it means -- the seven-day warning above all,
+// which nobody should have to go hunting for. Defaults to the first tab.
+function openAbout(which) {
   const b = document.getElementById('aboutBuild');
   if (b) b.textContent = BUILD;
+  showAboutTab(typeof which === 'string' ? which : 'safe');
   document.getElementById('aboutOverlay').classList.add('open');
 }
+document.addEventListener('click', e => {
+  const t = e.target.closest && e.target.closest('#aboutTabs .set-tab');
+  if(t){ showAboutTab(t.dataset.about); return; }
+  if(e.target.id === 'aboutSafeLink'){ e.preventDefault(); showAboutTab('safe'); }
+});
 function closeAbout() {
   document.getElementById('aboutOverlay').classList.remove('open');
 }
@@ -1498,6 +1516,10 @@ async function runReflection(rf, text, hooks) {
         toast(n ? `Saved ${fname} — your work and ${n} reading${n>1?'s':''} (${mb} MB).`
                 : `Saved ${fname} — your work, no readings loaded.`);
       }
+      // ⚠ Only here, and only after saveBlob actually returned true. Marking the work
+      // safe when the file never reached the reader is the one bug that would make this
+      // whole system worse than nothing: it would go quiet exactly when it was wrong.
+      recordBackup();
     } catch(e){ console.warn('exportEverything', e); toast('Could not build the zip: ' + (e.message||e)); }
     finally { if(btn){ btn.disabled = false; btn.textContent = label; } }
   }
@@ -1540,6 +1562,119 @@ async function runReflection(rf, text, hooks) {
                'Replace everything?');
     return confirm(lines.join('\n'));
   }
+  // ═══ Reminding a student to back up ════════════════════════════════════════
+  // Carlos Zevallos, end of Week 2, 2026-09-08: "all of my progress has disappeared,
+  // including my freewrites and notebook entries." Nothing in the app was broken. He
+  // was on a browser that sweeps site storage after seven days away, and had never
+  // found ⤓ Save my work -- it is two levels down in ⚙ Settings → My work. His own
+  // conclusion, and the reason this exists: "it would be a good idea to add a nag
+  // screen so people, especially later in the semester, don't run into a similar
+  // issue."
+  //
+  // ⚠ NOT ON EVERY LAUNCH. Todd asked whether it should be; it should not. A reminder
+  // that fires every time is wallpaper inside a week, and then it is dismissed
+  // reflexively on the one day it mattered. It also fires when a student has JUST
+  // ARRIVED and made nothing, which teaches them the app cries wolf. The trigger is
+  // WORK AT RISK -- what has been made since the last backup -- so a reader who has
+  // just marked a dozen passages is asked and a reader who has done nothing is not.
+  //
+  // The one exception is the seven-day sweep, which can only be caught at launch,
+  // because that is the only moment we get to run at all. See nagOnBoot.
+  const NAG_SNOOZE_KEY = 'cr284_nag_snoozed';   // this session only
+  function recordBackup(){
+    DB.lastBackup = { ts: Date.now(), marks: countMarks(DB), entries: (DB.journal || []).length };
+    saveDB();
+    const el = document.getElementById('backupNag'); if(el) el.remove();
+  }
+  // What would be lost if this browser's storage went away right now.
+  function workAtRisk(){
+    const b = DB.lastBackup;
+    const marks = countMarks(DB), entries = (DB.journal || []).length;
+    if(!b) return { marks, entries, days: null, never: true };
+    return { marks: Math.max(0, marks - (b.marks || 0)),
+             entries: Math.max(0, entries - (b.entries || 0)),
+             days: Math.floor((Date.now() - (b.ts || 0)) / 86400000), never: false };
+  }
+  function isStandalone(){
+    return !!(window.navigator.standalone ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
+  }
+  // Safari -- not Chrome or Edge wearing a WebKit engine on iOS, both of which are
+  // still Safari underneath and swept the same way. The test is the ENGINE.
+  const WEBKIT_SWEEPS = (IOS || /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent))
+                        && !isStandalone();
+
+  function nagBanner(html, actionLabel, onAction){
+    let el = document.getElementById('backupNag');
+    if(el) el.remove();
+    el = document.createElement('div');
+    el.id = 'backupNag';
+    el.innerHTML = `<div class="nag-text">${html}</div>
+      <div class="nag-btns"><button class="nag-go">${escHtml(actionLabel)}</button>
+      <button class="nag-x" aria-label="Not now" title="Not now">✕</button></div>`;
+    el.querySelector('.nag-go').onclick = () => { el.remove(); onAction(); };
+    el.querySelector('.nag-x').onclick = () => {
+      el.remove();
+      try { sessionStorage.setItem(NAG_SNOOZE_KEY, '1'); } catch(e){}
+      logEvent('save', 'backup reminder dismissed');
+    };
+    document.body.appendChild(el);
+  }
+  // The reminder OPENS the thing it is nagging about. Pointing at ⚙ Settings → My work
+  // is what let Carlos go two weeks without finding it.
+  function nagAction(){
+    openSettings();
+    const t = document.querySelector('#setTabs .set-tab[data-set="work"]');
+    if(t) t.click();
+    setTimeout(() => { const b = document.getElementById('saveWorkBtn'); if(b) b.focus(); }, 60);
+  }
+  let _nagShown = false;
+  function maybeNagBackup(){
+    if(_nagShown) return;
+    try { if(sessionStorage.getItem(NAG_SNOOZE_KEY)) return; } catch(e){}
+    if(document.getElementById('backupNag')) return;
+    const r = workAtRisk();
+    // ⚠ ONE NOTEBOOK ENTRY IS ENOUGH ON ITS OWN. The entry is the graded artifact of
+    // this course and represents a sitting's writing; a mark is a line someone liked.
+    // Weighted at 8 against a threshold of 8, so a single unsaved entry speaks up while
+    // seven unsaved marks still wait for the eighth. Do not lower this to make the
+    // reminder rarer -- make it rarer by making backing up easier.
+    const worth = r.marks + r.entries * 8;
+    // Nothing made since the last backup is nothing to warn about, however long ago
+    // it was -- a reader who has not written this week does not need chasing.
+    if(worth < 8 && !(r.days !== null && r.days >= 7 && worth > 0)) return;
+    const bits = [];
+    if(r.marks) bits.push('<b>' + r.marks + '</b> marked passage' + (r.marks === 1 ? '' : 's'));
+    if(r.entries) bits.push('<b>' + r.entries + '</b> notebook entr' + (r.entries === 1 ? 'y' : 'ies'));
+    const what = bits.join(' and ');
+    const since = r.never ? 'You have not saved a backup yet.'
+      : r.days >= 1 ? `Your last backup was ${r.days} day${r.days === 1 ? '' : 's'} ago.`
+      : 'Since your last backup,';
+    _nagShown = true;
+    logEvent('save', 'backup reminder shown', { marks: r.marks, entries: r.entries, days: r.days });
+    nagBanner(`${since} ${r.days === 0 && !r.never ? 'you have added' : 'You have'} ${what}
+      that ${r.marks + r.entries === 1 ? 'exists' : 'exist'} only in this browser.`,
+      '⤓ Save my work', nagAction);
+  }
+  // ⚠ THE ONE LAUNCH-TIME NAG, and it earns the slot because there is no other moment
+  // to catch it in: Safari erases a site's storage after seven days without a visit,
+  // and we cannot run code during those seven days to warn anybody. So the warning has
+  // to fire on the way back IN, while there is still something to lose. Adding the app
+  // to the Home Screen exempts it, which is the actual fix -- the backup is the belt
+  // and this is the braces.
+  function nagOnBoot(){
+    const last = DB.lastVisit;
+    DB.lastVisit = Date.now(); saveDB();
+    if(!WEBKIT_SWEEPS) return;
+    if(!countMarks(DB) && !(DB.journal || []).length) return;   // nothing here to lose
+    const away = last ? Math.floor((Date.now() - last) / 86400000) : 0;
+    if(away < 4) return;
+    logEvent('save', 'seven-day storage warning shown', { daysAway: away });
+    nagBanner(`You were away <b>${away} days</b>. Safari erases a site’s saved work after
+      <b>seven</b> days away — add Journaler to your Home Screen and it stops doing that.`,
+      'Show me how', () => openAbout('safe'));
+  }
+
   // ═══ Bringing another archive INTO this one ════════════════════════════════
   // ⚠ THIS IS THE ONLY PATH IN THE APP THAT CAN DESTROY WORK, and until now it had
   // exactly one behaviour: overwrite everything in this browser. confirmReplace could
@@ -8571,7 +8706,7 @@ You: Really. The first line only has to exist, not be good.`;
   // controls lodged in the top bar strands them there — they live outside #frame by
   // then, so the wipe that replaces the reading cannot take them along, and they sit on
   // Tips offering to hide a notes pane that is not on screen. Measured: 23 nodes.
-  function show(t){ tab=t; document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); body.classList.toggle('reading', t==='read'); R[t](); paintInsMarker(); _vbReach = null; relocateReaderTools(body.classList.contains('focus')); }
+  function show(t){ maybeNagBackup(); tab=t; document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); body.classList.toggle('reading', t==='read'); R[t](); paintInsMarker(); _vbReach = null; relocateReaderTools(body.classList.contains('focus')); }
   document.querySelectorAll('#tabbar button').forEach(b=>b.addEventListener('click',()=>{ if(G.running)return; show(b.dataset.t); }));
   // ⚠ FOCUS MUST ASK FOR THE RE-RENDER (Todd, 2026-08-26): "when I click focus button
   // on this page, the pages disappear." Toggling the class changes the reader's width
@@ -8948,6 +9083,8 @@ You: Really. The first line only has to exist, not be good.`;
   // so it cannot resurface on the next ordinary reload. A reader who merged two archives
   // has to be TOLD what arrived; the whole point is that nothing was replaced, which is
   // exactly the outcome that looks like nothing happened.
+  try { nagOnBoot(); } catch(e){ console.warn('nagOnBoot', e); }
+
   try {
     const note = sessionStorage.getItem('cr284_import_note');
     if(note){ sessionStorage.removeItem('cr284_import_note'); setTimeout(() => toast(note), 400); }
