@@ -284,7 +284,15 @@
      white void. Capping the READER means the column never exceeds what a sensible scale
      fills, so the page fills its column and the leftover sits outside the box as ordinary
      page margin. minmax(0,1fr) so a wide page scrolls instead of blowing out the grid. */
-  .reader { display: grid; grid-template-columns: 0 minmax(0, 1fr) 360px; grid-template-rows: auto 1fr; gap: 0; border: 1px solid var(--comment-border); border-radius: 8px; overflow: hidden; min-height: 70vh; max-width: 1900px; margin: 0 auto; container-name: reader; container-type: inline-size; }
+  /* ⚠ NO max-width HERE. It was 1900px with margin:0 auto, which on any monitor wider
+     than that parked the whole reader in the middle with dead parchment down both
+     sides -- 330px each on a 2560 screen (Todd: "there IS more room on each side of
+     this fucking app"). Worse, the pane inside was then too narrow for two pages, so
+     the bar sat there reading "Two pages needs a wider window" while 660px of window
+     went unused beside it. The cap and the complaint were the same bug.
+     The prose tabs are NOT affected: .reader wraps the Readings view only, and Tips,
+     Freewrite and Notebook keep their own measure elsewhere. */
+  .reader { display: grid; grid-template-columns: 0 minmax(0, 1fr) 360px; grid-template-rows: auto 1fr; gap: 0; border: 1px solid var(--comment-border); border-radius: 8px; overflow: hidden; min-height: 70vh; container-name: reader; container-type: inline-size; }
   /* overflow-x too: at 150-200% zoom the page is deliberately wider than its column,
      and without this it was clipped with no way to scroll to the rest of the line. */
   /* min-height:0 — a grid item defaults to min-height:auto, which refuses to shrink
@@ -292,6 +300,13 @@
      .reader's overflow:hidden chopped the bottom off. The pane is the scroller; it has
      to be allowed to be shorter than what it holds. (Todd, 2026-08-26.) */
   .reader .doc { background: #fff; padding: 26px clamp(20px,4vw,64px); overflow: auto; min-height: 0; }
+  /* ⚠ WIDE SCREENS ONLY, so a tablet keeps the gutter it has. 4vw is 55px a side on an
+     iPad in landscape and 64px (clamped) on a desktop -- generous on the one, a
+     page-and-a-bit of waste on the other. Narrowing it unconditionally would have
+     changed the iPad too, and the iPad is the thing that already works
+     (Todd: "the current app is really best on iPad, don't want to mess that up").
+     1500px is above every iPad's landscape width, so nothing touch-sized enters here. */
+  @media (min-width: 1500px) { .reader .doc { padding-left: 48px; padding-right: 48px; } }
 
   /* A white sheet on a white surround has no edge — the page just dissolves into the
      pane. Every serious PDF reader puts a neutral behind the page for exactly this
