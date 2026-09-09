@@ -74,7 +74,11 @@
      width is a page. Multi-column rather than a grid, so the sections flow into
      whichever column has room instead of being assigned one each. */
   .ai-modal.about-modal { width: min(940px, calc(100vw - 2rem));
-    max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem);
+    /* ⚠ HEIGHT, not max-height: the panes are different lengths, and sizing to
+       whichever one is open made the dialog shrink as you moved along the tabs --
+       footer and ✕ walking up the screen on every click. Fixed, so the chrome parks
+       and the pane scrolls inside it. min() still lets a short window win. */
+    height: min(780px, calc(100vh - 2rem)); height: min(780px, calc(100dvh - 2rem));
     display: flex; flex-direction: column; }
   .about-body { columns: 2; column-gap: 32px; overflow-y: auto; min-height: 0; margin-bottom: 4px; }
   /* A heading must not be the last thing in a column, and a paragraph must not be
@@ -2118,3 +2122,14 @@ a.rr-t:hover { border-bottom-color: currentColor; }
   #backupNag { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px; bottom: 16px; }
   #backupNag .nag-btns { justify-content: flex-end; }
 }
+
+/* ⚠ THE PANES MUST HIDE. .about-pane reuses the Settings TAB markup (.set-tabs /
+   .set-tab) but NOT .set-pane, so it needs its own show/hide -- without these two
+   rules every tab renders at once, which is precisely what shipped in the first
+   draft and what a screenshot caught after a DOM test had passed: that test asserted
+   the classes toggled, and classes toggling is not the same as anything being hidden.
+   The pane is a flex column so .about-body inside it keeps its own scrollbar; an
+   ordinary block here breaks the chain from .about-modal and the whole dialog grows
+   past the viewport instead. */
+.about-pane { display: none; }
+.about-pane.on { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }

@@ -21,7 +21,7 @@
      this sentence.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-09-08-246">
+<link rel="stylesheet" href="app.css?v=2026-09-08-247">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -234,15 +234,18 @@
     <button class="modal-x" onclick="closeAbout()" aria-label="Close" title="Close">✕</button>
     <h2>About Journaler-284</h2>
     <p class="about-lead">Where you write for <b>TCE 284</b>. Everything stays on your own
-      device — which is the point, and the catch. <a href="#" id="aboutSafeLink">Keep it safe →</a></p>
+      device — which is the point, and the catch.</p>
 
     <!-- ⚠ TAB ONE IS THE ONE THAT SAVES SOMEBODY'S TERM, so it is first and it is the
-         default. Tabs hide things; that is what they are for, and it is exactly the risk
-         here. The lead paragraph above therefore carries a permanent pointer into this
-         tab, and nagOnBoot opens the dialog ON this tab rather than trusting anyone to
-         go looking. Do not demote it to make room for something more interesting. -->
+         default. Tabs hide things; that is what they are for, and it is exactly the
+         risk with this one. nagOnBoot calls openAbout('safe') so nobody has to go
+         looking. Do not demote it to make room for something more interesting.
+         It was also the LONGEST tab, by a distance, until backups and devices moved
+         out to their own -- a first tab that scrolls twice as far as any other is one
+         people stop reading a third of the way down. -->
     <div class="set-tabs" id="aboutTabs">
       <button class="set-tab on" data-about="safe">Keeping your work</button>
+      <button class="set-tab" data-about="backups">Backups</button>
       <button class="set-tab" data-about="why">Why it works this way</button>
       <button class="set-tab" data-about="ai">Romano &amp; AI</button>
       <button class="set-tab" data-about="app">About</button>
@@ -251,18 +254,18 @@
     <div class="about-pane on" id="about-safe">
     <div class="about-body">
     <h3>Where your work lives</h3>
-    <p>Saved in this browser as you type — not on a server, not in an account. That means
-      it is kept by <i>this browser on this device</i>, and nothing else knows about it.
-      Clearing browser data erases it. Lab machines get wiped. And Safari has a rule of
-      its own, below.</p>
+    <p>Saved in this browser as you type — not on a server, not in an account. It is kept
+      by <i>this browser on this device</i>, and nothing else knows about it. Clearing
+      browser data erases it, and lab machines get wiped.</p>
 
     <h3 class="about-alert">⚠ Safari deletes this after a week</h3>
     <p>Safari — on iPad, iPhone and Mac alike — erases a website’s stored data if you have
-      not opened that site in seven days. It does not warn you, and there is nothing the
-      app can do about it from the inside. Read in Week 1, take a week off, come back to
-      an empty Journaler.</p>
-    <p><b>The fix takes two minutes.</b> Add Journaler to your Home Screen and Safari stops
-      treating it as a website, so the seven-day rule no longer applies:</p>
+      not opened that site in seven days. It does not warn you, and the app cannot stop it
+      from the inside. Read in Week 1, take a week off, come back to an empty Journaler.</p>
+
+    <h3>The fix takes two minutes</h3>
+    <p>Add Journaler to your Home Screen. Safari stops treating it as a website, and the
+      seven-day rule no longer applies.</p>
     <ul class="about-steps">
       <li><b>iPad or iPhone:</b> open Journaler in Safari, tap <b>Share</b> (the square with
         an arrow out of the top), scroll down, tap <b>Add to Home Screen</b>, then
@@ -273,22 +276,33 @@
     <p class="about-fine">The Home Screen copy starts with its own empty storage, so it opens
       blank at first. If you have work in Safari already, run <b>⤓ Save my work</b> there
       first, then open the new icon and load that file with <b>⤒ Open my file</b>.</p>
+    </div><!-- /.about-body -->
+    </div>
 
+    <div class="about-pane" id="about-backups">
+    <div class="about-body">
     <h3>Back it up anyway</h3>
     <p><b>⤓ Save my work</b> downloads one dated file holding everything — your writing, your
       notebook, every marked passage. Keep it in Drive, Dropbox, or on a thumb drive, and
       reopen it with <b>⤒ Open my file</b> on any computer. A backup is the only copy no
       browser can decide to throw away.</p>
-    <p class="about-fine">Your readings are not in that file by default and do not need to be —
-      reload the same chapter files with <b>＋ Load readings</b> and your highlights reattach
-      to them by filename.</p>
+
+    <h3>How often?</h3>
+    <p>After anything you would not want to write again. Journaler reminds you when enough
+      has piled up since your last one, but the reminder is a safety net, not a schedule.</p>
 
     <h3>Two devices?</h3>
     <p>Each browser keeps its own copy and they do not sync — read on an iPad and write on a
       laptop and you have two half-finished notebooks. <b>⤒ Open my file</b> offers to
-      <b>add</b> a file to what is already here rather than replacing it, so you can carry one
-      device’s work to the other and end up with both. Loading the same file twice adds
-      nothing the second time; it can tell what it already has.</p>
+      <b>add</b> a file to what is already here rather than replacing it, so you can carry
+      one device’s work to the other and end up with both.</p>
+    <p>Loading the same file twice adds nothing the second time; it can tell what it already
+      has. Only something genuinely changed in both places is ever a question, and it asks
+      once for all of them rather than once each.</p>
+
+    <p class="about-fine">Your readings are not in that file by default and do not need to be —
+      reload the same chapter files with <b>＋ Load readings</b> and your highlights reattach
+      to them by filename.</p>
     </div><!-- /.about-body -->
     </div>
 
@@ -307,8 +321,7 @@
     <h3>The other half of the bargain</h3>
     <p>Work that lives only on your device is work only you can lose. There is no “restore from
       the cloud” here, because there is no cloud. That is the trade, made deliberately: you own
-      it outright, and backing it up is yours to do. Hence the reminders, and hence
-      <b>⤓ Save my work</b> being one file you can put anywhere.</p>
+      it outright, and backing it up is yours to do.</p>
 
     <h3>One file, no lock-in</h3>
     <p>That backup is ordinary JSON inside an ordinary zip. It is readable without this app and
@@ -413,8 +426,8 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="readings.js?v=2026-09-08-246"></script>
-<script src="tips.js?v=2026-09-08-246"></script>
-<script src="app.js?v=2026-09-08-246"></script>
+<script src="readings.js?v=2026-09-08-247"></script>
+<script src="tips.js?v=2026-09-08-247"></script>
+<script src="app.js?v=2026-09-08-247"></script>
 </body>
 </html>
