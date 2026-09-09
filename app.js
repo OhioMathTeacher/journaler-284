@@ -1488,6 +1488,228 @@ async function runReflection(rf, text, hooks) {
                'Replace everything?');
     return confirm(lines.join('\n'));
   }
+  // ═══ Bringing another archive INTO this one ════════════════════════════════
+  // ⚠ THIS IS THE ONLY PATH IN THE APP THAT CAN DESTROY WORK, and until now it had
+  // exactly one behaviour: overwrite everything in this browser. confirmReplace could
+  // warn but never offer a way through -- the choices were destroy or cancel.
+  //
+  // Todd, 2026-09-08, holding two of his own archives: 23 marked passages made on an
+  // iPad, 100 made on a laptop, ZERO overlap, and no way to end up with 123.
+  // localStorage is per-browser, so this is not an edge case: every student who reads
+  // on a tablet and writes on a laptop has two stores that can only diverge, and the
+  // only tool we gave them for it threw one of the two away.
+  //
+  // Add is the DEFAULT and Replace is the deliberate second choice. Replace stays for
+  // the case it was written for: restoring onto a machine that has nothing.
+  function sameJSON(a, b){ try { return JSON.stringify(a) === JSON.stringify(b); } catch(e){ return false; } }
+
+  // ⚠ A RENAMED FILE IS STILL THE SAME CHAPTER. Ids come from the FILENAME
+  // (readingIdForName), so renaming a PDF mints a new id and the marks stay behind on
+  // the old one -- present in the JSON, attached to a reading no longer on the shelf,
+  // and invisible. Found in Todd's own archives, 2026-09-08: 40 marked passages across
+  // two renamed chapters. migrateReadingIds cannot repair it, because it skips any id
+  // already starting with 'f:' -- these ids are stale, not malformed.
+  function canonicalizeIds(state){
+    const st = JSON.parse(JSON.stringify(state || {}));
+    const remap = {};
+    (st.readings || []).forEach(r => {
+      if(!r || !r.name || r.builtin) return;
+      const nid = readingIdForName(r.name);
+      if(r.id === nid) return;
+      // Never fold two readings into one: if the destination is taken, leave it alone.
+      if((st.readings || []).some(o => o !== r && o.id === nid)) return;
+      remap[r.id] = nid; r.legacyId = r.id; r.id = nid;
+    });
+    ['highlights','qa','rosterMap','readingHashes','readingNames'].forEach(key => {
+      const d = st[key];
+      if(!d || typeof d !== 'object') return;
+      Object.keys(remap).forEach(old => {
+        const nid = remap[old];
+        if(d[old] && !d[nid]){ d[nid] = d[old]; delete d[old]; }
+      });
+    });
+    return { state: st, remap };
+  }
+
+  // Everything merged here carries a STABLE id minted when it was made -- 'h…' for a
+  // mark, 'q…' for a Romano turn, an entry id for a notebook piece. Same id in both
+  // archives IS the same object, so "already have this" is an identity test rather
+  // than a guess at similarity. That is what makes an add-only import exact.
+  function mergeById(mineList, theirList, ctx, conflicts){
+    const out = Array.isArray(mineList) ? mineList.slice() : [];
+    const at = new Map(); out.forEach((x, i) => { if(x && x.id != null) at.set(x.id, i); });
+    let added = 0;
+    (theirList || []).forEach(t => {
+      const id = t && t.id;
+      if(id == null){ out.push(t); added++; return; }          // no id: cannot dedupe, keep it
+      if(!at.has(id)){ at.set(id, out.length); out.push(t); added++; return; }
+      const i = at.get(id);
+      if(!sameJSON(out[i], t)) conflicts.push({ ...ctx, id, mine: out[i], theirs: t, take(){ out[i] = t; } });
+    });
+    return { list: out, added };
+  }
+
+  // Key/value stores -- turn-ins, the open-page freewrite, currere. An empty slot on
+  // this side is not a conflict, it is a gap the other archive can fill.
+  function mergeMap(mineMap, theirMap, ctx, conflicts){
+    const out = Object.assign({}, mineMap || {});
+    let added = 0;
+    Object.keys(theirMap || {}).forEach(k => {
+      const have = out[k];
+      if(have == null || have === ''){ out[k] = theirMap[k]; added++; return; }
+      if(!sameJSON(have, theirMap[k])) conflicts.push({ ...ctx, id: k, mine: have, theirs: theirMap[k], take(){ out[k] = theirMap[k]; } });
+    });
+    return { map: out, added };
+  }
+
+  const MERGE_PER_READING = ['highlights', 'qa'];
+  const MERGE_LISTS = ['journal', 'threads'];
+  const MERGE_MAPS  = ['turnin', 'freewrite', 'currere', 'notebook', 'rosterMap', 'readingHashes', 'readingNames'];
+  // Settings, not work. Whatever this browser already says wins; a blank takes theirs.
+  const MERGE_SCALARS = ['name', 'theme', 'readPageMode', 'readZoom', 'readSpread', 'pdfCaptureMode'];
+
+  // Pure: takes two states, returns a third. Nothing is written and nothing is asked
+  // here, so the caller can run it as a DRY RUN, show the reader what would happen, and
+  // only then decide. Conflicts come back unresolved, each with a take() that switches
+  // that one item to the incoming version.
+  function mergeStates(mine, theirs){
+    const conflicts = [];
+    const added = { marks: 0, entries: 0, threads: 0, readings: 0, other: 0 };
+    // ⚠ BOTH SIDES, not just the incoming one. Canonicalising only the file left this
+    // browser's own stale ids in place, so a chapter renamed on disk arrived under its
+    // real id, failed to match the stale one already on the shelf, and forked into a
+    // SECOND copy of the same chapter -- with the marks split across the two. Worse,
+    // re-importing the same file then added its marks all over again, because the ids
+    // it should have collided with were no longer there. Caught by the idempotence
+    // check in tools/probes/merge-import.js, which is why that check exists.
+    const m = canonicalizeIds(mine).state;
+    const t = canonicalizeIds(theirs).state;
+
+    MERGE_PER_READING.forEach(key => {
+      const mineD = m[key] = m[key] || {}, theirD = t[key] || {};
+      Object.keys(theirD).forEach(rid => {
+        const r = mergeById(mineD[rid], theirD[rid], { key, rid }, conflicts);
+        mineD[rid] = r.list;
+        if(key === 'highlights') added.marks += r.added; else added.other += r.added;
+      });
+    });
+    MERGE_LISTS.forEach(key => {
+      const r = mergeById(m[key], t[key], { key }, conflicts);
+      m[key] = r.list;
+      if(key === 'journal') added.entries += r.added; else added.threads += r.added;
+    });
+    MERGE_MAPS.forEach(key => {
+      const r = mergeMap(m[key], t[key], { key }, conflicts);
+      m[key] = r.map; added.other += r.added;
+    });
+
+    // The shelf: union by id, keeping this browser's order and appending what is new.
+    const shelf = Array.isArray(m.readings) ? m.readings.slice() : [];
+    const have = new Set(shelf.map(r => r && r.id));
+    (t.readings || []).forEach(r => { if(r && !have.has(r.id)){ have.add(r.id); shelf.push(r); added.readings++; } });
+    m.readings = shelf;
+
+    MERGE_SCALARS.forEach(k => { if((m[k] == null || m[k] === '') && t[k] != null && t[k] !== '') m[k] = t[k]; });
+    // An INDEX into a list whose length just changed, so it cannot be carried over.
+    m.activeReading = Math.min(m.activeReading || 0, Math.max(0, m.readings.length - 1));
+    m._readingIdsV2 = true;   // ids are canonical already; do not re-migrate
+    return { merged: m, added, conflicts };
+  }
+
+  // ── The two dialogs ────────────────────────────────────────────────────────
+  function modalChoice(title, bodyHtml, buttons){
+    return new Promise(resolve => {
+      const ov = document.createElement('div');
+      ov.className = 'ai-modal-overlay open';
+      ov.innerHTML = `<div class="ai-modal import-modal"><h2>${escHtml(title)}</h2>${bodyHtml}
+        <div class="ai-modal-actions">${buttons.map((b, i) =>
+          `<button data-i="${i}" class="${b.cls || ''}">${escHtml(b.label)}</button>`).join('')}</div></div>`;
+      const done = v => { ov.remove(); resolve(v); };
+      ov.querySelectorAll('.ai-modal-actions button').forEach(b =>
+        b.onclick = () => done(buttons[+b.dataset.i].value));
+      ov.addEventListener('click', e => { if(e.target === ov) done(null); });
+      document.body.appendChild(ov);
+    });
+  }
+
+  // ⚠ The counts are the whole point of this dialog. "Add" and "Replace" mean nothing
+  // in the abstract; 100 against 23 against 123 is a decision anybody can make.
+  async function chooseImportMode(incoming){
+    const dry = mergeStates(DB, incoming);
+    const nowE = (DB.journal || []).length, nowM = countMarks(DB);
+    const nextE = (incoming.journal || []).length, nextM = countMarks(incoming);
+    const mergedM = countMarks(dry.merged), mergedE = (dry.merged.journal || []).length;
+    const row = (a, b, c) => `<tr><td>${a}</td><td>${b}</td><td>${c}</td></tr>`;
+    const body = `<p class="im-lead">This file was saved from another browser or another
+        device. Adding keeps everything you already have here.</p>
+      <table class="im-table"><thead><tr><th></th><th>marked passages</th><th>notebook entries</th></tr></thead><tbody>
+        ${row('In this browser now', nowM, nowE)}
+        ${row('In the file you chose', nextM, nextE)}
+        ${row('<b>If you add</b>', '<b>' + mergedM + '</b>', '<b>' + mergedE + '</b>')}
+      </tbody></table>
+      ${dry.conflicts.length ? `<p class="im-warn">${dry.conflicts.length} item${dry.conflicts.length === 1 ? '' : 's'}
+         exist in both and differ. You will be asked about those next.</p>` : ''}
+      <p class="im-note">Replacing throws away everything in this browser
+         (${nowM} marked passage${nowM === 1 ? '' : 's'}, ${nowE} notebook
+         entr${nowE === 1 ? 'y' : 'ies'}) and cannot be undone.</p>`;
+    return modalChoice('Open your work', body, [
+      { label: 'Cancel', value: null },
+      { label: 'Replace everything', value: 'replace', cls: 'im-danger' },
+      { label: 'Add to my work', value: 'add', cls: 'im-primary' }
+    ]);
+  }
+
+  // One question for ALL of them, not one per item (Todd: "the ability to say replace
+  // all without having to specify every single one"). Keeping yours is the default and
+  // the safe answer, so it is also what closing the dialog does.
+  async function resolveConflicts(conflicts){
+    const kinds = {};
+    conflicts.forEach(c => { const k = c.key === 'highlights' ? 'marked passage'
+      : c.key === 'qa' ? 'Romano exchange' : c.key === 'journal' ? 'notebook entry' : c.key;
+      kinds[k] = (kinds[k] || 0) + 1; });
+    const body = `<p class="im-lead">These exist in both, with different content.
+        Which version do you want to keep?</p>
+      <ul class="im-list">${Object.keys(kinds).map(k =>
+        `<li><b>${kinds[k]}</b> ${escHtml(k)}${kinds[k] === 1 ? '' : 's'}</li>`).join('')}</ul>
+      <p class="im-note">This choice applies to all of them. Nothing else in the file is
+        affected — everything that exists on only one side is added either way.</p>`;
+    const pick = await modalChoice('Kept in both places', body, [
+      { label: 'Keep mine', value: 'mine', cls: 'im-primary' },
+      { label: 'Use the file’s version for all', value: 'theirs' }
+    ]);
+    if(pick === 'theirs') conflicts.forEach(c => c.take());
+    return true;
+  }
+
+  // The single door every import goes through: the zip path and the bare-JSON path
+  // both end here, so neither can drift into its own answer to "what happens to what
+  // is already in this browser".
+  async function applyIncomingState(st){
+    const mode = await chooseImportMode(st);
+    if(!mode) return false;
+    if(mode === 'replace'){
+      if(!confirmReplace(st)) return false;
+      localStorage.setItem(LS_KEY, JSON.stringify(st));
+      location.reload();
+      return true;
+    }
+    const res = mergeStates(DB, st);
+    if(res.conflicts.length) await resolveConflicts(res.conflicts);
+    // take() mutated the arrays inside res.merged, so this already IS the answer.
+    localStorage.setItem(LS_KEY, JSON.stringify(res.merged));
+    logEvent('save', 'merged an archive into this browser', {
+      marks: res.added.marks, entries: res.added.entries, readings: res.added.readings,
+      conflicts: res.conflicts.length });
+    const bits = [];
+    if(res.added.marks) bits.push(res.added.marks + ' marked passage' + (res.added.marks === 1 ? '' : 's'));
+    if(res.added.entries) bits.push(res.added.entries + ' notebook entr' + (res.added.entries === 1 ? 'y' : 'ies'));
+    if(res.added.readings) bits.push(res.added.readings + ' reading' + (res.added.readings === 1 ? '' : 's'));
+    sessionStorage.setItem('cr284_import_note', bits.length ? 'Added ' + bits.join(', ') + '.'
+      : 'Nothing new to add — you already had all of it.');
+    location.reload();
+    return true;
+  }
+
   async function openZip(file){
     if(typeof JSZip === 'undefined'){ alert('Zip library not loaded.'); return; }
     const zip = await JSZip.loadAsync(file);
@@ -1503,9 +1725,11 @@ async function runReflection(rf, text, hooks) {
     const d = JSON.parse(await jsonEntry.async('string'));
     const st = d && d.state ? d.state : d;
     if(!st || typeof st !== 'object') throw new Error('not a Journaler file');
-    if(!confirmReplace(st)) return;
-    localStorage.setItem(LS_KEY, JSON.stringify(st));
-    location.reload();
+    // The reading BYTES above were written unconditionally, and that is right: they are
+    // keyed by filename, so re-writing a chapter this browser already had is a no-op,
+    // and a chapter it did not have has to be on disk before an added mark has a page
+    // to land on. Only the STATE is a decision.
+    await applyIncomingState(st);
   }
 
   function openWork(file){
@@ -1518,9 +1742,7 @@ async function runReflection(rf, text, hooks) {
       const d = JSON.parse(e.target.result);
       const st = d && d.state ? d.state : d;
       if(!st || typeof st !== 'object') throw new Error('not a Journaler file');
-      if(!confirmReplace(st)) return;
-      localStorage.setItem(LS_KEY, JSON.stringify(st));
-      location.reload();
+      applyIncomingState(st);
     } catch(err){ alert('Could not open that file: ' + err.message); } };
     r.readAsText(file);
   }
@@ -8678,6 +8900,16 @@ You: Really. The first line only has to exist, not be good.`;
     }
   });
   logEvent('boot', 'app ready · build ' + BUILD);
+
+  // An add-only import ends in location.reload(), so its own toast would die with the
+  // page. The note is parked in sessionStorage and read back here -- once, then dropped,
+  // so it cannot resurface on the next ordinary reload. A reader who merged two archives
+  // has to be TOLD what arrived; the whole point is that nothing was replaced, which is
+  // exactly the outcome that looks like nothing happened.
+  try {
+    const note = sessionStorage.getItem('cr284_import_note');
+    if(note){ sessionStorage.removeItem('cr284_import_note'); setTimeout(() => toast(note), 400); }
+  } catch(e){}
 
   // Restore the readings folder on load. queryPermission needs no user gesture, so
   // a folder that is still granted refills the shelf silently; anything else waits
