@@ -895,6 +895,9 @@ async function runReflection(rf, text, hooks) {
     // toggled by hand at any time; this marks the stretch where the only thing that
     // should be on screen is the gush. See the focus rules in app.css.
     body.classList.add('gushing');
+    // ⚠ Set WITHOUT re-rendering: renderFree would replace the textarea this function
+    // is about to start a clock on, taking the student's gush with it.
+    setFwSolo(true);
     ta.disabled = false; ta.readOnly = false; ta.classList.add('locked'); ta.value=''; ta.focus();
     ta.addEventListener('keydown', guard);
     ta.addEventListener('beforeinput', guardInput);
@@ -2489,6 +2492,25 @@ async function runReflection(rf, text, hooks) {
   };
   const STEMS = ['A door you were afraid to open.','A room that no longer exists.','Something you were told not to say.','The first time a teacher was wrong about you.','A smell that returns you somewhere.','A voice you can still hear.','A rule you were glad to break.','The letter you never sent.','The teacher you’re trying not to become.'];
   let fwCur = 'op1';
+  // ── One page, no rail ──────────────────────────────────────────────────────
+  // Todd, on an iPad, 2026-09-08: "the OP pages look like hell... when we start the
+  // gush, can we hide that entire left pane? I don't know when to show the pane again.
+  // Students need the full window AFTER the gush to continue the work."
+  //
+  // Focus mode already hid the rail DURING the gush; the buzzer handed it straight
+  // back, which is precisely the wrong moment. Measured on an iPad in portrait: the
+  // writing stage is 670px while the clock runs and 501px the second it stops, with
+  // 216px of the difference spent on a list of One-Pagers the student is not choosing
+  // from -- they are shaping the one they just wrote.
+  //
+  // So this OUTLIVES the gush and is dismissed by hand. Persisted, because a student
+  // who steps over to Readings and back is still shaping the same page and should not
+  // have to win the room twice.
+  let fwSolo = !!DB.fwSolo;
+  function setFwSolo(on){
+    fwSolo = on; DB.fwSolo = on; saveDB();
+    body.classList.toggle('fwsolo', on && tab === 'free');
+  }
   const fwDone = {}, fwGushed = {};
   for (const k of Object.keys(OPS)) { const s = DB.freewrite[k] || {}; fwDone[k] = !!s.done; fwGushed[k] = !!s.gushed; }
 
@@ -2679,8 +2701,15 @@ async function runReflection(rf, text, hooks) {
         const done = !!turnin()[m.slot];
         return `<button class="moment ${k===fwCur?'on':''} ${done?'has':''}" data-op="${k}"><span class="mname"><span class="dot"></span>${m.t}</span><span class="mkind">${done ? '✓ kept' : m.lead}</span></button>`;
       }).join('')}`;
-    frame.innerHTML = `<div class="head"><h1>Freewrite/OPs</h1><p>Start a timer, trust the gush, then shape it.</p></div>
+    body.classList.toggle('fwsolo', fwSolo);
+    // Rendered always, shown by CSS only while the rail is away -- the button has to
+    // survive the buzzer, and nothing re-renders this head when the clock stops.
+    frame.innerHTML = `<div class="head"><button class="fwback" id="fwBack" title="Show the list of One-Pagers again">← All One-Pagers</button><h1>Freewrite/OPs</h1><p>Start a timer, trust the gush, then shape it.</p></div>
       <div class="layout"><nav class="spine">${spine}</nav><main class="stage" id="stage"></main></div>`;
+    const fb = frame.querySelector('#fwBack');
+    // Not while the clock runs. The rail is hidden then because focus mode hides it,
+    // and a door out of a locked gush is the one thing this button must not be.
+    if(fb) fb.onclick = () => { if(G.running) return; setFwSolo(false); renderFree(); };
     frame.querySelectorAll('[data-op]').forEach(b=>b.addEventListener('click',()=>{ if(G.running) return; fwCur=b.dataset.op; renderFree(); }));
     if(NAMED[fwCur]) renderNamed(fwCur);
     else if(fwCur === 'open') renderOpen();
@@ -8754,7 +8783,7 @@ You: Really. The first line only has to exist, not be good.`;
   // controls lodged in the top bar strands them there — they live outside #frame by
   // then, so the wipe that replaces the reading cannot take them along, and they sit on
   // Tips offering to hide a notes pane that is not on screen. Measured: 23 nodes.
-  function show(t){ maybeNagBackup(); tab=t; document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); body.classList.toggle('reading', t==='read'); R[t](); paintInsMarker(); _vbReach = null; relocateReaderTools(body.classList.contains('focus')); }
+  function show(t){ maybeNagBackup(); tab=t; document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); body.classList.toggle('reading', t==='read'); body.classList.toggle('fwsolo', t==='free' && fwSolo); R[t](); paintInsMarker(); _vbReach = null; relocateReaderTools(body.classList.contains('focus')); }
   document.querySelectorAll('#tabbar button').forEach(b=>b.addEventListener('click',()=>{ if(G.running)return; show(b.dataset.t); }));
   // ⚠ FOCUS MUST ASK FOR THE RE-RENDER (Todd, 2026-08-26): "when I click focus button
   // on this page, the pages disappear." Toggling the class changes the reader's width

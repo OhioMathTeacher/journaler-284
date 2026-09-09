@@ -2171,3 +2171,25 @@ a.rr-t:hover { border-bottom-color: currentColor; }
 .about-panes { display: grid; flex: 1 1 auto; min-height: 0; }
 .about-pane { grid-area: 1 / 1; visibility: hidden; min-height: 0; }
 .about-pane.on { visibility: visible; }
+
+/* ── One page, no rail ────────────────────────────────────────────────────────
+   The rail is 216px of a 717px pane on an iPad in portrait, and after the buzzer
+   the student is not choosing a One-Pager -- they are shaping the one they just
+   wrote. Focus mode already hid it DURING the gush and handed it back the instant
+   the clock stopped, which is the wrong moment (Todd: "students need the full
+   window after the gush to continue the work"). This outlives the buzzer and is
+   dismissed by hand. */
+body.fwsolo .layout { grid-template-columns: 1fr; gap: 0; }
+body.fwsolo .spine { display: none; }
+/* ⚠ Rendered always, shown only here. The head is not re-rendered when the clock
+   stops, so a button that only existed while fwSolo was true at render time would
+   be missing at exactly the moment it is needed. */
+.fwback { display: none; }
+body.fwsolo .fwback { display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: var(--accent);
+  background: none; border: 1px solid var(--comment-border); border-radius: 7px;
+  padding: 6px 12px; margin-bottom: 10px; cursor: pointer; }
+body.fwsolo .fwback:hover { background: var(--comment-bg); border-color: var(--accent-light); }
+@media (pointer: coarse) { body.fwsolo .fwback { min-height: 44px; font-size: 15px; } }
+/* Focus mode hides .head outright, so the way back is gone while the clock runs --
+   which is correct: it must never be a door out of a locked gush. */
