@@ -843,13 +843,37 @@ async function runReflection(rf, text, hooks) {
     };
   }
   const fmt = s => Math.floor(s/60) + ':' + String(Math.max(0,s)%60).padStart(2,'0');
+  // ⚠ THE ONLY GRADED INTEGRITY MECHANISM IN THE APP. The syllabus requires the five
+  // timed One-Pager drafts to happen here BECAUSE the timer locks editing while it
+  // runs, so a hole in this is a hole in the guarantee -- and it fails silently, which
+  // is the worst way for a guarantee to fail.
+  //
+  // keydown alone was that hole. Todd, testing on an iPad, 2026-09-08: "I am able to
+  // delete the gush when it's dictated." Dictation produces no key events at all, and
+  // neither do autocorrect replacing a word, ⌘Z, cut, or dragging text out of the box.
+  // Every one of them edits a "locked" gush. The keydown guard stays -- it stops the
+  // keystroke earlier and cheaper -- but it is no longer what the promise rests on.
   function guard(e){ if(['Backspace','Delete'].includes(e.key)) e.preventDefault(); }
+  // beforeinput fires for EVERY mutation whatever produced it, which is exactly the
+  // property keydown lacks. Blocking replacement is not collateral damage either: "you
+  // cannot fix anything, so keep going" is the whole instruction, and autocorrect
+  // quietly rewriting a word mid-gush is the app fixing it for them.
+  function guardInput(e){
+    const t = e.inputType || '';
+    // ⚠ NOT these two: they are how an IME assembles a character, not how a reader
+    // edits one. Blocking them wedges composition for anyone typing a language that
+    // needs it, while stopping nothing a student could do on purpose.
+    if(t === 'deleteCompositionText' || t === 'deleteByComposition') return;
+    if(t.startsWith('delete') || t === 'insertReplacementText'
+       || t === 'historyUndo' || t === 'historyRedo') e.preventDefault();
+  }
   function resetGush(opts){
     opts = opts || {};
     clearInterval(G.tId); G.running = false;
     body.classList.remove('gushing');
     const ta = document.getElementById('gush');
-    if(ta){ ta.removeEventListener('keydown', guard); ta.classList.remove('locked'); ta.disabled = false; ta.readOnly = false; }
+    if(ta){ ta.removeEventListener('keydown', guard); ta.removeEventListener('beforeinput', guardInput);
+            ta.classList.remove('locked'); ta.disabled = false; ta.readOnly = false; }
     const ts = document.getElementById('timerset'); if(ts) ts.classList.remove('locked');
     const btn = document.getElementById('startBtn'); if(btn) btn.disabled = false;
     const lm = document.getElementById('lockmsg'); if(lm) lm.textContent = 'Clock reset — adjust the minutes and start again when you’re ready.';
@@ -873,6 +897,7 @@ async function runReflection(rf, text, hooks) {
     body.classList.add('gushing');
     ta.disabled = false; ta.readOnly = false; ta.classList.add('locked'); ta.value=''; ta.focus();
     ta.addEventListener('keydown', guard);
+    ta.addEventListener('beforeinput', guardInput);
     const lm = document.getElementById('lockmsg'); if(lm) lm.innerHTML = '<span class="lockflag">● Locked — gush mode. Keep going.</span>';
     if(opts.focus) setFocus(true);
     G.running = true; G.remain = mins;
@@ -886,7 +911,8 @@ async function runReflection(rf, text, hooks) {
         // disabling it silently made Copy-into-the-One-Pager impossible: there was no way
         // to select the lines to copy. readonly freezes the text and still lets it be
         // selected, which is exactly the chalkboard rule.
-        ta.removeEventListener('keydown',guard); ta.classList.remove('locked');
+        ta.removeEventListener('keydown',guard); ta.removeEventListener('beforeinput',guardInput);
+        ta.classList.remove('locked');
         ta.disabled=false; ta.readOnly=true;
         if(lm) lm.textContent='Time. Your gush is fixed now — select the lines you want and copy them across, or send them to your notebook.';
         if(opts.focus) setFocus(false);

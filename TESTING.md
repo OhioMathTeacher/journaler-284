@@ -33,7 +33,7 @@ Legend: **✓** verified · **✗** fails · **—** untested · **n/a** does no
 | macOS · Chrome | — | — | — | — | — | — |
 | Windows · any | — | — | — | — | — | — |
 | ChromeOS · Chrome | — | — | — | — | — | — |
-| iPad · Safari | ✓ | — | ✓ save · — restore | — | ✓ | ✓ |
+| iPad · Safari | ✓ | ✓ keys · ✗→fixed dictation | ✓ save · — restore | — | ✓ | ✓ |
 | iPhone · Safari | — | — | — | — | — | — |
 
 **The Linux rows are a boot check only.** Four green ticks in the first column means the app
@@ -44,8 +44,13 @@ exports, or the lock on those machines.
 read, passages marked and the marks recovered intact from an export, focus mode entered and —
 eventually — left. Two of its cells stay open on purpose:
 
-* **Edit-lock — untested, and the one that matters.** See §1. Nothing so far has run a timed
-  gush on a soft keyboard, which is the whole question.
+* **Edit-lock — tested 2026-09-08, and it FAILED.** The soft keyboard's delete key was
+  refused correctly. Dictation was not: Todd, on the device, "I am able to delete the gush
+  when it's dictated." Dictation emits no key events at all, and the lock was one `keydown`
+  handler. Fixed in `2026-09-08-251` by guarding `beforeinput`, which fires for every
+  mutation whatever produced it — that also closes autocorrect, ⌘Z, cut and drag, none of
+  which had ever been blocked either. `tools/probes/run.py lock` covers all of it, but the
+  FIX itself has only been verified in Chromium; **re-test dictation on the device.**
 * **Restore INTO an iPad — untested.** Saving *from* one is verified, and had two bugs found in
   it the same day (see below), so the round trip is only half proven. `⤒ Open my file` also
   changed shape in `2026-09-08-245`: it offers to ADD rather than replace, and that path has
