@@ -21,7 +21,7 @@
      this sentence.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-09-08-249">
+<link rel="stylesheet" href="app.css?v=2026-09-08-250">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -236,22 +236,45 @@
     <p class="about-lead">Where you write for <b>TCE 284</b>. Everything stays on your own
       device — which is the point, and the catch.</p>
 
-    <!-- ⚠ TAB ONE IS THE ONE THAT SAVES SOMEBODY'S TERM, so it is first and it is the
-         default. Tabs hide things; that is what they are for, and it is exactly the
-         risk with this one. nagOnBoot calls openAbout('safe') so nobody has to go
-         looking. Do not demote it to make room for something more interesting.
-         It was also the LONGEST tab, by a distance, until backups and devices moved
-         out to their own -- a first tab that scrolls twice as far as any other is one
-         people stop reading a third of the way down. -->
+    <!-- ⚠ "About" LEADS, but "Keeping your work" still OPENS (Todd asked for the first,
+         and the second is not negotiable). A dialog called About Journaler-284 whose
+         leftmost tab is not the about is a small oddity; a student who never finds the
+         seven-day warning loses a term, which is not. So the order is his and the
+         default is the .on class below -- they are separate things and must stay
+         separate. nagOnBoot also calls openAbout('safe') directly, so the warning is
+         never more than the thing already on screen.
+         Keeping your work was the LONGEST tab, by a distance, until backups and
+         devices moved out to their own; a tab that scrolls twice as far as any other
+         is one people stop reading a third of the way down. -->
     <div class="set-tabs" id="aboutTabs">
+      <button class="set-tab" data-about="app">About</button>
       <button class="set-tab on" data-about="safe">Keeping your work</button>
       <button class="set-tab" data-about="backups">Backups</button>
       <button class="set-tab" data-about="why">Why it works this way</button>
       <button class="set-tab" data-about="ai">Romano &amp; AI</button>
-      <button class="set-tab" data-about="app">About</button>
     </div>
 
     <div class="about-panes">
+    <div class="about-pane" id="about-app">
+    <div class="about-body">
+    <section class="ab-sec">
+<h3>Our icon</h3>
+    <p>A lotus roots in mud and blooms anyway. You go back to what you did not choose, and write
+      forward from it. The book is where that happens.</p>
+    </section>
+    <section class="ab-sec">
+<h3>New here?</h3>
+    <p>The chapter <b>How to use Journaler (start here)</b> is on your Readings shelf, and the
+      same thing prints as a manual.</p>
+    </section>
+    <section class="ab-sec">
+<h3>Something wrong?</h3>
+    <p><b>⚙ Settings → Diagnostics → Copy</b> puts one paste on your clipboard that answers most
+      questions about what your device is doing — build, storage, and what the app can see.
+      Send that along with anything you report.</p>
+    </section>
+    </div><!-- /.about-body -->
+    </div>
     <div class="about-pane on" id="about-safe">
     <div class="about-body">
     <section class="ab-sec">
@@ -373,26 +396,6 @@
     </div><!-- /.about-body -->
     </div>
 
-    <div class="about-pane" id="about-app">
-    <div class="about-body">
-    <section class="ab-sec">
-<h3>Our icon</h3>
-    <p>A lotus roots in mud and blooms anyway. You go back to what you did not choose, and write
-      forward from it. The book is where that happens.</p>
-    </section>
-    <section class="ab-sec">
-<h3>New here?</h3>
-    <p>The chapter <b>How to use Journaler (start here)</b> is on your Readings shelf, and the
-      same thing prints as a manual.</p>
-    </section>
-    <section class="ab-sec">
-<h3>Something wrong?</h3>
-    <p><b>⚙ Settings → Diagnostics → Copy</b> puts one paste on your clipboard that answers most
-      questions about what your device is doing — build, storage, and what the app can see.
-      Send that along with anything you report.</p>
-    </section>
-    </div><!-- /.about-body -->
-    </div>
     </div>
 
     <div class="about-links">
@@ -450,8 +453,8 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="readings.js?v=2026-09-08-249"></script>
-<script src="tips.js?v=2026-09-08-249"></script>
-<script src="app.js?v=2026-09-08-249"></script>
+<script src="readings.js?v=2026-09-08-250"></script>
+<script src="tips.js?v=2026-09-08-250"></script>
+<script src="app.js?v=2026-09-08-250"></script>
 </body>
 </html>
