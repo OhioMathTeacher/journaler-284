@@ -21,7 +21,7 @@
      this sentence.)
      app.js reads this same value back off its own URL for the build badge, so if it
      is not bumped the stale version shows on screen instead of failing silently. -->
-<link rel="stylesheet" href="app.css?v=2026-09-08-248">
+<link rel="stylesheet" href="app.css?v=2026-09-08-249">
 <script>
   // Theme goes on <html> BEFORE first paint, straight from localStorage. Waiting for
   // app.js would flash the other theme for a frame on every load.
@@ -251,19 +251,23 @@
       <button class="set-tab" data-about="app">About</button>
     </div>
 
+    <div class="about-panes">
     <div class="about-pane on" id="about-safe">
     <div class="about-body">
-    <h3>Where your work lives</h3>
+    <section class="ab-sec">
+<h3>Where your work lives</h3>
     <p>Saved in this browser as you type — not on a server, not in an account. It is kept
       by <i>this browser on this device</i>, and nothing else knows about it. Clearing
       browser data erases it, and lab machines get wiped.</p>
-
-    <h3 class="about-alert">⚠ Safari deletes this after a week</h3>
+    </section>
+    <section class="ab-sec">
+<h3 class="about-alert">⚠ Safari deletes this after a week</h3>
     <p>Safari — on iPad, iPhone and Mac alike — erases a website’s stored data if you have
       not opened that site in seven days. It does not warn you, and the app cannot stop it
       from the inside. Read in Week 1, take a week off, come back to an empty Journaler.</p>
-
-    <h3>The fix takes two minutes</h3>
+    </section>
+    <section class="ab-sec">
+<h3>The fix takes two minutes</h3>
     <p>Add Journaler to your Home Screen. Safari stops treating it as a website, and the
       seven-day rule no longer applies.</p>
     <ul class="about-steps">
@@ -276,22 +280,26 @@
     <p class="about-fine">The Home Screen copy starts with its own empty storage, so it opens
       blank at first. If you have work in Safari already, run <b>⤓ Save my work</b> there
       first, then open the new icon and load that file with <b>⤒ Open my file</b>.</p>
+    </section>
     </div><!-- /.about-body -->
     </div>
 
     <div class="about-pane" id="about-backups">
     <div class="about-body">
-    <h3>Back it up anyway</h3>
+    <section class="ab-sec">
+<h3>Back it up anyway</h3>
     <p><b>⤓ Save my work</b> downloads one dated file holding everything — your writing, your
       notebook, every marked passage. Keep it in Drive, Dropbox, or on a thumb drive, and
       reopen it with <b>⤒ Open my file</b> on any computer. A backup is the only copy no
       browser can decide to throw away.</p>
-
-    <h3>How often?</h3>
+    </section>
+    <section class="ab-sec">
+<h3>How often?</h3>
     <p>After anything you would not want to write again. Journaler reminds you when enough
       has piled up since your last one, but the reminder is a safety net, not a schedule.</p>
-
-    <h3>Two devices?</h3>
+    </section>
+    <section class="ab-sec">
+<h3>Two devices?</h3>
     <p>Each browser keeps its own copy and they do not sync — read on an iPad and write on a
       laptop and you have two half-finished notebooks. <b>⤒ Open my file</b> offers to
       <b>add</b> a file to what is already here rather than replacing it, so you can carry
@@ -303,72 +311,88 @@
     <p class="about-fine">Your readings are not in that file by default and do not need to be —
       reload the same chapter files with <b>＋ Load readings</b> and your highlights reattach
       to them by filename.</p>
+    </section>
     </div><!-- /.about-body -->
     </div>
 
     <div class="about-pane" id="about-why">
     <div class="about-body">
-    <h3>No account, no server</h3>
+    <section class="ab-sec">
+<h3>No account, no server</h3>
     <p>There is nothing to log into and nothing to sign up for. Your writing never leaves your
       machine unless you send it somewhere yourself. There is no database of student work
       behind this app, because there is no database at all.</p>
-
-    <h3>Why that matters here</h3>
+    </section>
+    <section class="ab-sec">
+<h3>Why that matters here</h3>
     <p>A writer’s notebook only works if it is candid, and candour needs privacy. You should
       be able to write something half-formed, or unflattering, or wrong, without wondering
       who can read it later. Nobody can — not the instructor, not the university, not us.</p>
-
-    <h3>The other half of the bargain</h3>
+    </section>
+    <section class="ab-sec">
+<h3>The other half of the bargain</h3>
     <p>Work that lives only on your device is work only you can lose. There is no “restore from
       the cloud” here, because there is no cloud. That is the trade, made deliberately: you own
       it outright, and backing it up is yours to do.</p>
-
-    <h3>One file, no lock-in</h3>
+    </section>
+    <section class="ab-sec">
+<h3>One file, no lock-in</h3>
     <p>That backup is ordinary JSON inside an ordinary zip. It is readable without this app and
       will outlive it. Nothing here is a format you need our permission to open.</p>
-
-    <h3>No build step, no CDN</h3>
+    </section>
+    <section class="ab-sec">
+<h3>No build step, no CDN</h3>
     <p>The whole app is a handful of plain files served as they are. It runs with the network
       off, on a school laptop, on a borrowed iPad, in ten years. That is a deliberate limit,
       not a missing feature.</p>
+    </section>
     </div><!-- /.about-body -->
     </div>
 
     <div class="about-pane" id="about-ai">
     <div class="about-body">
-    <h3>Optional, and off by default</h3>
+    <section class="ab-sec">
+<h3>Optional, and off by default</h3>
     <p>Journaler works completely without it. Nothing in the course requires the AI reading
       partner, and no part of your grade depends on having used it.</p>
-
-    <h3>What leaves your machine</h3>
+    </section>
+    <section class="ab-sec">
+<h3>What leaves your machine</h3>
     <p>A <b>local</b> model keeps everything here — nothing goes out at all. A <b>hosted</b>
       model receives what you ask about, which includes the passage or the page you are asking
       about. Nothing else is sent: not your notebook, not your other readings.</p>
-
-    <h3>Marking is not asking</h3>
+    </section>
+    <section class="ab-sec">
+<h3>Marking is not asking</h3>
     <p>Highlighting a passage and writing what you think about it is note-taking, and it stays
       note-taking. <b>Ask Romano</b> sits beside that as a separate button you can ignore for
       the whole term.</p>
 
     <p class="about-fine">Choose or change the provider under <b>⚙ Settings → AI</b>.</p>
+    </section>
     </div><!-- /.about-body -->
     </div>
 
     <div class="about-pane" id="about-app">
     <div class="about-body">
-    <h3>Our icon</h3>
+    <section class="ab-sec">
+<h3>Our icon</h3>
     <p>A lotus roots in mud and blooms anyway. You go back to what you did not choose, and write
       forward from it. The book is where that happens.</p>
-
-    <h3>New here?</h3>
+    </section>
+    <section class="ab-sec">
+<h3>New here?</h3>
     <p>The chapter <b>How to use Journaler (start here)</b> is on your Readings shelf, and the
       same thing prints as a manual.</p>
-
-    <h3>Something wrong?</h3>
+    </section>
+    <section class="ab-sec">
+<h3>Something wrong?</h3>
     <p><b>⚙ Settings → Diagnostics → Copy</b> puts one paste on your clipboard that answers most
       questions about what your device is doing — build, storage, and what the app can see.
       Send that along with anything you report.</p>
+    </section>
     </div><!-- /.about-body -->
+    </div>
     </div>
 
     <div class="about-links">
@@ -426,8 +450,8 @@
   window.pdfjsLib = pdfjsLib;
   window.PDF_DOC_OPTS = { wasmUrl: './vendor/wasm/' };
 </script>
-<script src="readings.js?v=2026-09-08-248"></script>
-<script src="tips.js?v=2026-09-08-248"></script>
-<script src="app.js?v=2026-09-08-248"></script>
+<script src="readings.js?v=2026-09-08-249"></script>
+<script src="tips.js?v=2026-09-08-249"></script>
+<script src="app.js?v=2026-09-08-249"></script>
 </body>
 </html>

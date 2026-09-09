@@ -74,11 +74,11 @@
      width is a page. Multi-column rather than a grid, so the sections flow into
      whichever column has room instead of being assigned one each. */
   .ai-modal.about-modal { width: min(940px, calc(100vw - 2rem));
-    /* ⚠ HEIGHT, not max-height: the panes are different lengths, and sizing to
-       whichever one is open made the dialog shrink as you moved along the tabs --
-       footer and ✕ walking up the screen on every click. Fixed, so the chrome parks
-       and the pane scrolls inside it. min() still lets a short window win. */
-    height: min(780px, calc(100vh - 2rem)); height: min(780px, calc(100dvh - 2rem));
+    /* The panes size the box now (see .about-panes): every tab is the height of the
+       tallest, so the dialog no longer shrinks as you move along the tabs AND no
+       longer carries the dead space a fixed 780px left under every one of them.
+       max-height is only the viewport backstop. */
+    max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem);
     display: flex; flex-direction: column; }
   .about-body { columns: 2; column-gap: 32px; overflow-y: auto; min-height: 0; margin-bottom: 4px; }
   /* A heading must not be the last thing in a column, and a paragraph must not be
@@ -2093,6 +2093,21 @@ a.rr-t:hover { border-bottom-color: currentColor; }
    warning whose heading sits at the foot of column one while its instructions start
    at the head of column two is a warning half of them will read half of. */
 .about-body .about-alert { color: var(--danger, #9B2C2C) !important; }
+/* ⚠ ORPHANED HEADINGS (Todd, 2026-09-08: "you have a tendency to orphan section
+   headers. Do you see that?" -- four of them, one per tab, each stranded at the foot
+   of column one with its prose starting column two). break-after:avoid on the h3 is
+   ADVISORY and Chromium drops it in multicol. A wrapper that contains the heading and
+   its prose, with break-inside:avoid, is not advisory: there is no break point inside
+   it to take. Every h3 in .about-body is wrapped in one. */
+.ab-sec { break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; }
+.ab-sec > :last-child { margin-bottom: 0; }
+/* ⚠ Spacing between sections lives HERE, not on the h3. Wrapping each heading in
+   .ab-sec meant `.about-body h3:first-child` stopped matching -- the heading is the
+   section's first child now, not the body's -- so what used to separate one section
+   from the next quietly stopped applying and the gap above ⚠ SAFARI closed up.
+   On the wrapper it cannot be undone by how the heading is nested. */
+.ab-sec + .ab-sec { margin-top: 17px; }
+.about-body .ab-sec h3 { margin-top: 0; }
 .about-body .about-alert,
 .about-body .about-alert + p,
 .about-body .about-steps,
@@ -2146,5 +2161,13 @@ a.rr-t:hover { border-bottom-color: currentColor; }
    The pane is a flex column so .about-body inside it keeps its own scrollbar; an
    ordinary block here breaks the chain from .about-modal and the whole dialog grows
    past the viewport instead. */
-.about-pane { display: none; }
-.about-pane.on { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+/* ⚠ ALL FIVE PANES SHARE ONE GRID CELL. The box is then exactly as tall as the
+   TALLEST tab measures itself to be -- no hand-picked height (780px was a guess, and
+   every tab wore the difference as dead space under it), and no tab that resizes the
+   dialog when you click it. Hidden panes are still laid out, which is the mechanism:
+   the cell cannot be shorter than the biggest of them.
+   visibility, NOT display:none -- a display:none pane contributes no height at all and
+   the whole thing collapses back to sizing itself to whichever tab is open. */
+.about-panes { display: grid; flex: 1 1 auto; min-height: 0; }
+.about-pane { grid-area: 1 / 1; visibility: hidden; min-height: 0; }
+.about-pane.on { visibility: visible; }
