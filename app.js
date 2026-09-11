@@ -1048,6 +1048,9 @@ async function runReflection(rf, text, hooks) {
     out['Folder picker'] = (typeof window.showDirectoryPicker === 'function') ? 'available' : 'not in this browser';
     out['Clipboard API'] = (navigator.clipboard && navigator.clipboard.writeText) ? 'available' : 'not available';
     out['Browser'] = navigator.userAgent;
+    out['In-app browser'] = WEBVIEW ? 'YES — a page inside another app (Canvas, email…): cannot save or print, separate storage'
+                                    : 'no';
+    out['Opened as'] = isStandalone() ? 'installed app (home-screen icon)' : 'browser tab';
     out['Window'] = `${window.innerWidth}×${window.innerHeight} · dpr ${window.devicePixelRatio||1}`;
 
     // Reader state. The column reading is here because a single-column scan being
@@ -1201,7 +1204,9 @@ async function runReflection(rf, text, hooks) {
   function printReport(){
     const text = diagnosticsTextSync(diagComment());
     const w = window.open('', '_blank');
-    if(!w){ toast('Your browser blocked the report window — use Copy details instead'); return; }
+    if(!w){
+      if(WEBVIEW){ webviewWarn('This built-in browser cannot open the report.'); return; }
+      toast('Your browser blocked the report window — use Email Todd instead'); return; }
     w.document.write(`<!doctype html><html><head><meta charset="utf-8">
       <title>Journaler-284 problem report</title><style>
       body { font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -1454,8 +1459,35 @@ async function runReflection(rf, text, hooks) {
   // anchor IS the right answer and a share sheet would be a worse one.
   const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  // ⚠ AN IN-APP BROWSER IS NOT A BROWSER. A student, 2026-09-10, on an Android tablet: "I
+  //    click on the link through Canvas." The Canvas app opens that link in its own
+  //    embedded page (an Android WebView), and a WebView cannot download a blob:, cannot
+  //    print, cannot open a second window, and keeps storage of its own that Chrome on
+  //    the same tablet will never see. Every save and every PDF fails there in silence,
+  //    which read as "nothing on this tablet works". The UA tells: Android's WebView
+  //    carries "; wv)" and a "Version/x.y" token Chrome itself never has; the Canvas
+  //    app also signs itself "candroid". On iOS an embedded page has no "Safari/" token
+  //    (Chrome and Firefox there still carry it, being Safari underneath).
+  const ANDROID = /Android/i.test(navigator.userAgent);
+  const WEBVIEW = ANDROID
+    ? /; ?wv\)|Version\/\d+\.\d+ .*Chrome\/|candroid/i.test(navigator.userAgent)
+    : (IOS && !/Safari\//.test(navigator.userAgent));
+  // Chrome's Android intent: URL launches Chrome from inside another app's page. Most
+  // hosts honour it; the banner also says the manual route for the ones that don't.
+  const OPEN_IN_CHROME_URL = 'intent://' + location.host + location.pathname +
+    '#Intent;scheme=https;package=com.android.chrome;end';
   async function saveBlob(blob, name, opts){
     const quiet = opts && opts.quiet;
+    // Fire the anchor anyway -- a host that does handle downloads gets its chance --
+    // but report failure, so nothing upstream records a backup that never landed.
+    if(WEBVIEW){
+      logEvent('error', 'save attempted inside an in-app browser', navigator.userAgent);
+      webviewWarn('This built-in browser cannot save files.');
+      try { const url = URL.createObjectURL(blob); const a = document.createElement('a');
+        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000); } catch(e){}
+      return false;
+    }
     if(IOS && navigator.canShare){
       try {
         const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
@@ -1683,6 +1715,27 @@ async function runReflection(rf, text, hooks) {
     nagBanner(`${since} ${r.days === 0 && !r.never ? 'you have added' : 'You have'} ${what}
       that ${r.marks + r.entries === 1 ? 'exists' : 'exist'} only in this browser.`,
       '⤓ Save my work', nagAction);
+  }
+  // The in-app browser gets its say on boot AND at the moment of failure: on boot
+  // because the storage is separate (work done here is invisible to Chrome), at the
+  // failure because a reader who dismissed the banner and then tapped Save must not be
+  // left with a silent nothing. Both routes say the same thing and offer the same
+  // way out.
+  function webviewWarn(lead){
+    const how = ANDROID
+      ? 'Open Journaler in Chrome instead: tap ⋮ and choose <b>Open in browser</b>, or type the address into Chrome.'
+      : 'Open Journaler in Safari instead: tap the ⋯ or compass icon and choose <b>Open in Safari</b>.';
+    nagBanner(`${lead ? '<b>' + escHtml(lead) + '</b> ' : ''}This page is inside another app,
+      which cannot save files or make PDFs and keeps a separate copy of your work. ${how}`,
+      ANDROID ? 'Open in Chrome' : 'Copy the address',
+      ANDROID ? () => { location.href = OPEN_IN_CHROME_URL; }
+              : () => { copyTextBestEffort(location.href.split('#')[0]); toast('Address copied — paste it into Safari'); });
+  }
+  function nagIfWebView(){
+    if(!WEBVIEW) return;
+    logEvent('boot', 'in-app browser detected', navigator.userAgent);
+    try { if(sessionStorage.getItem(NAG_SNOOZE_KEY)) return; } catch(e){}
+    webviewWarn('');
   }
   // ⚠ THE ONE LAUNCH-TIME NAG, and it earns the slot because there is no other moment
   // to catch it in: Safari erases a site's storage after seven days without a visit,
@@ -6785,7 +6838,31 @@ You: Really. The first line only has to exist, not be good.`;
   //    this app has no build step and ships no CDN calls, "Save as PDF" is in every
   //    print dialog, and it honours the student's paper size. The print host is built
   //    on demand and removed once printing ends.
+  //
+  // ⚠ "ONCE PRINTING ENDS" IS NOT WHEN afterprint FIRES. Found on an Android tablet
+  //    emulator, 2026-09-11, after a student's tablet could not "print or download
+  //    anything": on Android, window.print() hands the page to the system print
+  //    dialog and RETURNS while that dialog is still open -- and afterprint fires at
+  //    the same moment, about 2.7s in, before a single page has been rendered. The
+  //    dialog renders lazily, after that, and again each time the reader changes a
+  //    setting or finally taps Save. Tearing the host down on afterprint therefore
+  //    handed Android a PDF of the app itself: the nav bar, the Progress tab, even
+  //    the backup toast -- and not one line of the notebook or the One-Pager.
+  //
+  //    Nothing the page can observe says when that dialog closes: visibilityState
+  //    stays "visible", there is no blur/focus, no pageshow. What IS certain is that
+  //    the reader cannot touch the page while a print dialog is up -- on Android it
+  //    is a full-screen activity, and on a desktop print() itself blocks until the
+  //    dialog is gone. So the host lives until the FIRST touch or key after print()
+  //    returns. Lingering costs nothing: .printdoc is display:none on screen and the
+  //    .printing class only means anything under @media print.
+  const PRINT_DONE_EVENTS = ['pointerdown', 'touchstart', 'keydown'];
+  let _printDone = null;
   function printDoc(id, html, title){
+    // A host the last print left behind would print alongside this one, and its title
+    // would be the one this call remembers to restore.
+    if(_printDone) _printDone();
+    document.querySelectorAll('.printdoc').forEach(h => h.remove());
     const host = document.createElement('div');
     host.id = id; host.className = 'printdoc';
     host.innerHTML = html;
@@ -6795,13 +6872,21 @@ You: Really. The first line only has to exist, not be good.`;
     // gets "One-Pager 2 …" instead of whatever the tab happens to be called.
     const prevTitle = document.title;
     if(title) document.title = title;
-    const done = () => { document.body.classList.remove('printing'); document.title = prevTitle;
-      host.remove(); window.removeEventListener('afterprint', done); };
-    window.addEventListener('afterprint', done);
-    // Safari/older engines don't always fire afterprint; don't strand the app in
-    // print mode if it never arrives.
-    setTimeout(() => { if(document.getElementById(id)) done(); }, 60000);
+    const done = () => {
+      if(_printDone !== done) return;
+      _printDone = null;
+      PRINT_DONE_EVENTS.forEach(n => window.removeEventListener(n, done, true));
+      host.remove();
+      document.body.classList.remove('printing');
+      // The title waits with the host: Android reads it again when the reader taps
+      // Save, and giving the tab its name back early filed the notebook as
+      // "Journaler · TCE 284.pdf".
+      document.title = prevTitle;
+    };
+    _printDone = done;
+    if(WEBVIEW){ logEvent('error', 'print attempted inside an in-app browser'); webviewWarn('This built-in browser cannot make a PDF.'); }
     window.print();
+    PRINT_DONE_EVENTS.forEach(n => window.addEventListener(n, done, { capture: true }));
   }
 
   // ── THE TURN-IN DECLARATION.
@@ -9161,6 +9246,7 @@ You: Really. The first line only has to exist, not be good.`;
   // has to be TOLD what arrived; the whole point is that nothing was replaced, which is
   // exactly the outcome that looks like nothing happened.
   try { nagOnBoot(); } catch(e){ console.warn('nagOnBoot', e); }
+  try { nagIfWebView(); } catch(e){ console.warn('nagIfWebView', e); }
 
   try {
     const note = sessionStorage.getItem('cr284_import_note');

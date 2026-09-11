@@ -35,6 +35,9 @@ Legend: **✓** verified · **✗** fails · **—** untested · **n/a** does no
 | ChromeOS · Chrome | — | — | — | — | — | — |
 | iPad · Safari | ✓ | ✓ keys · ✗→fixed dictation | ✓ save · — restore | — | ✓ | ✓ |
 | iPhone · Safari | — | — | — | — | — | — |
+| Android 14 tablet · Chrome 113 (emulator) | ✓ | — | ✓ save · — restore | ✗→fixed | — | — |
+| Android 14 phone · Chrome 113 (emulator) | ✓ | — | ✓ save · — restore | ✓ report only | — | — |
+| Android · inside the Canvas app | ✓ | — | ✗ | ✗ | — | — |
 
 **The Linux rows are a boot check only.** Four green ticks in the first column means the app
 loads and reports sane state on Gecko, Blink and WebKit. It says nothing about the reader, the
@@ -150,9 +153,54 @@ platform. **A device that cannot do this cannot submit work**, however well the 
   JavaScriptCore, so rendering evidence carries over. But ITP eviction, iOS quota ceilings, touch
   selection and the Safari print dialog are Apple-specific and are not exercised by it.
 
+## Android (2026-09-11, emulator: Pixel Tablet and Pixel 7 profiles, Android 14, Chrome 113)
+
+Prompted by a student whose Android tablet "could not print or download anything, not even a
+diagnostic report". Two separate causes, both now handled in code.
+
+- **Every PDF export printed the app, not the document — on every Android browser.** On
+  Android, `window.print()` hands the page to the system print dialog and RETURNS while that
+  dialog is still open, and `afterprint` fires at that same moment (~2.7 s in), before a single
+  page has been rendered; the dialog renders lazily after that and again when the reader taps
+  Save. `printDoc` tore its host down on `afterprint`, so the preview was the nav bar, the
+  Progress tab and the backup toast. **Fixed in `2026-09-11-253`:** the host lives until the
+  first touch or key after `print()` returns (nothing the page can observe says when that dialog
+  closes — visibility never changes, there is no blur/focus). Verified: the bundle prints all
+  its parts and files as `Writer's Notebook — TCE 284.pdf`. The diagnostics report was never
+  affected (its page is static), which is why it printed when nothing else would.
+- **A link tapped inside the Canvas app opens in the app's own embedded page (a WebView),
+  not Chrome.** A WebView cannot download a `blob:`, cannot print, cannot open a window, and
+  keeps storage of its own. The student's "nothing works" was this. `2026-09-11-253` detects it
+  (UA `; wv)` / `Version/x.y … Chrome/` / `candroid`; on iOS, no `Safari/` token), shows a
+  banner with an *Open in Chrome* action (`intent://…;package=com.android.chrome;end`), refuses
+  to record a backup that the host would have swallowed, and reports it in Diagnostics as
+  **In-app browser: YES**. The detection is verified against a spoofed UA only — **no real
+  Canvas-app session has run yet.** Ask the next Android student for a Diagnostics paste from
+  inside Canvas.
+- **Downloads in real Chrome just work,** phone and tablet: no dialog, a "File downloaded"
+  card under the address bar, file in `Files → Downloads` under its dated name. The card shows
+  the blob URL rather than the filename, which is Chrome's doing.
+- **Print dialog on Android is one tap longer than anywhere else:** it opens on "Select a
+  printer" with nothing chosen; *Save as PDF* is in that dropdown, then the round PDF button,
+  then Save. Tell students.
+- **Chrome silently ignores `window.print()` while an earlier print job is still pending** (a
+  dialog backgrounded and forgotten). Not our bug, but it will look like "the button does
+  nothing"; the cure is to finish or cancel the old dialog.
+- **Untested on Android:** restore into it, the reader, selection, the edit-lock, Samsung
+  Internet (the default on Galaxy tablets — Chromium, so the print fix should carry), and the
+  installed (home-screen) app: the emulator cannot mint a WebAPK without a Google account.
+
+**Reproducing on a Mac:** `brew install openjdk@17 && brew install --cask android-commandlinetools`,
+then `sdkmanager --install platform-tools emulator "system-images;android-34;google_apis_playstore;arm64-v8a"`,
+`avdmanager create avd -n tab -k "system-images;android-34;google_apis_playstore;arm64-v8a" -d pixel_tablet`,
+`emulator -avd tab`. Serve the repo with `serve-nocache.py`, `adb reverse tcp:8000 tcp:8000`,
+and open `http://localhost:8000/` in the emulator's Chrome. `adb forward tcp:9222
+localabstract:chrome_devtools_remote` exposes DevTools at `localhost:9222/json` for driving
+the page and reading its console; `adb exec-out screencap -p > shot.png` for screenshots.
+
 ## Still entirely unknown
 
-- **Every mobile question.** No touch device has run this app.
+- **Every mobile question beyond the iPad and the Android emulator above.**
 - **Real Safari**, as opposed to WebKitGTK.
 - **Windows and ChromeOS**, on which nothing has ever run. ChromeOS is *expected* to be fine —
   Blink with a keyboard, a trackpad and print-to-PDF clears every bar identified above — but that

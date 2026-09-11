@@ -1192,7 +1192,8 @@ body.capturing .hl-mark:not(.preview) { display: none; }
 
 /* ── PDF export. Both the notebook bundle and the One-Pager print through the
    browser's own "Save as PDF" so the app keeps its no-build, no-CDN shape.
-   The .printdoc host is built on demand and removed after printing. */
+   The .printdoc host is built on demand and removed after printing -- at the
+   first touch after the dialog, not on afterprint; see printDoc in app.js. */
 .printdoc { display: none; }
 
 /* The One-Pager's print typography lives OUTSIDE @media print, unlike the bundle's:
