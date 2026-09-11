@@ -177,6 +177,20 @@ diagnostic report". Two separate causes, both now handled in code.
   **In-app browser: YES**. The detection is verified against a spoofed UA only — **no real
   Canvas-app session has run yet.** Ask the next Android student for a Diagnostics paste from
   inside Canvas.
+- **pdf.js 6.0.227 wants a 2025 browser, and the reader died on anything older.** On the
+  emulator's Chrome 113 every PDF was "Could not render this PDF · Promise.withResolvers is
+  not a function"; with that patched, the worker handshake failed on `Promise.try` (Chrome
+  128 / Safari 18.2 / Firefox 134) and pdf.js fell back to a main-thread worker whose path
+  resolved to `vendor/vendor/`; with THAT patched, pages rendered with no words at all
+  because the worker stopped at the first font on `Math.sumPrecise` (Chrome 141) and
+  `ArrayBuffer.transferToFixedLength` (Chrome 114) — silently, the operator list just
+  ended at `beginText`. Seven polyfills now live in `vendor/pdf-compat.mjs` (loaded on
+  both threads) and `workerSrc` is absolute; verified on Chrome 113 with the manual and
+  three course chapters, and unchanged on desktop Chromium via `run.py pages`. Real
+  casualties before `2026-09-11-254`: any iPad on iPadOS 17 or earlier, a Galaxy tablet on
+  Samsung Internet ≤ 27, any Chrome older than mid-2025. **To find the next one:** import
+  `vendor/pdf.worker.compat.mjs` on the main thread before `getDocument` — pdf.js then runs
+  the worker in-page and the TypeErrors surface as console warnings instead of a blank page.
 - **Downloads in real Chrome just work,** phone and tablet: no dialog, a "File downloaded"
   card under the address bar, file in `Files → Downloads` under its dated name. The card shows
   the blob URL rather than the filename, which is Chrome's doing.
