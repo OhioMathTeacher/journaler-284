@@ -763,9 +763,11 @@ function paintReflection(rf, question, hooks) {
 //    rewrites the composed page, so before a page exists the button has nothing to act
 //    on and only clutters the gush.
 //
-//    Reflection (4) waits for Generation Loss on the one-pager that has it: the OP5
-//    reflection is ABOUT what the machine erased, so asking for it first asks too early.
-//    Elsewhere it is 3 and appears as soon as the gush ends.
+//    Reflection is 3 on every One-Pager and appears as soon as the gush ends. OP5 adds a
+//    4th band, Telefone, which carries its own reflection -- about what the machine
+//    erased -- once a round is saved. (It used to be the other way round, with the
+//    writing reflection held back until Generation Loss had run, because that one box
+//    had to serve both purposes. It no longer does.)
 //
 //    ⚠ The exception is not negotiable. appendDistressNote paints into #reflect, so a
 //    hidden band is a hidden safety net. If the gush tripped DISTRESS the band shows at
@@ -778,9 +780,7 @@ function syncStageBands(){
   const rb = document.getElementById('reflectband');
   const rf = document.getElementById('reflect');
   if (!rb || !rf) return;
-  if (rf.dataset.on !== '1') { rb.style.display = 'none'; return; }
-  const waitingOnGenloss = !!gl && gl.dataset.done !== '1';
-  rb.style.display = (!waitingOnGenloss || rf.dataset.urgent === '1') ? '' : 'none';
+  rb.style.display = rf.dataset.on === '1' ? '' : 'none';
 }
 
 // Name the human, ALONGSIDE whatever else this pane is saying. Never instead of it:
@@ -2948,19 +2948,20 @@ async function runReflection(rf, text, hooks) {
         <div class="composer-foot"><button class="btn" id="opExport">Export One-Pager (1-page PDF)</button><span class="note">The PDF you submit: your One-Pager, then your writing session and AI-use log.</span></div>
        </div>
       </div>
+      <section class="reflectband" id="reflectband" style="display:none">
+        <div class="stagelabel"><span class="n">3</span> ${REFLECT_LABEL}</div>
+        <div class="reflect" id="reflect"></div>
+      </section>
       ${M.genloss ? `
       <section class="genloss" id="genloss">
-        <div class="stagelabel"><span class="n">3</span> Generation Loss — play Telefone</div>
+        <div class="stagelabel"><span class="n">4</span> Generation Loss — play Telefone</div>
         <p class="stagenote">Your One-Pager is <strong>pass zero</strong>. Telefone asks the machine to clean it up, then cleans up the cleanup, pass after pass. Nothing it returns enters your page — save a round there and it prints with this One-Pager as evidence.</p>
         <div class="gushbar">
           <button class="btn go" id="glSend">Send this page to Telefone →</button>
           <span class="note" id="glStatus"></span>
         </div>
-      </section>` : ''}
-      <section class="reflectband" id="reflectband" style="display:none">
-        <div class="stagelabel"><span class="n">${M.genloss ? 4 : 3}</span> ${REFLECT_LABEL}</div>
-        <div class="reflect" id="reflect"></div>
-      </section>`;
+        <div id="glReflect"></div>
+      </section>` : ''}`;
     wireTimer();
     // Restore a saved gush + shaped one-pager for this OP.
     const saved = DB.freewrite[fwCur] || {};
@@ -3033,6 +3034,12 @@ async function runReflection(rf, text, hooks) {
       // "done" once a round is saved -- that is what the OP5 reflection is about.
       if (host) host.dataset.done = DB.tele.rounds.length ? '1' : '';
       if (st && DB.tele.rounds.length) st.textContent = `${DB.tele.rounds.length} round${DB.tele.rounds.length === 1 ? '' : 's'} saved in Telefone.`;
+      const box = document.getElementById('glReflect');
+      if (box && DB.tele.rounds.length) {
+        box.innerHTML = `<p class="stagenote gl-lead">Now the reflection — it prints with this One-Pager, and it is the same box as the one under your rounds in Telefone. <em>What did the machine fix first? What is gone by the end that was there at the start? What refused to go? What does that mean for your writing — and for the writing of your students?</em></p>
+          <textarea class="tele-page tele-reflection" id="glReflection" placeholder="That part is yours.">${escHtml(DB.tele.reflection || '')}</textarea>`;
+        document.getElementById('glReflection').addEventListener('input', e => { DB.tele.reflection = e.target.value; saveDB(); });
+      }
       glSend.addEventListener('click', () => {
         const pg = document.getElementById('page');
         const zero = pg ? pg.innerText.trim() : '';

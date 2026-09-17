@@ -2213,6 +2213,8 @@ body.fwsolo .fwback:hover { background: var(--comment-bg); border-color: var(--a
 .gl-pane h4 { margin: 0 0 6px; font-size: 13px; opacity: .8; }
 .gl-pane p { margin: 0 0 8px; }
 .reflectband { margin: 26px 0 0; padding-top: 18px; border-top: 1px solid var(--panel-line); }
+.gl-lead { margin-top: 14px; }
+#glReflect textarea.tele-reflection { width: 100%; box-sizing: border-box; margin-top: 8px; }
 
 /* ── Telefone ──────────────────────────────────────────────────────────────────
    Generation Loss as a game of telephone: a strip of passes, the page under it,
