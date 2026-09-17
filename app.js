@@ -997,6 +997,7 @@ async function runReflection(rf, text, hooks) {
   if(!DB.tele || !Array.isArray(DB.tele.passes)) DB.tele = { passes:[''], asked:[], rounds:[] };
   if(!Array.isArray(DB.tele.rounds)) DB.tele.rounds = [];
   if(!Array.isArray(DB.tele.asked))  DB.tele.asked  = [];
+  if(typeof DB.tele.reflection !== 'string') DB.tele.reflection = '';
   let _saveT;
   // A failed save used to console.warn and nothing else: the student kept typing into
   // an app that had silently stopped recording, and found out at the end of the term.
@@ -8298,6 +8299,13 @@ You: Really. The first line only has to exist, not be good.`;
     if(askedByAI) aiBits.push(escHtml(AI_TAG) + ' asked how the writing went \u2014 about the experience, not the content.');
     if(asks) aiBits.push('I asked ' + escHtml(AI_TAG) + ' about a passage of my own writing '
       + asks + ' time' + (asks === 1 ? '' : 's') + '. Nothing he said is in the One-Pager unless I typed it there myself.');
+    if(M.genloss && DB.tele.rounds.length){
+      const rounds = DB.tele.rounds, total = rounds.reduce((a, r) => a + (r.n || 0), 0);
+      const models = [...new Set(rounds.map(r => r.model).filter(Boolean))];
+      aiBits.push('I ran this page through the machine in Telefone: ' + rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + ', '
+        + total + ' pass' + (total === 1 ? '' : 'es') + ' in all' + (models.length ? ' (' + escHtml(models.join('; ')) + ')' : '')
+        + '. The passes are printed after this record as machine output. None of them is in the One-Pager.');
+    }
     const aiUse = aiBits.length ? aiBits.join(' ') : 'No AI was used on this One-Pager.';
 
     const exchange = s.question ? `
@@ -8321,10 +8329,21 @@ You: Really. The first line only has to exist, not be good.`;
   // Machine output, printed as evidence and labelled as such on every pass. It follows
   // the session record on its own page and is never measured against the one-page rule:
   // none of it is the student's writing.
+  function teleReflectionHTML(){
+    const r = String(DB.tele.reflection || '').trim();
+    const para = t => String(t || '').split(/\n{2,}/).map(p => `<p>${escHtml(p).replace(/\n/g,'<br>')}</p>`).join('');
+    return `
+      <section class="op-session">
+        <h2>Generation Loss reflection</h2>
+        <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}What the machine fixed first, what is gone by the end, what refused to go — and what that means for my writing and my students'.</p>
+        ${r ? para(r) : '<p class="op-none">Not written yet.</p>'}
+      </section>`;
+  }
   function genlossHTML(M){
-    if (!M.genloss || !DB.tele.rounds.length) return '';
+    if (!M.genloss) return '';
+    if (!DB.tele.rounds.length) return teleReflectionHTML();
     const para = t => String(t || '').split(/\n+/).filter(Boolean).map(x => `<p>${escHtml(x)}</p>`).join('');
-    return DB.tele.rounds.map((r, k) => {
+    return teleReflectionHTML() + DB.tele.rounds.map((r, k) => {
       const ps = Array.isArray(r.passes) && r.passes.length ? r.passes : [r.first, r.last];
       const last = ps.length - 1;
       const shown = [...new Set(GENLOSS_SHOWN.filter(i => i < last).concat(last))];
@@ -8994,7 +9013,13 @@ You: Really. The first line only has to exist, not be good.`;
           <div class="note tele-status" id="teleStatus"></div>
         </div>
         <section class="tele-rounds" id="teleRounds"></section>
+        <section class="tele-reflect">
+          <div class="tele-rh"><h2>Generation Loss reflection</h2><span class="note">prints with One-Pager 5 · the 4-point row</span></div>
+          <p class="tele-lead">Read your rounds, then write. <em>What did the machine fix first? What is gone by the end that was there at the start? What refused to go? What does that mean for your writing — and for the writing of your students?</em></p>
+          <textarea class="tele-page tele-reflection" id="teleReflection" placeholder="That part is yours.">${escHtml(T.reflection || '')}</textarea>
+        </section>
       </div>`;
+    document.getElementById('teleReflection').addEventListener('input', e => { DB.tele.reflection = e.target.value; saveDB(); });
     document.getElementById('teleDiff').addEventListener('change', e => { teleDiff = e.target.checked; teleSheet(); });
     teleAskRow(); teleStripRow(); teleSheet(); teleRoundsList();
   }
@@ -9215,6 +9240,7 @@ You: Really. The first line only has to exist, not be good.`;
     const html = `<section class="op-session gl-sheet"><h2>Telefone — ${rounds.length} round${rounds.length === 1 ? '' : 's'}</h2>
       <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}${escHtml(fmtDate(new Date().toISOString()))}</p>
       <p>Pass zero in each round is my writing. The last pass is machine output, produced by handing the machine the pass before and asking it to revise, again and again.</p></section>`
+      + teleReflectionHTML()
       + rounds.map((r, i) => `<section class="op-session gl-sheet">
         <h2>Round ${i + 1}</h2>
         <p class="op-sub">${escHtml(fmtDate(r.when))} · ${escHtml(r.model)} · ${r.n} pass${r.n === 1 ? '' : 'es'} · ${r.survival}% of my words left${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</p>
