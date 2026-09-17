@@ -2194,3 +2194,22 @@ body.fwsolo .fwback:hover { background: var(--comment-bg); border-color: var(--a
 @media (pointer: coarse) { body.fwsolo .fwback { min-height: 44px; font-size: 15px; } }
 /* Focus mode hides .head outright, so the way back is gone while the clock runs --
    which is correct: it must never be a door out of a locked gush. */
+
+/* ── Generation Loss (OP5). A full-width band UNDER .op-cols, never inside it: that
+   grid is subgrid over exactly five row tracks and a sixth child overlaps the fifth. */
+.genloss { margin: 26px 0 0; padding-top: 18px; border-top: 1px solid var(--panel-line); }
+.gl-meta { font-size: 13px; opacity: .75; margin: 10px 0 6px; }
+.gl-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.gl-chips { display: inline-flex; gap: 4px; }
+.gl-chip { min-width: 28px; padding: 3px 6px; font: inherit; font-size: 13px; cursor: pointer;
+  border: 1px solid var(--panel-line); border-radius: 4px; background: var(--panel-fill); color: inherit; }
+.gl-chip.key { font-weight: 700; }
+.gl-chip.on { background: var(--panel-fill-hi); border-color: var(--panel-accent); }
+.gl-chip:hover { background: var(--panel-fill-hi); }
+.gl-two { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 900px) { .gl-two { grid-template-columns: 1fr 1fr; } }
+.gl-pane { border: 1px solid var(--panel-line); border-radius: 6px; padding: 10px 14px;
+  background: var(--panel-fill); max-height: 46vh; overflow: auto; }
+.gl-pane h4 { margin: 0 0 6px; font-size: 13px; opacity: .8; }
+.gl-pane p { margin: 0 0 8px; }
+.reflectband { margin: 26px 0 0; padding-top: 18px; border-top: 1px solid var(--panel-line); }
