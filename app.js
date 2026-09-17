@@ -864,17 +864,20 @@ async function runReflection(rf, text, hooks) {
     const t = document.getElementById('timer'); if (!t) return;
     paintTimer();
     const minus = document.getElementById('tminus'), plus = document.getElementById('tplus');
-    if (minus) minus.onclick = () => { if (G.running) return; gushSecs = Math.max(60, gushSecs - 60); paintTimer(); };
+    // 0:00 is allowed on purpose: it ends the gush on the first tick, which is how you
+    // get to Shape without waiting a minute when there is nothing to gush (testing, or
+    // a page you already have).
+    if (minus) minus.onclick = () => { if (G.running) return; gushSecs = Math.max(0, gushSecs - 60); paintTimer(); };
     if (plus)  plus.onclick  = () => { if (G.running) return; gushSecs = Math.min(3600, gushSecs + 60); paintTimer(); };
     t.classList.add('editable');
     t.onclick = () => {
       if (G.running) return;
       const mins = Math.round(gushSecs / 60);
       const inp = document.createElement('input');
-      inp.type = 'number'; inp.min = 1; inp.max = 60; inp.value = mins; inp.className = 'timerin';
+      inp.type = 'number'; inp.min = 0; inp.max = 60; inp.value = mins; inp.className = 'timerin';
       t.replaceWith(inp); inp.focus(); inp.select();
       const commit = () => {
-        let v = parseInt(inp.value, 10); if (isNaN(v)) v = mins; v = Math.max(1, Math.min(60, v));
+        let v = parseInt(inp.value, 10); if (isNaN(v)) v = mins; v = Math.max(0, Math.min(60, v));
         gushSecs = v * 60;
         const span = document.createElement('span'); span.className = 'timer editable'; span.id = 'timer'; span.textContent = fmt(gushSecs);
         inp.replaceWith(span); wireTimer();
@@ -918,6 +921,7 @@ async function runReflection(rf, text, hooks) {
     const btn = document.getElementById('startBtn'); if(btn) btn.disabled = false;
     const lm = document.getElementById('lockmsg'); if(lm) lm.textContent = 'Clock reset — adjust the minutes and start again when you’re ready.';
     const rb = document.getElementById('resetBtn'); if(rb) rb.style.display = 'none';
+    const db = document.getElementById('doneBtn'); if(db) db.style.display = 'none';
     const t = document.getElementById('timer'); if(t) t.classList.remove('low');
     if(opts.focus) setFocus(false);
     paintTimer();
@@ -931,6 +935,15 @@ async function runReflection(rf, text, hooks) {
     let rb = document.getElementById('resetBtn');
     if(!rb && btn && btn.parentNode){ rb = document.createElement('button'); rb.id = 'resetBtn'; rb.type = 'button'; rb.className = 'btn ghost sm'; btn.parentNode.insertBefore(rb, btn.nextSibling); }
     if(rb){ rb.textContent = '↺ Reset clock'; rb.style.display = ''; rb.onclick = () => resetGush(opts); }
+    // Done early -- they're adults, part two. A student who has said what they had to
+    // say by minute five of eight waited out the clock (Todd, 2026-09-16: "an issue for
+    // students today"). This ends the gush NOW with the text frozen exactly as the
+    // buzzer would freeze it: same lock, same record, same reflection. It is not the
+    // hole Reset is -- nothing written can be changed by pressing it. The minutes
+    // recorded are the minutes that ran.
+    let db = document.getElementById('doneBtn');
+    if(!db && rb && rb.parentNode){ db = document.createElement('button'); db.id = 'doneBtn'; db.type = 'button'; db.className = 'btn ghost sm'; rb.parentNode.insertBefore(db, rb); }
+    if(db){ db.textContent = '■ Done — stop the clock'; db.style.display = ''; db.onclick = () => { if(G.running) endGush(); }; }
     // `gushing` is the CLOCK-IS-RUNNING state, distinct from `focus`. Focus can be
     // toggled by hand at any time; this marks the stretch where the only thing that
     // should be on screen is the gush. See the focus rules in app.css.
@@ -943,11 +956,12 @@ async function runReflection(rf, text, hooks) {
     ta.addEventListener('beforeinput', guardInput);
     const lm = document.getElementById('lockmsg'); if(lm) lm.innerHTML = '<span class="lockflag">● Locked — gush mode. Keep going.</span>';
     if(opts.focus) setFocus(true);
-    G.running = true; G.remain = mins;
+    G.running = true; G.remain = mins; G.total = mins;
     const timer = document.getElementById('timer');
-    G.tId = setInterval(() => {
-      G.remain--; timer.textContent = fmt(G.remain); timer.classList.toggle('low', G.remain<=30);
-      if(G.remain<=0){ clearInterval(G.tId); G.running=false;
+    function endGush(){
+        clearInterval(G.tId); G.running=false;
+        G.elapsed = Math.max(0, G.total - Math.max(0, G.remain));
+        if(db) db.style.display = 'none';
         body.classList.remove('gushing');
         // READONLY, never disabled. The gush must freeze — sheet two prints it as "the
         // gush, unedited" — but a DISABLED textarea cannot be selected in any browser, so
@@ -963,7 +977,10 @@ async function runReflection(rf, text, hooks) {
         if(rf){ rf.dataset.on='1'; if(distressNote(ta.value)) rf.dataset.urgent='1';
           rf.style.display='block'; runReflection(rf, ta.value, opts.reflect); syncStageBands(); }
         if(opts.onEnd) opts.onEnd();
-      }
+    }
+    G.tId = setInterval(() => {
+      G.remain--; timer.textContent = fmt(G.remain); timer.classList.toggle('low', G.remain<=30);
+      if(G.remain<=0) endGush();
     }, 1000);
   }
 
@@ -3002,7 +3019,9 @@ async function runReflection(rf, text, hooks) {
       // RECORD should not be wiped with it, or a student who gushed four times shows up
       // on the evidence sheet as having gushed once. Keep counts, never the erased text.
       const prevS = (DB.freewrite[opKey]||{}).session || {};
-      const mins = Math.round(gushSecs/60), wds = (gtxt.trim().match(/\S+/g)||[]).length;
+      // Minutes that RAN, not minutes set: Done early ends the clock before it is out.
+      const ran = (typeof G.elapsed === 'number') ? G.elapsed : gushSecs;
+      const mins = ran > 0 ? Math.max(1, Math.round(ran/60)) : 0, wds = (gtxt.trim().match(/\S+/g)||[]).length;
       DB.freewrite[fwCur]=Object.assign({},DB.freewrite[fwCur],{gush:gtxt,gushed:true,done:true});
       sessionPatch(opKey,{minutes:mins,endedAt:new Date().toISOString(),words:wds,ai:aiLabel(),
         gushes:(prevS.gushes||0)+1, totalMinutes:(prevS.totalMinutes||0)+mins, totalWords:(prevS.totalWords||0)+wds});
