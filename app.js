@@ -393,7 +393,13 @@ function applyCustomPreset(name) {
   document.getElementById('aiCustomKey').focus();
 }
 
-async function callModel(prompt) {
+// opts.maxTokens raises the reply budget for a caller that expects a whole page back
+// (Telefone); opts.throwErrors makes the "you have not set this up" and API-failure
+// messages THROW instead of coming back as the reply, for a caller that would
+// otherwise file the error text as a pass.
+async function callModel(prompt, opts = {}) {
+  const budget = opts.maxTokens || budget;
+  const fail = m => { if (opts.throwErrors) throw new Error(m); return m; };
   const provider = getProvider();
   const apiKey   = getStoredKey(provider);
 
@@ -402,11 +408,11 @@ async function callModel(prompt) {
   // the user has not made yet.
   if (provider === 'none') {
     openSettingsAI();
-    return 'No AI provider selected. Choose one in Settings → AI.';
+    return fail('No AI provider selected. Choose one in Settings → AI.');
   }
   if (provider !== 'local' && !apiKey) {
     openSettingsAI();
-    return 'No API key found. Add your key in Settings → AI.';
+    return fail('No API key found. Add your key in Settings → AI.');
   }
 
   if (provider === 'local') {
@@ -414,7 +420,7 @@ async function callModel(prompt) {
     const model    = getLocalModel();
     if (!model) {
       openSettingsAI();
-      return 'No local model selected. Pick one in Settings → AI.';
+      return fail('No local model selected. Pick one in Settings → AI.');
     }
     try {
       // Qwen3.5 and other reasoning models spend the whole token budget in a
@@ -432,7 +438,7 @@ async function callModel(prompt) {
           model,
           stream: false,
           think: false,
-          options: { num_predict: REPLY_MAX_TOKENS },
+          options: { num_predict: budget },
           messages: [{ role: 'user', content: prompt }]
         })
       }).catch(() => null);
@@ -448,12 +454,12 @@ async function callModel(prompt) {
         headers: localHeaders(),
         body: JSON.stringify({
           model,
-          max_tokens: REPLY_MAX_TOKENS,
+          max_tokens: budget,
           messages: [{ role: 'user', content: prompt }]
         })
       });
       if (!res.ok) {
-        return `Local model error ${res.status}. ${localFailureHint(endpoint)}`;
+        return fail(`Local model error ${res.status}. ${localFailureHint(endpoint)}`);
       }
       const data = await res.json();
       return markIfTruncated(
@@ -461,7 +467,7 @@ async function callModel(prompt) {
         data.choices?.[0]?.finish_reason === 'length'
       );
     } catch (err) {
-      return `Could not reach the local model. ${localFailureHint(endpoint)}`;
+      return fail(`Could not reach the local model. ${localFailureHint(endpoint)}`);
     }
   }
 
@@ -482,7 +488,7 @@ async function callModel(prompt) {
         body: JSON.stringify({
           // claude-sonnet-4-20250514 retired 15 June 2026.
           model: 'claude-sonnet-5',
-          max_tokens: REPLY_MAX_TOKENS,
+          max_tokens: budget,
           // Sonnet 5 thinks by default and max_tokens caps thinking and reply
           // together, so a 200-token budget would be spent thinking and return
           // nothing. Short prompts here; disable it explicitly.
@@ -492,9 +498,9 @@ async function callModel(prompt) {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        if (res.status === 401) return 'Invalid Anthropic key. Update it via the AI button in the header.';
-        if (res.status === 404) return 'That Anthropic model is unavailable — it may have been retired. This needs a fix in the app, not a new key.';
-        return `Anthropic API error ${res.status}: ${err?.error?.message || 'Unknown error'}`;
+        if (res.status === 401) return fail('Invalid Anthropic key. Update it via the AI button in the header.');
+        if (res.status === 404) return fail('That Anthropic model is unavailable — it may have been retired. This needs a fix in the app, not a new key.');
+        return fail(`Anthropic API error ${res.status}: ${err?.error?.message || 'Unknown error'}`);
       }
       const data = await res.json();
       return markIfTruncated(
@@ -502,7 +508,7 @@ async function callModel(prompt) {
         data.stop_reason === 'max_tokens'
       );
     } catch (err) {
-      return 'Error reaching Anthropic. Please check your connection and try again.';
+      return fail('Error reaching Anthropic. Please check your connection and try again.');
     }
   }
 
@@ -515,7 +521,7 @@ async function callModel(prompt) {
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            maxOutputTokens: REPLY_MAX_TOKENS,
+            maxOutputTokens: budget,
             temperature: 0.7,
             // Gemini 2.5 Flash thinks by default and maxOutputTokens caps the
             // thinking and the reply TOGETHER -- exactly the trap handled for
@@ -530,9 +536,9 @@ async function callModel(prompt) {
         const err = await res.json().catch(() => ({}));
         // A retired model id also produces a 400, so reporting every 400 as a
         // key fault sent students to replace a key that was working.
-        if (res.status === 401 || res.status === 403) return 'Invalid Gemini key. Update it via the AI button in the header.';
-        if (res.status === 404) return 'That Gemini model is unavailable — it may have been retired. This needs a fix in the app, not a new key.';
-        return `Gemini API error ${res.status}: ${err?.error?.message || 'Unknown error'}`;
+        if (res.status === 401 || res.status === 403) return fail('Invalid Gemini key. Update it via the AI button in the header.');
+        if (res.status === 404) return fail('That Gemini model is unavailable — it may have been retired. This needs a fix in the app, not a new key.');
+        return fail(`Gemini API error ${res.status}: ${err?.error?.message || 'Unknown error'}`);
       }
       const data = await res.json();
       const cand = data.candidates?.[0];
@@ -541,7 +547,7 @@ async function callModel(prompt) {
         cand?.finishReason === 'MAX_TOKENS'
       );
     } catch (err) {
-      return 'Error reaching Gemini. Please check your connection and try again.';
+      return fail('Error reaching Gemini. Please check your connection and try again.');
     }
   }
 
@@ -554,7 +560,7 @@ async function callModel(prompt) {
       },
       body: JSON.stringify({
         model,
-        max_tokens: REPLY_MAX_TOKENS,
+        max_tokens: budget,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -579,8 +585,8 @@ async function callModel(prompt) {
         }
       }
       if (!res.ok) {
-        if (res.status === 401) return 'Invalid Groq key. Update it via the AI button in the header.';
-        return `Groq API error ${res.status}: ${err?.error?.message || 'Unknown error'}`;
+        if (res.status === 401) return fail('Invalid Groq key. Update it via the AI button in the header.');
+        return fail(`Groq API error ${res.status}: ${err?.error?.message || 'Unknown error'}`);
       }
       const data = await res.json();
       return markIfTruncated(
@@ -588,24 +594,24 @@ async function callModel(prompt) {
         data.choices?.[0]?.finish_reason === 'length'
       );
     } catch (err) {
-      return 'Error reaching Groq. Please check your connection and try again.';
+      return fail('Error reaching Groq. Please check your connection and try again.');
     }
   }
 
   if (provider === 'custom') {
     const endpoint = (localStorage.getItem(CUSTOM_ENDPOINT_KEY) || '').replace(/\/+$/, '');
     const model = localStorage.getItem(CUSTOM_MODEL_KEY) || '';
-    if (!endpoint || !model) { openAIModal(); return 'Set the endpoint URL and model in the AI settings.'; }
+    if (!endpoint || !model) { openAIModal(); return fail('Set the endpoint URL and model in the AI settings.'); }
     try {
       const res = await fetch(`${endpoint}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({ model, max_tokens: REPLY_MAX_TOKENS, messages: [{ role: 'user', content: prompt }] })
+        body: JSON.stringify({ model, max_tokens: budget, messages: [{ role: 'user', content: prompt }] })
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        if (res.status === 401) return 'Invalid API key. Update it via the AI button in the header.';
-        return `API error ${res.status}: ${err?.error?.message || 'Unknown error'}`;
+        if (res.status === 401) return fail('Invalid API key. Update it via the AI button in the header.');
+        return fail(`API error ${res.status}: ${err?.error?.message || 'Unknown error'}`);
       }
       const data = await res.json();
       return markIfTruncated(
@@ -613,11 +619,11 @@ async function callModel(prompt) {
         data.choices?.[0]?.finish_reason === 'length'
       );
     } catch (err) {
-      return 'Could not reach that endpoint. Check the URL and your connection.';
+      return fail('Could not reach that endpoint. Check the URL and your connection.');
     }
   }
 
-  return 'Unknown provider.';
+  return fail('Unknown provider.');
 }
 
 // ── What the students call him. Declared HERE, at file scope, rather than inside the
@@ -654,9 +660,7 @@ const REFLECT_LABEL = 'Reflecting on Writing';
 //    The prompt is fixed and dull on purpose: "the point isn't the prompt, it's watching
 //    what each pass erases" (OP5). Changing it per student would make the passes
 //    incomparable across the room.
-const GENLOSS_PROMPT = 'Clean this up and correct it. Return only the corrected text.';
-const GENLOSS_PASSES = 10;                 // pass zero is the student's own page
-const GENLOSS_SHOWN  = [0, 1, 5, 10];      // the four the assignment asks them to save
+const GENLOSS_SHOWN = [0, 1, 5, 10];       // the passes the OP5 print sheet shows from each Telefone round
 
 const REFLECT_PROMPT_SOLO = 'How did the writing go? What did you leave out, '
   + 'and what do you most want a reader to notice?';
@@ -985,11 +989,14 @@ async function runReflection(rf, text, hooks) {
     db.v = DB_SCHEMA;
   }
 
-  const DB = Object.assign({ v:DB_SCHEMA, name:'', freewrite:{}, currere:{}, notebook:{}, readings:null, activeReading:0 }, loadDB());
+  const DB = Object.assign({ v:DB_SCHEMA, name:'', freewrite:{}, currere:{}, notebook:{}, tele:null, readings:null, activeReading:0 }, loadDB());
   migrateDB(DB);
   if(!DB.freewrite) DB.freewrite = {};
   if(!DB.currere)   DB.currere   = {};
   if(!DB.notebook)  DB.notebook  = {};
+  if(!DB.tele || !Array.isArray(DB.tele.passes)) DB.tele = { passes:[''], asked:[], rounds:[] };
+  if(!Array.isArray(DB.tele.rounds)) DB.tele.rounds = [];
+  if(!Array.isArray(DB.tele.asked))  DB.tele.asked  = [];
   let _saveT;
   // A failed save used to console.warn and nothing else: the student kept typing into
   // an app that had silently stopped recording, and found out at the end of the term.
@@ -2942,14 +2949,12 @@ async function runReflection(rf, text, hooks) {
       </div>
       ${M.genloss ? `
       <section class="genloss" id="genloss">
-        <div class="stagelabel"><span class="n">3</span> Generation Loss — what the machine corrects away</div>
-        <p class="stagenote">Your One-Pager is <strong>pass zero</strong>. Journaler asks the machine to clean it up, then cleans up the cleanup, ten times over. Nothing it returns enters your page — it prints on its own sheet as evidence.</p>
+        <div class="stagelabel"><span class="n">3</span> Generation Loss — play Telefone</div>
+        <p class="stagenote">Your One-Pager is <strong>pass zero</strong>. Telefone asks the machine to clean it up, then cleans up the cleanup, pass after pass. Nothing it returns enters your page — save a round there and it prints with this One-Pager as evidence.</p>
         <div class="gushbar">
-          <button class="btn go" id="glRun">Run Generation Loss</button>
-          <button class="btn ghost sm" id="glStop" style="display:none">Stop</button>
+          <button class="btn go" id="glSend">Send this page to Telefone →</button>
           <span class="note" id="glStatus"></span>
         </div>
-        <div id="glOut"></div>
       </section>` : ''}
       <section class="reflectband" id="reflectband" style="display:none">
         <div class="stagelabel"><span class="n">${M.genloss ? 4 : 3}</span> ${REFLECT_LABEL}</div>
@@ -3020,74 +3025,22 @@ async function runReflection(rf, text, hooks) {
     //    compounding is the whole point; ten calls on the original would just be ten
     //    first drafts. Passes live on the session so they survive a reload and can
     //    print, and they are never written into #page.
-    const glRun = document.getElementById('glRun');
-    if (glRun) {
-      let glAbort = false;
+    const glSend = document.getElementById('glSend');
+    if (glSend) {
       const st = document.getElementById('glStatus');
-      const stopBtn = document.getElementById('glStop');
-
-      function glSaved(){ return ((DB.freewrite[fwCur] || {}).session || {}).genloss || null; }
-
-      function glPaint(){
-        const out = document.getElementById('glOut');
-        const g = glSaved();
-        if (!out) return;
-        const host = document.getElementById('genloss');
-        if (host) host.dataset.done = (g && g.passes && g.passes.length > 1) ? '1' : '';
-        syncStageBands();
-        if (!g || !g.passes || !g.passes.length) { out.innerHTML = ''; return; }
-        const n = g.passes.length - 1;
-        const chips = g.passes.map((_, i) =>
-          `<button class="gl-chip${GENLOSS_SHOWN.includes(i) ? ' key' : ''}" data-i="${i}">${i}</button>`).join('');
-        out.innerHTML = `
-          <p class="gl-meta">${escHtml(g.model || 'unknown model')} · ${n} pass${n === 1 ? '' : 'es'}</p>
-          <div class="gl-pick"><span class="note">Compare</span><span class="gl-chips" data-side="a">${chips}</span>
-            <span class="note">with</span><span class="gl-chips" data-side="b">${chips}</span></div>
-          <div class="gl-two"><div class="gl-pane" id="glA"></div><div class="gl-pane" id="glB"></div></div>`;
-        let a = 0, b = Math.min(GENLOSS_PASSES, n);
-        const draw = () => {
-          out.querySelectorAll('.gl-chips[data-side="a"] .gl-chip').forEach(c => c.classList.toggle('on', +c.dataset.i === a));
-          out.querySelectorAll('.gl-chips[data-side="b"] .gl-chip').forEach(c => c.classList.toggle('on', +c.dataset.i === b));
-          document.getElementById('glA').innerHTML = `<h4>Pass ${a}${a ? '' : ' — yours'}</h4><p>${escHtml(g.passes[a]).replace(/\n+/g, '</p><p>')}</p>`;
-          document.getElementById('glB').innerHTML = `<h4>Pass ${b}</h4><p>${escHtml(g.passes[b]).replace(/\n+/g, '</p><p>')}</p>`;
-        };
-        out.querySelectorAll('.gl-chip').forEach(c => c.addEventListener('click', () => {
-          const side = c.closest('.gl-chips').dataset.side;
-          if (side === 'a') a = +c.dataset.i; else b = +c.dataset.i;
-          draw();
-        }));
-        draw();
-      }
-
-      glRun.addEventListener('click', async () => {
-        if (getProvider() === 'none') {
-          st.textContent = 'This one needs AI on — turn it on under ⚙ Settings → AI. It is the experiment.';
-          return;
-        }
+      const host = document.getElementById('genloss');
+      // "done" once a round is saved -- that is what the OP5 reflection is about.
+      if (host) host.dataset.done = DB.tele.rounds.length ? '1' : '';
+      if (st && DB.tele.rounds.length) st.textContent = `${DB.tele.rounds.length} round${DB.tele.rounds.length === 1 ? '' : 's'} saved in Telefone.`;
+      glSend.addEventListener('click', () => {
         const pg = document.getElementById('page');
         const zero = pg ? pg.innerText.trim() : '';
         if (!zero) { st.textContent = 'Shape your One-Pager first — that is pass zero.'; return; }
-        if (glSaved() && !confirm('Run again? This replaces the passes you already have.')) return;
-
-        glAbort = false;
-        glRun.disabled = true; stopBtn.style.display = 'inline-flex';
-        const passes = [zero];
-        try {
-          for (let i = 1; i <= GENLOSS_PASSES; i++) {
-            if (glAbort) break;
-            st.textContent = `Pass ${i} of ${GENLOSS_PASSES}…`;
-            passes.push(String(await callModel(GENLOSS_PROMPT + '\n\n"""\n' + passes[i - 1] + '\n"""')).trim());
-            sessionPatch(fwCur, { genloss: { passes: passes.slice(), model: aiLabel(), ranAt: new Date().toISOString() } });
-            glPaint();
-          }
-          st.textContent = glAbort ? `Stopped at pass ${passes.length - 1}.` : `Done — ${passes.length - 1} passes.`;
-        } catch (e) {
-          st.textContent = 'The model stopped responding. The passes so far are saved.';
-        }
-        glRun.disabled = false; stopBtn.style.display = 'none';
+        if (DB.tele.passes.length > 1 && !confirm('Telefone has a game in progress. Replace it with this page? (Saved rounds are kept.)')) return;
+        DB.tele.passes = [zero]; DB.tele.asked = []; saveDB();
+        logEvent('ai', 'sent One-Pager 5 to Telefone', { chars: zero.length });
+        show('tele');
       });
-      stopBtn.addEventListener('click', () => { glAbort = true; });
-      glPaint();
     }
     syncStageBands();
 
@@ -8369,19 +8322,21 @@ You: Really. The first line only has to exist, not be good.`;
   // the session record on its own page and is never measured against the one-page rule:
   // none of it is the student's writing.
   function genlossHTML(M){
-    const g = ((DB.freewrite['op' + M.n] || {}).session || {}).genloss;
-    if (!g || !g.passes || g.passes.length < 2) return '';
+    if (!M.genloss || !DB.tele.rounds.length) return '';
     const para = t => String(t || '').split(/\n+/).filter(Boolean).map(x => `<p>${escHtml(x)}</p>`).join('');
-    const shown = GENLOSS_SHOWN.filter(i => i < g.passes.length);
-    return `
+    return DB.tele.rounds.map((r, k) => {
+      const ps = Array.isArray(r.passes) && r.passes.length ? r.passes : [r.first, r.last];
+      const last = ps.length - 1;
+      const shown = [...new Set(GENLOSS_SHOWN.filter(i => i < last).concat(last))];
+      return `
       <section class="op-session gl-sheet">
-        <h2>Generation Loss · One-Pager ${M.n}</h2>
-        <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}${escHtml(g.model || '')}</p>
-        <p>Pass zero is my writing. Every later pass is machine output, produced by asking it to
-        &ldquo;clean this up and correct it&rdquo; and then repeating that on its own answer.
-        None of it appears in my One-Pager.</p>
-        ${shown.map(i => `<h3>Pass ${i}${i ? ' — machine' : ' — mine'}</h3>${para(g.passes[i])}`).join('')}
+        <h2>Telefone · round ${k + 1} of ${DB.tele.rounds.length}</h2>
+        <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}${escHtml(r.model || '')} · ${last} pass${last === 1 ? '' : 'es'} · ${r.survival}% of my words left${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</p>
+        <p>Pass zero is my writing. Every later pass is machine output, produced by handing it the
+        pass before and asking it to revise. None of it appears in my One-Pager.</p>
+        ${shown.map(i => `<h3>Pass ${i}${i ? ' — machine' : ' — mine'}</h3>${para(ps[i])}`).join('')}
       </section>`;
+    }).join('');
   }
 
   function exportOnePagerPDF(M){
@@ -9005,8 +8960,272 @@ You: Really. The first line only has to exist, not be good.`;
     };
   }
 
+  // ═══ Telefone — Generation Loss as a game of telephone.
+  //     Pass zero is the student's page. Each AI Revise hands the LATEST pass to the
+  //     model with whatever requests are ticked and files the reply as the next pass;
+  //     the compounding is the point. Nothing here is ever written into a One-Pager.
+  //     Passes and saved rounds live in DB.tele, so they survive a reload and travel
+  //     in "Save my work"; the OP5 print sheet reads the rounds. Model calls go through
+  //     callModel, so Settings → AI is the model chooser here too.
+  const TELE_ASKS = [
+    { say: 'Clean this up and correct it.',               short: 'clean it up & correct it' },
+    { say: 'Fix the grammar, spelling, and punctuation.', short: 'fix grammar, spelling, punctuation' },
+    { say: 'Rewrite this in clear, standard English.',    short: 'rewrite in clear, standard English' }
+  ];
+  const TELE_MAX = 20;
+  const teleOn = [true, true, true];
+  let teleCur = 0, teleRunning = false, teleStop = false, teleDiff = false;
+
+  function renderTele(){
+    body.classList.remove('wide', 'bleed');
+    const T = DB.tele;
+    if (teleCur > T.passes.length - 1) teleCur = T.passes.length - 1;
+    frame.innerHTML = `<div class="head"><h1>Telefone</h1><p>Telephone, except the machine is every player. Hand it a page, ask it to revise, and watch what it corrects away — pass after pass.</p></div>
+      <div class="tele">
+        <div class="tele-ask" id="teleAsk"></div>
+        <div class="tele-strip" id="teleStrip"></div>
+        <div class="tele-sheet">
+          <div id="teleView"></div>
+          <div class="tele-under">
+            <div class="tele-label" id="teleLabel"></div>
+            <label class="tele-switch"><input type="checkbox" id="teleDiff" ${teleDiff ? 'checked' : ''}> Show what this pass changed</label>
+          </div>
+          <div class="tele-stats" id="teleStats"></div>
+          <div class="note tele-status" id="teleStatus"></div>
+        </div>
+        <section class="tele-rounds" id="teleRounds"></section>
+      </div>`;
+    document.getElementById('teleDiff').addEventListener('change', e => { teleDiff = e.target.checked; teleSheet(); });
+    teleAskRow(); teleStripRow(); teleSheet(); teleRoundsList();
+  }
+
+  // ── words
+  const teleNorm  = w => w.toLowerCase().replace(/[^\p{L}\p{N}']/gu, '');
+  const teleWords = t => String(t || '').split(/\s+/).filter(Boolean);
+  const teleToks  = t => String(t || '').replace(/\r/g, '').replace(/\n/g, ' \n ').split(/[ \t]+/).filter(Boolean);
+  function teleSurvival(k){
+    const P = DB.tele.passes;
+    if (k === 0) return 1;
+    const base = teleWords(P[0]).map(teleNorm).filter(Boolean);
+    const have = new Map();
+    for (const w of teleWords(P[k]).map(teleNorm)) if (w) have.set(w, (have.get(w) || 0) + 1);
+    let kept = 0;
+    for (const w of base){ const c = have.get(w) || 0; if (c > 0){ kept++; have.set(w, c - 1); } }
+    return base.length ? kept / base.length : 0;
+  }
+  function teleSentences(t){
+    const s = String(t || '').split(/(?<=[.!?])\s+|\n+/).map(x => x.trim()).filter(Boolean);
+    const w = teleWords(t).length;
+    return { words: w, sentences: s.length, avg: s.length ? w / s.length : 0 };
+  }
+  // Word-level LCS; line breaks are tokens so the diff keeps the shape of the page.
+  function teleDiffOf(a, b){
+    const A = teleToks(a), B = teleToks(b), n = A.length, m = B.length;
+    const L = new Array(n + 1);
+    for (let i = 0; i <= n; i++) L[i] = new Uint16Array(m + 1);
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+      L[i][j] = A[i] === B[j] ? L[i+1][j+1] + 1 : Math.max(L[i+1][j], L[i][j+1]);
+    const out = []; let i = 0, j = 0;
+    while (i < n && j < m){
+      if (A[i] === B[j]){ out.push(['eq', A[i]]); i++; j++; }
+      else if (L[i+1][j] >= L[i][j+1]){ out.push(['del', A[i]]); i++; }
+      else { out.push(['ins', B[j]]); j++; }
+    }
+    while (i < n) out.push(['del', A[i++]]);
+    while (j < m) out.push(['ins', B[j++]]);
+    return out;
+  }
+  const teleParas = t => String(t || '').split(/\n\s*\n/).map(p => `<p>${escHtml(p.trim()).replace(/\n/g, '<br>')}</p>`).join('');
+  const telePrompt = () => TELE_ASKS.filter((_, i) => teleOn[i]).map(a => a.say).join(' ') + ' Return only the revised text.';
+  const teleAskedShort = () => TELE_ASKS.filter((_, i) => teleOn[i]).map(a => a.short).join(' · ');
+
+  // ── the three requests, on one line
+  function teleAskRow(){
+    const el = document.getElementById('teleAsk'); if (!el) return;
+    el.innerHTML = `<span class="tele-lbl">Ask it to</span>` + TELE_ASKS.map((a, i) =>
+      `<label title="${escHtml(a.say)}"><input type="checkbox" data-i="${i}" ${teleOn[i] ? 'checked' : ''} ${teleRunning ? 'disabled' : ''}>${escHtml(a.short)}</label>`).join('')
+      + `<span class="tele-model"><span class="note">${escHtml(aiLabel())}</span> <button class="btn ghost sm" id="teleModel">Change model</button></span>`;
+    el.querySelectorAll('input').forEach(c => c.addEventListener('change', () => { teleOn[+c.dataset.i] = c.checked; teleStripRow(); }));
+    document.getElementById('teleModel').addEventListener('click', () => openSettingsAI());
+  }
+
+  // ── the tabs
+  function teleStripRow(){
+    const el = document.getElementById('teleStrip'); if (!el) return;
+    const P = DB.tele.passes;
+    const canRun = !teleRunning && P.length <= TELE_MAX && teleOn.some(Boolean);
+    el.innerHTML = P.map((_, i) => {
+      const pct = Math.round(teleSurvival(i) * 100);
+      return `<button class="tele-tab${i === teleCur ? ' on' : ''}" data-i="${i}" role="tab" aria-selected="${i === teleCur}">
+        <span class="n">Pass ${i}${i === 0 ? '<small>yours</small>' : ''}</span><span class="pct">${pct}%</span></button>`;
+    }).join('') + `<span class="tele-actions">
+        <button class="btn ghost sm" id="teleReset" ${P.length > 1 && !teleRunning ? '' : 'disabled'}>Start over</button>
+        <button class="btn go" id="teleRun" ${canRun ? '' : 'disabled'}>AI Revise</button>
+        <button class="btn ghost" id="teleRunAll" ${canRun ? '' : 'disabled'} title="Revise again and again, up to pass ${TELE_MAX}">×10</button>
+        <button class="btn ghost" id="teleStopBtn" style="${teleRunning ? '' : 'display:none'}">Stop</button>
+        <button class="btn ghost sm" id="teleSave" ${P.length > 1 && !teleRunning ? '' : 'disabled'} title="Keep pass zero and the last pass, with the model and the count">Save round</button>
+      </span>`;
+    el.querySelectorAll('.tele-tab').forEach(b => b.addEventListener('click', () => { teleCur = +b.dataset.i; teleStripRow(); teleSheet(); }));
+    document.getElementById('teleRun').addEventListener('click', () => teleRun(1));
+    document.getElementById('teleRunAll').addEventListener('click', () => teleRun(Math.min(10, TELE_MAX + 1 - P.length)));
+    document.getElementById('teleStopBtn').addEventListener('click', () => { teleStop = true; });
+    document.getElementById('teleSave').addEventListener('click', teleSaveRound);
+    document.getElementById('teleReset').addEventListener('click', () => {
+      if (!confirm('Throw away every pass after pass zero? (Saved rounds are kept.)')) return;
+      DB.tele.passes = [P[0]]; DB.tele.asked = []; teleCur = 0; saveDB(); teleSay(''); renderTele();
+    });
+  }
+
+  // ── the page
+  function teleSheet(){
+    const view = document.getElementById('teleView'), label = document.getElementById('teleLabel'); if (!view) return;
+    const P = DB.tele.passes;
+    const editable = teleCur === 0 && P.length === 1 && !teleRunning;
+    document.querySelector('.tele-switch').style.display = teleCur === 0 ? 'none' : '';
+    if (teleCur === 0){
+      label.innerHTML = editable ? '<b>Pass 0</b> · your page — paste it, or send One-Pager 5 here, then AI Revise' : '<b>Pass 0</b> · your page';
+      if (editable){
+        const op5 = (DB.freewrite.op5 || {}).shape || '';
+        view.innerHTML = `<textarea class="tele-page" id="teleEditor" spellcheck="false" placeholder="Paste your Breaking the Rules page here — the shaped one from One-Pager 5, rules broken on purpose.">${escHtml(P[0])}</textarea>
+          ${op5 ? `<div class="tele-from"><button class="btn ghost sm" id="teleFromOp5">Use my One-Pager 5</button></div>` : ''}`;
+        document.getElementById('teleEditor').addEventListener('input', e => { DB.tele.passes[0] = e.target.value; saveDB(); teleStatsRow(); });
+        const f = document.getElementById('teleFromOp5');
+        if (f) f.addEventListener('click', () => {
+          const d = document.createElement('div'); d.innerHTML = op5;
+          DB.tele.passes[0] = d.innerText.trim(); saveDB(); teleSheet();
+        });
+      } else view.innerHTML = `<div class="tele-page">${teleParas(P[0])}</div>`;
+    } else {
+      const why = DB.tele.asked[teleCur];
+      label.innerHTML = `<b>Pass ${teleCur}</b> · machine output${why ? ' · asked to ' + escHtml(why) : ''}`;
+      if (teleDiff){
+        const html = teleDiffOf(P[teleCur - 1], P[teleCur]).map(([t, w]) =>
+          w === '\n' ? (t === 'del' ? '' : '\n') : t === 'eq' ? escHtml(w) : t === 'del' ? `<del>${escHtml(w)}</del>` : `<ins>${escHtml(w)}</ins>`).join(' ');
+        view.innerHTML = `<div class="tele-page tele-diff">${html}</div>`;
+      } else view.innerHTML = `<div class="tele-page">${teleParas(P[teleCur])}</div>`;
+    }
+    teleStatsRow();
+  }
+  function teleStatsRow(){
+    const el = document.getElementById('teleStats'); if (!el) return;
+    const P = DB.tele.passes;
+    const s = teleSentences(P[teleCur]);
+    const pct = Math.round(teleSurvival(teleCur) * 100);
+    let changed = '';
+    if (teleCur > 0){
+      const d = teleDiffOf(P[teleCur - 1], P[teleCur]);
+      const del = d.filter(x => x[0] === 'del' && x[1] !== '\n').length, ins = d.filter(x => x[0] === 'ins' && x[1] !== '\n').length;
+      changed = `<div class="tele-stat"><span class="v">−${del} / +${ins}</span><span class="k">words cut / added this pass</span></div>`;
+    }
+    el.innerHTML = `
+      <div class="tele-stat"><span class="v">${s.words}</span><span class="k">words</span></div>
+      <div class="tele-stat"><span class="v">${s.sentences}</span><span class="k">sentences</span></div>
+      <div class="tele-stat"><span class="v">${s.avg.toFixed(1)}</span><span class="k">words per sentence</span></div>
+      <div class="tele-stat"><span class="v">${pct}%</span><span class="k">of your words remaining</span></div>
+      ${changed}`;
+  }
+  function teleSay(msg, err){ const el = document.getElementById('teleStatus'); if (!el) return; el.textContent = msg; el.classList.toggle('err', !!err); }
+
+  // ── play
+  function teleClean(text){
+    let t = String(text || '').trim().replace(/^"""\s*|\s*"""$/g, '').replace(/^```\w*\s*|\s*```$/g, '').trim();
+    // markIfTruncated's note is for Romano's chat bubble; here it would become part of the next pass.
+    if (/\[…cut off — /.test(t)) throw new Error('The reply was cut off — the page is too long for one pass. Trim pass zero and start over.');
+    return t;
+  }
+  function teleAddPass(text, why){
+    DB.tele.passes.push(text); DB.tele.asked[DB.tele.passes.length - 1] = why; teleCur = DB.tele.passes.length - 1; saveDB();
+    teleStripRow(); teleSheet();
+    if (DB.tele.passes.length > TELE_MAX) teleSay(`That's ${TELE_MAX} passes. ${Math.round(teleSurvival(TELE_MAX) * 100)}% of your words made it to the end of the line.`);
+  }
+  async function teleRun(count){
+    if (teleRunning) return;
+    if (getProvider() === 'none'){ teleSay('This one needs AI on — pick a model under ⚙ Settings → AI. It is the experiment.', true); openSettingsAI(); return; }
+    if (!String(DB.tele.passes[0]).trim()){ teleSay('Pass zero is empty — paste your page first.', true); return; }
+    teleRunning = true; teleStop = false; teleAskRow(); teleStripRow(); teleSheet();
+    try {
+      for (let k = 0; k < count && DB.tele.passes.length <= TELE_MAX; k++){
+        if (teleStop){ teleSay(`Stopped at pass ${DB.tele.passes.length - 1}. The passes so far are kept.`); break; }
+        const n = DB.tele.passes.length;
+        teleSay(`Pass ${n}: the machine is revising pass ${n - 1}…`);
+        const why = teleAskedShort();
+        const text = teleClean(await callModel(telePrompt() + '\n\n"""\n' + DB.tele.passes[n - 1] + '\n"""', { maxTokens: 2500, throwErrors: true }));
+        if (!text){ teleSay('The machine returned nothing — try again.', true); break; }
+        logEvent('ai', 'Telefone pass ' + n, { model: aiLabel(), asked: why, chars: text.length });
+        if (DB.tele.passes.length < TELE_MAX) teleSay('');
+        teleAddPass(text, why);
+      }
+    } catch (e){
+      teleSay((e && e.message) || String(e), true);
+    } finally { teleRunning = false; teleStop = false; teleAskRow(); teleStripRow(); teleSheet(); }
+  }
+
+  // ── rounds
+  function teleSaveRound(){
+    const P = DB.tele.passes;
+    if (P.length < 2) return;
+    const n = P.length - 1;
+    DB.tele.rounds.push({
+      id: Date.now().toString(36), when: new Date().toISOString(),
+      model: aiLabel(), n,
+      asked: [...new Set(DB.tele.asked.slice(1).filter(Boolean))].join(' / '),
+      survival: Math.round(teleSurvival(n) * 100),
+      first: P[0], last: P[n], passes: P.slice()
+    });
+    saveDB();
+    logEvent('ai', 'Telefone round saved', { passes: n, model: aiLabel() });
+    teleRoundsList();
+    teleSay(`Round ${DB.tele.rounds.length} saved — ${n} pass${n === 1 ? '' : 'es'}, ${Math.round(teleSurvival(n) * 100)}% of your words left. Start over to play another.`);
+    document.getElementById('teleRounds').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function teleRoundsList(){
+    const el = document.getElementById('teleRounds'); if (!el) return;
+    const rounds = DB.tele.rounds;
+    const fmtDate = iso => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    if (!rounds.length){
+      el.innerHTML = `<div class="tele-rh"><h2>Rounds</h2></div><div class="tele-round empty">Nothing saved yet. Play a round, then press <b>Save round</b> to keep pass zero and the last pass here — three or four rounds make a set. Saved rounds print with One-Pager 5.</div>`;
+      return;
+    }
+    el.innerHTML = `<div class="tele-rh"><h2>Rounds</h2><span class="note">${rounds.length} saved</span><span class="tele-tools"><button class="btn ghost sm" id="telePrint">Print rounds (PDF)</button></span></div>`
+      + rounds.map((r, i) => `<article class="tele-round">
+        <div class="top"><div class="tele-label"><b>Round ${i + 1}</b> ${fmtDate(r.when)} · ${escHtml(r.model)} · ${r.n} pass${r.n === 1 ? '' : 'es'} · ${r.survival}% of the words left${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</div>
+          <div class="tele-tools"><button class="btn ghost sm" data-open="${r.id}" title="Put this round back in the tabs">Reopen</button><button class="btn ghost sm" data-del="${r.id}">Delete</button></div></div>
+        <div class="cols">
+          <div class="col"><h4>Pass 0 <span>· yours</span></h4><div class="tele-page">${teleParas(r.first)}</div></div>
+          <div class="col"><h4>Pass ${r.n} <span>· the machine's</span></h4><div class="tele-page">${teleParas(r.last)}</div></div>
+        </div></article>`).join('');
+    document.getElementById('telePrint').addEventListener('click', telePrintRounds);
+    el.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+      if (!confirm('Delete this round? It cannot be recovered.')) return;
+      DB.tele.rounds = rounds.filter(r => r.id !== b.dataset.del); saveDB(); teleRoundsList();
+    }));
+    el.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => {
+      if (teleRunning) return;
+      const r = rounds.find(x => x.id === b.dataset.open); if (!r) return;
+      if (DB.tele.passes.length > 1 && !confirm('Replace the passes in the tabs with this round?')) return;
+      const ps = Array.isArray(r.passes) && r.passes.length ? r.passes.slice() : [r.first, r.last];
+      DB.tele.passes = ps; DB.tele.asked = []; DB.tele.asked[ps.length - 1] = r.asked; teleCur = ps.length - 1; saveDB();
+      teleSay(''); renderTele(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    }));
+  }
+  function telePrintRounds(){
+    const rounds = DB.tele.rounds; if (!rounds.length) return;
+    const para = t => String(t || '').split(/\n+/).filter(Boolean).map(x => `<p>${escHtml(x)}</p>`).join('');
+    const fmtDate = iso => new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+    const html = `<section class="op-session gl-sheet"><h2>Telefone — ${rounds.length} round${rounds.length === 1 ? '' : 's'}</h2>
+      <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}${escHtml(fmtDate(new Date().toISOString()))}</p>
+      <p>Pass zero in each round is my writing. The last pass is machine output, produced by handing the machine the pass before and asking it to revise, again and again.</p></section>`
+      + rounds.map((r, i) => `<section class="op-session gl-sheet">
+        <h2>Round ${i + 1}</h2>
+        <p class="op-sub">${escHtml(fmtDate(r.when))} · ${escHtml(r.model)} · ${r.n} pass${r.n === 1 ? '' : 'es'} · ${r.survival}% of my words left${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</p>
+        <h3>Pass 0 — mine</h3>${para(r.first)}
+        <h3>Pass ${r.n} — machine</h3>${para(r.last)}
+      </section>`).join('');
+    printDoc('printOnePager', html, 'Telefone — rounds');
+  }
+
   // ---------- tabs + focus ----------
-  const R = { tips:renderTip, free:renderFree, cur:renderCur, read:renderRead, note:renderNote };
+  const R = { tips:renderTip, free:renderFree, cur:renderCur, read:renderRead, note:renderNote, tele:renderTele };
   // body.reading lets CSS tell the reader apart from the writing views. Focus mode
   // clamps .frame to 720px, which is right for a gush and wrong for a PDF.
   // paintInsMarker last: the insertion marker is a fixed overlay on <body>, so leaving

@@ -2213,3 +2213,56 @@ body.fwsolo .fwback:hover { background: var(--comment-bg); border-color: var(--a
 .gl-pane h4 { margin: 0 0 6px; font-size: 13px; opacity: .8; }
 .gl-pane p { margin: 0 0 8px; }
 .reflectband { margin: 26px 0 0; padding-top: 18px; border-top: 1px solid var(--panel-line); }
+
+/* ── Telefone ──────────────────────────────────────────────────────────────────
+   Generation Loss as a game of telephone: a strip of passes, the page under it,
+   the numbers under that. The strip is the chart -- each tab wears how much of
+   pass zero is still on the page -- so there is no separate graph. */
+.tele { max-width: var(--writecol); }
+.tele-ask { display: flex; align-items: center; gap: 6px 18px; flex-wrap: wrap; margin: 0 0 12px; font-size: 14px; color: var(--muted); }
+.tele-lbl { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
+.tele-ask label { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.tele-ask input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+.tele-ask label:has(input:disabled) { opacity: .55; cursor: default; }
+.tele-model { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+.tele-strip { display: flex; align-items: flex-end; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--comment-border); padding-left: 2px; }
+.tele-tab { appearance: none; font: inherit; border: 1px solid var(--comment-border); border-bottom: none; background: var(--margin-bg); color: var(--muted);
+  padding: 7px 12px 6px; border-radius: 7px 7px 0 0; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 66px; position: relative; top: 1px; }
+.tele-tab .n { font-size: 14px; font-weight: 700; color: var(--ink); }
+.tele-tab .n small { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 4px; }
+.tele-tab .pct { font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.tele-tab.on { background: var(--comment-bg); }
+.tele-tab.on .pct { color: var(--accent); }
+.tele-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; padding-bottom: 8px; flex-wrap: wrap; }
+.tele-sheet { background: var(--comment-bg); border: 1px solid var(--comment-border); border-top: none; padding: 24px 28px 20px; border-radius: 0 0 8px 8px; }
+.tele-page { font-family: var(--write); font-size: 17px; line-height: 1.6; max-width: 66ch; color: var(--ink); }
+.tele-page p { margin: 0 0 1em; } .tele-page p:last-child { margin-bottom: 0; }
+.tele-page.tele-diff { white-space: pre-line; }
+textarea.tele-page { width: 100%; max-width: none; min-height: 280px; box-sizing: border-box; border: 1px dashed var(--comment-border); border-radius: 6px; padding: 14px 16px; background: transparent; resize: vertical; }
+.tele-from { margin-top: 8px; }
+.tele-diff del { color: var(--danger); background: rgba(139,51,51,.10); text-decoration: line-through; text-decoration-thickness: 1.5px; border-radius: 2px; padding: 0 1px; }
+.tele-diff ins { color: var(--go); background: rgba(42,90,58,.12); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; border-radius: 2px; padding: 0 1px; }
+.tele-under { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--comment-border); }
+.tele-label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tele-label b { color: var(--ink); }
+.tele-switch { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: var(--muted); cursor: pointer; user-select: none; }
+.tele-switch input { accent-color: var(--accent); margin: 0; }
+.tele-stats { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 14px; }
+.tele-stat { display: flex; flex-direction: column; gap: 1px; }
+.tele-stat .v { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
+.tele-stat .k { font-size: 12.5px; color: var(--muted); }
+.tele-status { min-height: 20px; margin-top: 10px; }
+.tele-status.err { color: var(--danger); }
+.tele-rounds { margin-top: 30px; }
+.tele-rh { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.tele-rh h2 { font-size: 20px; margin: 0; }
+.tele-tools { display: flex; gap: 6px; }
+.tele-round { background: var(--comment-bg); border: 1px solid var(--comment-border); border-radius: 8px; padding: 16px 20px; margin: 0 0 12px; }
+.tele-round .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.tele-round .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.tele-round .col h4 { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 6px; }
+.tele-round .col h4 span { color: var(--accent); }
+.tele-round .tele-page { font-size: 15.5px; line-height: 1.55; }
+.tele-round.empty { color: var(--muted); font-size: 14px; border-style: dashed; background: transparent; }
+@media (max-width: 720px) { .tele-round .cols { grid-template-columns: 1fr; } .tele-sheet { padding: 18px 16px; } .tele-actions { margin-left: 0; width: 100%; } }
+@media (pointer: coarse) { .tele-tab { min-height: 44px; } }
