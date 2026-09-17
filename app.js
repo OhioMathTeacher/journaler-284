@@ -780,7 +780,9 @@ function syncStageBands(){
   const rb = document.getElementById('reflectband');
   const rf = document.getElementById('reflect');
   if (!rb || !rf) return;
-  rb.style.display = rf.dataset.on === '1' ? '' : 'none';
+  // A quiet band (OP5) opens only for the distress net.
+  const quiet = !!rb.dataset.quiet;
+  rb.style.display = (rf.dataset.on === '1' && (!quiet || rf.dataset.urgent === '1')) ? '' : 'none';
 }
 
 // Name the human, ALONGSIDE whatever else this pane is saying. Never instead of it:
@@ -975,7 +977,15 @@ async function runReflection(rf, text, hooks) {
         if(opts.focus) setFocus(false);
         const rf = document.getElementById('reflect');
         if(rf){ rf.dataset.on='1'; if(distressNote(ta.value)) rf.dataset.urgent='1';
-          rf.style.display='block'; runReflection(rf, ta.value, opts.reflect); syncStageBands(); }
+          rf.style.display='block';
+          // OP5 has no Reflecting-on-Writing: its reflection is the Generation Loss one
+          // under Telefone (Todd, 2026-09-16: "they already have a reflection at the
+          // bottom"). The band stays in the DOM for one reason -- the distress net paints
+          // into it, and that opens the band whatever the One-Pager.
+          const quiet = !!(document.getElementById('reflectband') || {}).dataset?.quiet;
+          if(quiet){ rf.innerHTML = ''; appendDistressNote(rf, distressNote(ta.value)); }
+          else runReflection(rf, ta.value, opts.reflect);
+          syncStageBands(); }
         if(opts.onEnd) opts.onEnd();
     }
     G.tId = setInterval(() => {
@@ -2965,13 +2975,13 @@ async function runReflection(rf, text, hooks) {
         <div class="composer-foot"><button class="btn" id="opExport">Export One-Pager (1-page PDF)</button><span class="note">The PDF you submit: your One-Pager, then your writing session and AI-use log.</span></div>
        </div>
       </div>
-      <section class="reflectband" id="reflectband" style="display:none">
+      <section class="reflectband" id="reflectband" style="display:none" ${M.genloss ? 'data-quiet="1"' : ''}>
         <div class="stagelabel"><span class="n">3</span> ${REFLECT_LABEL}</div>
         <div class="reflect" id="reflect"></div>
       </section>
       ${M.genloss ? `
       <section class="genloss" id="genloss">
-        <div class="stagelabel"><span class="n">4</span> Generation Loss — play Telefone</div>
+        <div class="stagelabel"><span class="n">3</span> Generation Loss — play Telefone</div>
         <p class="stagenote">Your One-Pager is <strong>pass zero</strong>. Telefone asks the machine to clean it up, then cleans up the cleanup, pass after pass. Nothing it returns enters your page — save a round there and it prints with this One-Pager as evidence.</p>
         <div class="gushbar">
           <button class="btn go" id="glSend">Send this page to Telefone →</button>
