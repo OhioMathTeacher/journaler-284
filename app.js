@@ -2972,7 +2972,6 @@ async function runReflection(rf, text, hooks) {
           <span class="sep"></span><button id="imgBtn" title="Insert a picture">&#128247;</button><span class="wc" id="wc">0 words</span></div>
         <div class="page" id="page" contenteditable="${fwGushed[fwCur]?'true':'false'}" data-ph="${M.ph}"></div>
         <input type="file" id="imgInput" accept="image/*" hidden ${M.photos?'multiple':''}>
-        <div class="composer-foot"><button class="btn" id="opExport">Export One-Pager (1-page PDF)</button><span class="note">The PDF you submit: your One-Pager, then your writing session and AI-use log.</span></div>
        </div>
       </div>
       <section class="reflectband" id="reflectband" style="display:none" ${M.genloss ? 'data-quiet="1"' : ''}>
@@ -2988,7 +2987,10 @@ async function runReflection(rf, text, hooks) {
           <span class="note" id="glStatus"></span>
         </div>
         <div id="glReflect"></div>
-      </section>` : ''}`;
+      </section>` : ''}
+      <div class="composer-foot op-foot" id="opFoot" style="display:${fwGushed[fwCur]?'':'none'}"><button class="btn" id="opExport">Export One-Pager (PDF)</button><span class="note">${M.genloss
+        ? 'The PDF you submit: your One-Pager, then your writing session and AI-use log, your Generation Loss reflection, and your saved Telefone rounds.'
+        : 'The PDF you submit: your One-Pager, then your writing session and AI-use log.'}</span></div>`;
     wireTimer();
     // Restore a saved gush + shaped one-pager for this OP.
     const saved = DB.freewrite[fwCur] || {};
@@ -3035,7 +3037,7 @@ async function runReflection(rf, text, hooks) {
       DB.freewrite[fwCur]=Object.assign({},DB.freewrite[fwCur],{gush:gtxt,gushed:true,done:true});
       sessionPatch(opKey,{minutes:mins,endedAt:new Date().toISOString(),words:wds,ai:aiLabel(),
         gushes:(prevS.gushes||0)+1, totalMinutes:(prevS.totalMinutes||0)+mins, totalWords:(prevS.totalWords||0)+wds});
-      saveDB();document.body.classList.add('wide');const oc=document.querySelector('.op-cols');if(oc)oc.classList.add('two');const pg=document.getElementById('page');if(pg)pg.setAttribute('contenteditable','true');
+      saveDB();document.body.classList.add('wide');const oc=document.querySelector('.op-cols');if(oc)oc.classList.add('two');const of=document.getElementById('opFoot');if(of)of.style.display='';const pg=document.getElementById('page');if(pg)pg.setAttribute('contenteditable','true');
       // Reveal Lift here too. The shape column appearing is not enough: the button was
       // rendered display:none before the first gush and nothing turned it back on until
       // the tab happened to re-render, so a student's first gush offered no way across.
