@@ -1,6 +1,6 @@
 // GENERATED FILE — do not edit by hand.
 //   python3 tools/build-readings.py ../tce284-fa26
-// 38 readings: 26 Romano, 9 currere, 3 articles.
+// 37 readings: 26 Romano, 8 currere, 3 articles.
 window.COURSE_READINGS = [
  {
   "kind": "romano",
@@ -367,18 +367,6 @@ window.COURSE_READINGS = [
   "url": "https://miamioh.instructure.com/courses/258319/files/40277236",
   "title": "O'Hara, \"Moviehouse Poems\"",
   "file": "OHara - Moviehouse Poems (Currere).pdf",
-  "ch": null,
-  "week": 5,
-  "day": "Mon",
-  "due": "2026-09-21",
-  "dueLabel": "Mon, Sep 21",
-  "outline": "week-05-breaking-the-rules/week-05-mon.html"
- },
- {
-  "kind": "currere",
-  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/299",
-  "title": "O'Hara, \"Moviehouse Poems (3)\"",
-  "file": "",
   "ch": null,
   "week": 5,
   "day": "Mon",
