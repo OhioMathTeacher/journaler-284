@@ -101,7 +101,7 @@
     ok('B15 the offer closed when it was taken', !toastUp(), 'opacity=' + (toastEl() && toastEl().style.opacity));
 
     // ── C · the Delete inside the entry editor, then Dismiss
-    var ed = document.querySelector('button.entlink[data-edit="jprobe3"]') || document.querySelector('[data-edit="jprobe3"]');
+    var ed = document.querySelector('.x[data-edit="jprobe3"]') || document.querySelector('[data-edit="jprobe3"]');
     ok('C1 Edit affordance present', !!ed);
     if(ed){ ed.click(); await sleep(150); }
     ok('C2 the editor opened on that page', !!document.getElementById('edit_jprobe3'));

@@ -950,6 +950,7 @@ html, body { overscroll-behavior-y: none; }
 .nbview.on { color: var(--accent); border-color: var(--accent); background: var(--comment-bg); }
 .piecelist { display: flex; flex-direction: column; gap: 6px; }
 .entacts { margin-top: 6px; display: flex; gap: 12px; }
+.k-head .k-open { font-size: 13px; font-weight: 600; margin-left: 6px; text-transform: none; letter-spacing: 0; }
 .entlink { background: none; border: none; color: var(--accent); font-family: var(--sans); font-size: 14.5px; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline; }
 .entlink:hover { color: var(--accent-light); }
 

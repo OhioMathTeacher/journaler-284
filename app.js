@@ -6864,10 +6864,9 @@ You: Really. The first line only has to exist, not be good.`;
       const log = e.comments.map(c => `<li><span class="ann-when">${escHtml(new Date(c.ts)
         .toLocaleString(undefined, {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}))}</span>${escHtml(c.text)}</li>`).join('');
       return `<div class="entryrow ann" data-entryrow="${escHtml(e.id)}">
-        <div class="k"><span class="k-head">${escHtml(e.pieceTitle)} · ${when}</span>
+        <div class="k"><span class="k-head">${escHtml(e.pieceTitle)} · ${when} <button class="entlink k-open" data-open="${escHtml(e.pieceId)}">Open the reading →</button></span>
           <span class="k-tools"><span class="ann-n" title="One reading is one entry. This is how many comments you wrote on it, each with its own date and time.">${n} comment${n===1?'':'s'}</span></span></div>
-        <ul class="ann-log">${log}</ul>
-        <div class="entacts"><button class="entlink" data-open="${escHtml(e.pieceId)}">Open the reading →</button></div></div>`;
+        <ul class="ann-log">${log}</ul></div>`;
     }
     if(nbEditingId === e.id){
       return `<div class="entryrow" data-entryrow="${e.id}"><div class="k">${escHtml(e.pieceTitle)} · ${when}</div>
@@ -6879,7 +6878,7 @@ You: Really. The first line only has to exist, not be good.`;
       : (linkable
           ? `<button class="entpiece" data-piecemode="${escHtml(e.pieceId)}" title="You have written about this more than once. See every pass under ${escHtml(e.pieceTitle)}, earliest first, and what changed between the first and the last — the question your thread reading asks in December.">${escHtml(e.pieceTitle)}</button> · ${when}`
           : `${escHtml(e.pieceTitle)} · ${when}`);
-    const openLink = (opts.pieceLink !== false && e.pieceId !== 'free') ? `<button class="entlink" data-open="${e.pieceId}">Open the live piece →</button>` : '';
+    const openLink = (opts.pieceLink !== false && e.pieceId !== 'free') ? ` <button class="entlink k-open" data-open="${e.pieceId}">Open the live piece →</button>` : '';
     // The text itself opens the editor. Requiring the Edit button meant three clicks
     // between keeping something and writing about it, which is the moment the whole
     // notebook exists for -- see the UI note in the changelog for 2026-08-23.
@@ -6887,8 +6886,12 @@ You: Really. The first line only has to exist, not be good.`;
     // Tag and thread pickers moved into the header row, right-aligned beside the
     // delete control. They were two full-width rows under the page, so every entry
     // cost ~70px of vertical space to two controls most entries never use.
-    return `<div class="entryrow" data-entryrow="${e.id}"><div class="k"><span class="k-head">${head}</span>${authorChip}<span class="k-tools">${tagBar(e)}<button class="entdel" data-del="${e.id}" title="Delete this page" aria-label="Delete this page"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M6.5 1h3a.5.5 0 0 1 .5.5V2h3a.5.5 0 0 1 0 1h-.55l-.6 10.2a1.5 1.5 0 0 1-1.5 1.3H5.65a1.5 1.5 0 0 1-1.5-1.3L3.55 3H3a.5.5 0 0 1 0-1h3v-.5a.5.5 0 0 1 .5-.5Zm-1.95 2 .59 10.14a.5.5 0 0 0 .5.46h4.7a.5.5 0 0 0 .5-.46L11.45 3h-6.9ZM6.8 5a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5Zm2.4 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5Z"/></svg></button></span></div>${threadBar(e)}<div class="x writable" data-edit="${e.id}" title="Click to write on this page">${escHtml(e.text).replace(/\n/g,'<br>')}</div>
-      <div class="entacts"><button class="entlink" data-edit="${e.id}">Edit</button>${openLink}</div></div>`;
+    return `<div class="entryrow" data-entryrow="${e.id}"><div class="k"><span class="k-head">${head}${openLink}</span>${authorChip}<span class="k-tools">${tagBar(e)}<button class="entdel" data-del="${e.id}" title="Delete this page" aria-label="Delete this page"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M6.5 1h3a.5.5 0 0 1 .5.5V2h3a.5.5 0 0 1 0 1h-.55l-.6 10.2a1.5 1.5 0 0 1-1.5 1.3H5.65a1.5 1.5 0 0 1-1.5-1.3L3.55 3H3a.5.5 0 0 1 0-1h3v-.5a.5.5 0 0 1 .5-.5Zm-1.95 2 .59 10.14a.5.5 0 0 0 .5.46h4.7a.5.5 0 0 0 .5-.46L11.45 3h-6.9ZM6.8 5a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5Zm2.4 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5Z"/></svg></button></span></div>${threadBar(e)}<div class="x writable" data-edit="${e.id}" title="Click to write on this page">${escHtml(e.text).replace(/\n/g,'<br>')}</div>
+      </div>`;
+    // ⚠ NO "Edit" LINK (Todd, 2026-09-20): the text box is already click-to-edit and says
+    // so; a second link under it that did the same thing was noise. Everything an entry
+    // offers now sits above it, in the header: the title, the time, the open link, the
+    // slot chip, the threads, the delete.
   }
 
   // ── Tagging happens ON THE PAGE, not in a list.
