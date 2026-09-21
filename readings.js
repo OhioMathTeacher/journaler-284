@@ -450,7 +450,7 @@ window.COURSE_READINGS = [
   "kind": "article",
   "url": "https://miamioh.instructure.com/courses/258319/files/40448808",
   "title": "Lamott, \"Shitty First Drafts\"",
-  "file": "",
+  "file": "Lamott - Shitty First Drafts.pdf",
   "ch": null,
   "week": 5,
   "day": "Mon",
