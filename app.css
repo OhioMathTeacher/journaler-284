@@ -187,6 +187,8 @@
   .moment:hover { background: #fff; } .moment.on { border-left-color: var(--accent); background: #fff; }
   .moment .mname { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
   .moment .mkind { font-size: 13px; color: var(--muted); }
+  .moment .minfo { margin-left: 6px; font-size: 12px; color: var(--muted); opacity: .7; cursor: help; }
+  .moment:hover .minfo { opacity: 1; }
   .moment .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--comment-border); flex: none; }
   .moment.has .dot { background: var(--go); }
   .spine .divider { height: 1px; background: var(--comment-border); margin: 8px 4px; }
@@ -1526,6 +1528,11 @@ body.gushing .liftbar { display: none !important; }
    and juxtaposes; it never says what a thread means. */
 .tagbar.thr { margin-top: 5px; }
 .tagchip.thr { background: #eef4f7; border-color: #c9dbe4; }
+.thchips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.thchips .thlead { font-family: var(--sans); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--mut, #6b7280); margin-right: 4px; }
+.thchip { font-family: var(--sans); font-size: 13px; padding: 3px 10px; border: 1px solid var(--comment-border, #ddd); border-radius: 999px; background: none; color: var(--mut, #6b7280); cursor: pointer; }
+.thchip.on { background: var(--accent, #0f766e); border-color: var(--accent, #0f766e); color: #fff; }
+.thchip.new { border-style: dashed; }
 .thradd { font-family: var(--sans); font-size: 13px; padding: 3px 5px; border: 1px dashed var(--comment-border, #ddd); border-radius: 6px; background: none; color: var(--mut, #6b7280); }
 .newthread { display: flex; gap: 6px; margin: 12px 0 4px; }
 .newthread input { flex: 1; min-width: 0; font-family: var(--sans); font-size: 14.5px; padding: 6px 8px; border: 1px solid var(--comment-border, #ddd); border-radius: 6px; }

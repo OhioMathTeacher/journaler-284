@@ -2652,16 +2652,16 @@ async function runReflection(rf, text, hooks) {
   // the same action. That is the whole idea: the tag is placed when the writing happens,
   // by the page that knows what it is. December stops being archaeology.
   const NAMED = {
-    baseline: { slot:'baseline', lead:'Week 1', t:'Why do we write?',
+    baseline: { slot:'baseline', lead:'Week 1', about:'Your first-day free-write on why we write. Kept so you can write back to it in Week 15.', t:'Why do we write?',
       f:'On Monday you gushed about why you write. Romano\'s license plate reads <em>Write 2</em> — <em>write to express, write to communicate, write to clarify, write to learn.</em> Did you include each of these reasons in your gush? Did you include reasons Romano didn\'t? What do you make of this? <span class="hint">In Week 15 we revisit your responses — I am curious whether your thinking changes across the semester.</span>',
       ph:'Monday I said… Romano says… What I make of that is…' },
-    topicmap: { slot:'topicmap', lead:'Research', t:'Topic map',
+    topicmap: { slot:'topicmap', lead:'Week 11', about:'Research project. What you might write about, and everything it touches — names, questions, angles, dead ends. Not an outline.', t:'Topic map',
       f:'What you might write about, and everything it touches. <span class="hint">Not an outline. Names, questions, angles, dead ends — the whole spread.</span>',
       ph:'Put the topic in the middle and write outward. Anything that touches it counts.' },
-    sources:  { slot:'sources',  lead:'Research', t:'Source notes',
+    sources:  { slot:'sources',  lead:'Weeks 11–12', about:'Research project. For each source: where it came from, what it claims, the line you would quote — and what you make of it.', t:'Source notes',
       f:'What a source actually says, and what you make of it. <span class="hint">Where it came from, what it claims, and the line you would quote.</span>',
       ph:'Source, claim, the line worth quoting — and what it makes you think.' },
-    letter:   { slot:'letter',   lead:'Week 15', t:'Look-Back Letter',
+    letter:   { slot:'letter',   lead:'Week 15', about:'Written in our last class: a letter to the writer who answered why do we write? in Week 1.', t:'Look-Back Letter',
       f:'A letter to the writer who answered <em>why do we write?</em> in Week 1 — the gush, and what you made of Romano. <span class="hint">Written in our last class, so the notebook is finished the day it is handed in.</span>',
       ph:'Dear me-in-August…' },
   };
@@ -2825,7 +2825,7 @@ async function runReflection(rf, text, hooks) {
       <div class="divider"></div><p class="lead">For the notebook</p>
       ${Object.entries(NAMED).map(([k,m]) => {
         const done = !!turnin()[m.slot];
-        return `<button class="moment ${k===fwCur?'on':''} ${done?'has':''}" data-op="${k}"><span class="mname"><span class="dot"></span>${m.t}</span><span class="mkind">${done ? '✓ kept' : m.lead}</span></button>`;
+        return `<button class="moment ${k===fwCur?'on':''} ${done?'has':''}" data-op="${k}" title="${escHtml(m.about || '')}"><span class="mname"><span class="dot"></span>${m.t}<span class="minfo" aria-label="What this is">ⓘ</span></span><span class="mkind">${done ? '✓ kept' : m.lead}</span></button>`;
       }).join('')}`;
     body.classList.toggle('fwsolo', fwSolo);
     // Rendered always, shown by CSS only while the rail is away -- the button has to
@@ -3144,14 +3144,21 @@ async function runReflection(rf, text, hooks) {
       <div class="gushbar" style="margin-top:16px"><div class="timerset" id="timerset"><button class="tadj" id="tminus">−</button><span class="timer editable" id="timer">8:00</span><button class="tadj" id="tplus">+</button></div>
         <button class="btn go" id="startBtn">Start</button><button class="btn ghost sm" id="notimer">No timer</button><span class="locknote">Lands in your Notebook, dated.</span></div>
       <textarea class="gush" id="gush" placeholder="Write to keep the practice going."></textarea>
-      <div style="max-width:var(--writecol);margin:10px auto 0"><button class="btn ghost sm" id="openAddNb">＋ Add to notebook</button></div>`;
+      <div style="max-width:var(--writecol);margin:10px auto 0"><button class="btn ghost sm" id="openAddNb">＋ Add to notebook</button></div>
+      <div style="max-width:var(--writecol);margin:8px auto 0" id="openThreads"></div>`;
     let ix=0; document.getElementById('stemBtn').addEventListener('click',()=>{const c=document.getElementById('stemChip');c.style.display='inline-block';c.textContent=STEMS[ix++%STEMS.length];});
     wireTimer();
     // Restore + save the open-page free-write.
     const openTa = document.getElementById('gush');
     if(DB.freewrite.open && DB.freewrite.open.text){ openTa.value = DB.freewrite.open.text; }
     openTa.addEventListener('input', ()=>{ DB.freewrite.open = { text: openTa.value }; saveDB(); });
-    document.getElementById('openAddNb').onclick = ()=>{ elevate('free', 'freewrite', 'Free-writes & quick-writes', openTa.value); };
+    document.getElementById('openAddNb').onclick = ()=>{
+      const entry = elevate('free', 'freewrite', 'Free-writes & quick-writes', openTa.value);
+      if(!entry) return;
+      // The page is kept; now it can go on a thread, right here.
+      const slot = document.getElementById('openThreads');
+      if(slot){ slot.innerHTML = threadChips(entry.id); wireThreadChips(slot); }
+    };
     document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true}));
     document.getElementById('notimer').addEventListener('click',()=>{const ta=document.getElementById('gush');ta.disabled=false;ta.readOnly=false;ta.focus();setFocus(true);});
   }
@@ -6907,6 +6914,29 @@ You: Really. The first line only has to exist, not be good.`;
         ${others.map(t => `<option value="${t.id}">${escHtml(t.name)}</option>`).join('')}
         <option value="__new">＋ Start a new thread…</option>
       </select></div>`;
+  }
+  // Thread chips for ONE entry, shown on the writing surface right after it is kept --
+  // every thread the student has, click to put this page on it (again to take it off),
+  // and a way to start a new one without leaving the page. The By-day rows keep their
+  // <select>; this is the same data, reached from where the writing happened.
+  function threadChips(entryId){
+    const e = (DB.journal || []).find(x => x.id === entryId); if(!e) return '';
+    const mine = e.threads || [];
+    const chips = threads().map(t => `<button class="thchip ${mine.includes(t.id) ? 'on' : ''}" data-thchip="${t.id}" data-e="${e.id}" title="${mine.includes(t.id) ? 'Take this page off' : 'Put this page on'} “${escHtml(t.name)}”">${escHtml(t.name)}</button>`).join('');
+    return `<div class="thchips" data-thchips="${e.id}"><span class="thlead">Threads</span>${chips}<button class="thchip new" data-thnew="${e.id}" title="A thread is anything that keeps coming back. Name it, and this page goes on it.">＋ New thread…</button></div>`;
+  }
+  function wireThreadChips(root){
+    (root || document).querySelectorAll('[data-thchip]').forEach(b => b.onclick = () => {
+      toggleThread(b.dataset.e, b.dataset.thchip);
+      const wrap = b.closest('[data-thchips]'); if(wrap) { wrap.outerHTML = threadChips(b.dataset.e); wireThreadChips(root); }
+    });
+    (root || document).querySelectorAll('[data-thnew]').forEach(b => b.onclick = () => {
+      const name = prompt('Name the thread — anything that keeps coming back.\n\ne.g. my grandmother · fear of the blank page · Mrs. Dunn');
+      const tid = addThread(name); if(!tid) return;
+      toggleThread(b.dataset.thnew, tid);
+      toast('Added to “' + threadName(tid) + '”');
+      const wrap = b.closest('[data-thchips]'); if(wrap) { wrap.outerHTML = threadChips(b.dataset.thnew); wireThreadChips(root); }
+    });
   }
   function tagBar(e){
     const T = turnin(), mine = tagsOn(e.id);
