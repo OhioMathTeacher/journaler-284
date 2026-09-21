@@ -436,7 +436,7 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "article",
-  "url": "https://miamioh.instructure.com/courses/258319/files/40448808",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40449391",
   "title": "Lamott, \"Shitty First Drafts\"",
   "file": "Lamott - Shitty First Drafts.pdf",
   "ch": null,
