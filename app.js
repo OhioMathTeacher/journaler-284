@@ -2821,7 +2821,7 @@ async function runReflection(rf, text, hooks) {
       <p class="lead">The Five One-Pagers</p>
       ${Object.entries(OPS).map(([k,o])=>`<button class="moment ${k===fwCur?'on':''} ${fwDone[k]?'has':''}" data-op="${k}"><span class="mname"><span class="dot"></span>${o.n} · ${o.t}</span><span class="mkind">gush → one page</span></button>`).join('')}
       <div class="divider"></div><p class="lead">Keep the practice</p>
-      <button class="moment ${fwCur==='open'?'on':''}" data-op="open"><span class="mname"><span class="dot"></span>Open page</span><span class="mkind">free-write · stems</span></button>
+      <button class="moment ${fwCur==='open'?'on':''}" data-op="open"><span class="mname"><span class="dot"></span>Open page</span><span class="mkind">free-write · stems · threads</span></button>
       <div class="divider"></div><p class="lead">For the notebook</p>
       ${Object.entries(NAMED).map(([k,m]) => {
         const done = !!turnin()[m.slot];
