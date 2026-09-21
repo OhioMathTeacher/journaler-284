@@ -6887,7 +6887,7 @@ You: Really. The first line only has to exist, not be good.`;
     // Tag and thread pickers moved into the header row, right-aligned beside the
     // delete control. They were two full-width rows under the page, so every entry
     // cost ~70px of vertical space to two controls most entries never use.
-    return `<div class="entryrow" data-entryrow="${e.id}"><div class="k"><span class="k-head">${head}</span>${authorChip}<span class="k-tools">${tagBar(e)}${threadBar(e)}<button class="entdel" data-del="${e.id}" title="Delete this page" aria-label="Delete this page"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M6.5 1h3a.5.5 0 0 1 .5.5V2h3a.5.5 0 0 1 0 1h-.55l-.6 10.2a1.5 1.5 0 0 1-1.5 1.3H5.65a1.5 1.5 0 0 1-1.5-1.3L3.55 3H3a.5.5 0 0 1 0-1h3v-.5a.5.5 0 0 1 .5-.5Zm-1.95 2 .59 10.14a.5.5 0 0 0 .5.46h4.7a.5.5 0 0 0 .5-.46L11.45 3h-6.9ZM6.8 5a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5Zm2.4 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5Z"/></svg></button></span></div><div class="x writable" data-edit="${e.id}" title="Click to write on this page">${escHtml(e.text).replace(/\n/g,'<br>')}</div>
+    return `<div class="entryrow" data-entryrow="${e.id}"><div class="k"><span class="k-head">${head}</span>${authorChip}<span class="k-tools">${tagBar(e)}<button class="entdel" data-del="${e.id}" title="Delete this page" aria-label="Delete this page"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M6.5 1h3a.5.5 0 0 1 .5.5V2h3a.5.5 0 0 1 0 1h-.55l-.6 10.2a1.5 1.5 0 0 1-1.5 1.3H5.65a1.5 1.5 0 0 1-1.5-1.3L3.55 3H3a.5.5 0 0 1 0-1h3v-.5a.5.5 0 0 1 .5-.5Zm-1.95 2 .59 10.14a.5.5 0 0 0 .5.46h4.7a.5.5 0 0 0 .5-.46L11.45 3h-6.9ZM6.8 5a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5Zm2.4 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0v-6a.5.5 0 0 1 .5-.5Z"/></svg></button></span></div><div class="x writable" data-edit="${e.id}" title="Click to write on this page">${escHtml(e.text).replace(/\n/g,'<br>')}</div>${threadBar(e)}
       <div class="entacts"><button class="entlink" data-edit="${e.id}">Edit</button>${openLink}</div></div>`;
   }
 
@@ -6904,17 +6904,9 @@ You: Really. The first line only has to exist, not be good.`;
   // it, and says so, because silently having two baselines is worse than losing one.
   function tagsOn(id){ const T = turnin(); return TURNIN_SLOTS.filter(s => T[s[0]] === id).map(s => s[0]); }
   function slotLabel(k){ const s = TURNIN_SLOTS.find(x => x[0] === k); return s ? s[1] : k; }
-  function threadBar(e){
-    const mine = (e.threads || []);
-    const chips = mine.map(id => `<span class="tagchip thr">${escHtml(threadName(id))}<button class="tagx" data-unthread="${id}" data-e="${e.id}" title="Take this entry off the thread">×</button></span>`).join('');
-    const others = threads().filter(t => !mine.includes(t.id));
-    return `<div class="tagbar thr">${chips}
-      <select class="thradd" data-entry="${e.id}">
-        <option value="">＋ Add to a thread…</option>
-        ${others.map(t => `<option value="${t.id}">${escHtml(t.name)}</option>`).join('')}
-        <option value="__new">＋ Start a new thread…</option>
-      </select></div>`;
-  }
+  // Threads on a kept page: the same chip row the Open page shows after keeping. Every
+  // thread is a button — on it, or not — plus New thread…; no menu to discover.
+  function threadBar(e){ return threadChips(e.id); }
   // Thread chips for ONE entry, shown on the writing surface right after it is kept --
   // every thread the student has, click to put this page on it (again to take it off),
   // and a way to start a new one without leaving the page. The By-day rows keep their
@@ -6927,7 +6919,9 @@ You: Really. The first line only has to exist, not be good.`;
   }
   function wireThreadChips(root){
     (root || document).querySelectorAll('[data-thchip]').forEach(b => b.onclick = () => {
+      const was = b.classList.contains('on');
       toggleThread(b.dataset.e, b.dataset.thchip);
+      toast((was ? 'Taken off “' : 'Added to “') + threadName(b.dataset.thchip) + '”');
       const wrap = b.closest('[data-thchips]'); if(wrap) { wrap.outerHTML = threadChips(b.dataset.e); wireThreadChips(root); }
     });
     (root || document).querySelectorAll('[data-thnew]').forEach(b => b.onclick = () => {
@@ -6941,13 +6935,12 @@ You: Really. The first line only has to exist, not be good.`;
   function tagBar(e){
     const T = turnin(), mine = tagsOn(e.id);
     const chips = mine.map(k => `<span class="tagchip">${escHtml(slotLabel(k))}<button class="tagx" data-untag="${k}" title="Remove this tag">×</button></span>`).join('');
-    const opts = TURNIN_SLOTS.filter(s => T[s[0]] !== e.id).map(([k,label]) => {
-      const held = T[k];
-      return `<option value="${k}">${escHtml(label)}${held ? ' (move it here)' : ''}</option>`;
-    }).join('');
-    return `<div class="tagbar">${chips}
-      ${opts ? `<select class="tagadd" data-entry="${e.id}"><option value="">＋ Tag this page…</option>${opts}</select>` : ''}
-    </div>`;
+    // ⚠ THE "＋ Tag this page…" SELECT IS GONE (Todd, 2026-09-20): "why would we tag
+    // pages? Those dropdowns are virtually invisible... and I don't understand what they
+    // are for (and I'm the instructor)." Every slot is chosen in My Progress, where each
+    // has its own picker with the rubric line beside it, and a named page tags itself
+    // when kept. What stays here is the read-only chip saying which slot a page holds.
+    return `<div class="tagbar">${chips}</div>`;
   }
 
   function noteDayDetail(){
@@ -8545,23 +8538,7 @@ You: Really. The first line only has to exist, not be good.`;
       bundleNotebookPDF();
     };
   }
-  function wireThreadBars(){
-    frame.querySelectorAll('.thradd').forEach(sel => sel.onchange = () => {
-      const v = sel.value; if(!v) return;
-      let tid = v;
-      if(v === '__new'){
-        const name = prompt('Name the thread — anything that keeps coming back.\n\ne.g. my grandmother · fear of the blank page · Mrs. Dunn');
-        tid = addThread(name);
-        if(!tid){ sel.value = ''; return; }
-      }
-      toggleThread(sel.dataset.entry, tid);
-      toast('Added to “' + threadName(tid) + '”');
-      renderNote();
-    });
-    frame.querySelectorAll('[data-unthread]').forEach(b => b.onclick = () => {
-      toggleThread(b.dataset.e, b.dataset.unthread); renderNote();
-    });
-  }
+  function wireThreadBars(){ wireThreadChips(frame); }
   function wireTurninLinks(){
     wireThreadBars();
     frame.querySelectorAll('[data-gothreads]').forEach(b => b.onclick = () => { noteMode = 'threads'; renderNote(); });
@@ -8808,28 +8785,7 @@ You: Really. The first line only has to exist, not be good.`;
     // Only one lens renders at a time, so only one bundle button exists.
     // Tag / untag from the entry itself. Saved on the spot: there is no submit step here,
     // and a student who tags a page then navigates away should not lose it.
-    frame.querySelectorAll('.tagadd').forEach(sel => sel.onchange = () => {
-      const slot = sel.value; if(!slot) return;
-      const T = turnin(), prev = T[slot];
-      // One page may hold several tags — a currere gush is a plausible thing to also want
-      // read closely. But not two FLAGS: the Thinking row is scored across three entries,
-      // one per act, so three flags on one page is one entry wearing three hats and the
-      // row cannot do its job. This is the only combination worth refusing outright.
-      if(/^flag/.test(slot)){
-        const clash = ['flag1','flag2','flag3'].find(f => f !== slot && T[f] === sel.dataset.entry);
-        if(clash){
-          toast(`This page is already ${slotLabel(clash)}. Flag three different pages, one from each act.`);
-          sel.value = ''; return;
-        }
-      }
-      T[slot] = sel.dataset.entry;
-      saveDB();
-      const ord = numberedEntries(), n = ord.findIndex(x => x.id === prev) + 1;
-      toast(prev && prev !== sel.dataset.entry
-        ? `${slotLabel(slot)} moved here from entry ${n}`
-        : `Tagged: ${slotLabel(slot)}`);
-      renderNote();
-    });
+    wireThreadChips(frame);
     wireTurninLinks();
     wireNoteFoot();
     if(noteMode === 'day'){

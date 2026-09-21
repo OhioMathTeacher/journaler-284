@@ -1528,7 +1528,7 @@ body.gushing .liftbar { display: none !important; }
    and juxtaposes; it never says what a thread means. */
 .tagbar.thr { margin-top: 5px; }
 .tagchip.thr { background: #eef4f7; border-color: #c9dbe4; }
-.thchips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.thchips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
 .thchips .thlead { font-family: var(--sans); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--mut, #6b7280); margin-right: 4px; }
 .thchip { font-family: var(--sans); font-size: 13px; padding: 3px 10px; border: 1px solid var(--comment-border, #ddd); border-radius: 999px; background: none; color: var(--mut, #6b7280); cursor: pointer; }
 .thchip.on { background: var(--accent, #0f766e); border-color: var(--accent, #0f766e); color: #fff; }

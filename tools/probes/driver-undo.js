@@ -51,7 +51,8 @@
     localStorage.clear();
     localStorage.setItem('cr284_state', JSON.stringify({
       v: 2, name: 'Probe Reader', freewrite: {}, currere: {}, notebook: {},
-      _journalMigrated: true, journal: entries, readings: null, activeReading: 0 }));
+      _journalMigrated: true, journal: entries, threads: [{ id: 't-probe', name: 'probe thread' }],
+      readings: null, activeReading: 0 }));
     sessionStorage.setItem('probePass', '2');
     location.reload();
   }
@@ -136,14 +137,10 @@
     // ── E · an ordinary, unrelated receipt while an offer is standing
     var b3 = delBtn('jprobe1'); if(b3){ b3.click(); await sleep(200); }
     ok('E1 the offer is standing before the interruption', toastUp() && !!toastBtn('Undo'), toastBtns().join(','));
-    var sel = document.querySelector('select.tagadd[data-entry="jprobe2"]');
-    ok('E2 a tag control is available to interrupt with', !!sel);
-    if(sel){
-      var opt = [].slice.call(sel.options).filter(function(o){ return o.value; })[0];
-      if(opt){ sel.value = opt.value; sel.dispatchEvent(new Event('change')); }
-      await sleep(200);
-    }
-    ok('E3 the receipt gets the element and shows plainly', /^Tagged:|moved here/.test(toastMsg()) && toastBtns().length === 0, JSON.stringify(toastMsg()) + ' buttons=' + JSON.stringify(toastBtns()));
+    var chip = document.querySelector('[data-thchip][data-e="jprobe2"]');
+    ok('E2 a thread chip is available to interrupt with', !!chip);
+    if(chip){ chip.click(); await sleep(200); }
+    ok('E3 the receipt gets the element and shows plainly', /^Added to|^Taken off/.test(toastMsg()) && toastBtns().length === 0, JSON.stringify(toastMsg()) + ' buttons=' + JSON.stringify(toastBtns()));
     await sleep(2200);
     ok('E4 the offer comes back when the receipt has run its course', toastUp() && !!toastBtn('Undo'), JSON.stringify(toastMsg()) + ' buttons=' + JSON.stringify(toastBtns()));
     ok('E5 the deleted page is still absent while the offer stands', rows().indexOf('jprobe1') === -1, rows().join(','));
@@ -161,13 +158,9 @@
     ok('F3 both deletions stand', storedIds().indexOf('jprobe4') === -1 && storedIds().indexOf('jprobe5') === -1, storedIds().join(','));
 
     // ── G · with nothing pending, a receipt behaves as it always did
-    var sel2 = document.querySelector('select.tagadd[data-entry="jprobe1"]');
-    ok('G1 a tag control is available', !!sel2);
-    if(sel2){
-      var o2 = [].slice.call(sel2.options).filter(function(o){ return o.value; })[0];
-      if(o2){ sel2.value = o2.value; sel2.dispatchEvent(new Event('change')); }
-      await sleep(200);
-    }
+    var chip2 = document.querySelector('[data-thchip][data-e="jprobe1"]');
+    ok('G1 a thread chip is available', !!chip2);
+    if(chip2){ chip2.click(); await sleep(200); }
     ok('G2 the receipt shows', toastUp(), JSON.stringify(toastMsg()));
     await sleep(2200);
     ok('G3 and it fades on its own, as receipts should', !toastUp(), 'opacity=' + (toastEl() && toastEl().style.opacity));
