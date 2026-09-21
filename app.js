@@ -398,7 +398,7 @@ function applyCustomPreset(name) {
 // messages THROW instead of coming back as the reply, for a caller that would
 // otherwise file the error text as a pass.
 async function callModel(prompt, opts = {}) {
-  const budget = opts.maxTokens || budget;
+  const budget = opts.maxTokens || REPLY_MAX_TOKENS;   // NOT '|| budget' — that was a self-reference, and every caller without maxTokens (Ask Romano, the reflection partner) threw before reaching a provider
   const fail = m => { if (opts.throwErrors) throw new Error(m); return m; };
   const provider = getProvider();
   const apiKey   = getStoredKey(provider);
