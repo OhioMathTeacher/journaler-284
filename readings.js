@@ -1,6 +1,6 @@
 // GENERATED FILE — do not edit by hand.
-//   python3 tools/build-readings.py /home/todd/Repos/tce284-fa26
-// 37 readings: 26 Romano, 8 currere, 3 articles.
+//   python3 tools/build-readings.py ../tce284-fa26
+// 38 readings: 26 Romano, 9 currere, 3 articles.
 window.COURSE_READINGS = [
  {
   "kind": "romano",
@@ -376,6 +376,18 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "currere",
+  "url": "https://cej.lib.miamioh.edu/index.php/CEJ/article/view/299",
+  "title": "O'Hara, \"Moviehouse Poems (3)\"",
+  "file": "",
+  "ch": null,
+  "week": 5,
+  "day": "Mon",
+  "due": "2026-09-21",
+  "dueLabel": "Mon, Sep 21",
+  "outline": "week-05-breaking-the-rules/week-05-mon.html"
+ },
+ {
+  "kind": "currere",
   "url": "https://miamioh.instructure.com/courses/258319/files/40277234",
   "title": "Moore, \"Starting the Conversation\"",
   "file": "Moore - Starting the Conversation (Currere).pdf",
@@ -424,7 +436,7 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "article",
-  "url": "https://www.newyorker.com/tech/annals-of-technology/chatgpt-is-a-blurry-jpeg-of-the-web",
+  "url": "https://www.upf.edu/documents/223252157/223457144/TedChiang+Chat+GPT.pdf/fd359c99-e130-3147-e364-790e9317a092?t=1734030638433",
   "title": "Chiang, \"ChatGPT Is a Blurry JPEG of the Web\"",
   "file": "",
   "ch": null,
@@ -436,7 +448,7 @@ window.COURSE_READINGS = [
  },
  {
   "kind": "article",
-  "url": "https://wrd.as.uky.edu/sites/default/files/1-Shitty%20First%20Drafts.pdf",
+  "url": "https://miamioh.instructure.com/courses/258319/files/40448808",
   "title": "Lamott, \"Shitty First Drafts\"",
   "file": "",
   "ch": null,
