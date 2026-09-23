@@ -1041,8 +1041,12 @@ async function runReflection(rf, text, hooks) {
   if(!DB.freewrite) DB.freewrite = {};
   if(!DB.currere)   DB.currere   = {};
   if(!DB.notebook)  DB.notebook  = {};
-  if(!DB.tele || !Array.isArray(DB.tele.passes)) DB.tele = { passes:[''], asked:[], rounds:[] };
-  if(!Array.isArray(DB.tele.rounds)) DB.tele.rounds = [];
+  if(!DB.tele || !Array.isArray(DB.tele.passes)) DB.tele = { passes:[''], asked:[], games:[] };
+  // Telefone's words, 2026-09-23: the texts in DB.tele.passes are ROUNDS on screen -- round 0
+  // is the student's own page -- and one play, from round 0 to the round the game ends on, is
+  // a GAME. Saves written before today called the games "rounds"; carry them over.
+  if(Array.isArray(DB.tele.rounds) && !Array.isArray(DB.tele.games)){ DB.tele.games = DB.tele.rounds; delete DB.tele.rounds; }
+  if(!Array.isArray(DB.tele.games)) DB.tele.games = [];
   if(!Array.isArray(DB.tele.asked))  DB.tele.asked  = [];
   if(typeof DB.tele.reflection !== 'string') DB.tele.reflection = '';
   let _saveT;
@@ -3082,12 +3086,12 @@ async function runReflection(rf, text, hooks) {
     if (glSend) {
       const st = document.getElementById('glStatus');
       const host = document.getElementById('genloss');
-      // "done" once a round is saved -- that is what the OP5 reflection is about.
-      if (host) host.dataset.done = DB.tele.rounds.length ? '1' : '';
-      if (st && DB.tele.rounds.length) st.textContent = `${DB.tele.rounds.length} round${DB.tele.rounds.length === 1 ? '' : 's'} saved in Telefone.`;
+      // "done" once a game has ended -- that is what the OP5 reflection is about.
+      if (host) host.dataset.done = DB.tele.games.length ? '1' : '';
+      if (st && DB.tele.games.length) st.textContent = `${DB.tele.games.length} game${DB.tele.games.length === 1 ? '' : 's'} played in Telefone.`;
       const box = document.getElementById('glReflect');
-      if (box && DB.tele.rounds.length) {
-        box.innerHTML = `<p class="stagenote gl-lead">Now the reflection — it prints with this One-Pager, and it is the same box as the one under your rounds in Telefone. <em>What did the machine fix first? What is gone by the end that was there at the start? What refused to go? What does that mean for your writing — and for the writing of your students?</em></p>
+      if (box && DB.tele.games.length) {
+        box.innerHTML = `<p class="stagenote gl-lead">Now the reflection — it prints with this One-Pager, and it is the same box as the one under your games in Telefone. <em>What did the machine fix first? What is gone by the end that was there at the start? What refused to go? What does that mean for your writing — and for the writing of your students?</em></p>
           <textarea class="tele-page tele-reflection" id="glReflection" placeholder="That part is yours.">${escHtml(DB.tele.reflection || '')}</textarea>`;
         document.getElementById('glReflection').addEventListener('input', e => { DB.tele.reflection = e.target.value; saveDB(); });
       }
@@ -8383,12 +8387,12 @@ You: Really. The first line only has to exist, not be good.`;
     if(askedByAI) aiBits.push(escHtml(AI_TAG) + ' asked how the writing went \u2014 about the experience, not the content.');
     if(asks) aiBits.push('I asked ' + escHtml(AI_TAG) + ' about a passage of my own writing '
       + asks + ' time' + (asks === 1 ? '' : 's') + '. Nothing he said is in the One-Pager unless I typed it there myself.');
-    if(M.genloss && DB.tele.rounds.length){
-      const rounds = DB.tele.rounds, total = rounds.reduce((a, r) => a + (r.n || 0), 0);
-      const models = [...new Set(rounds.map(r => r.model).filter(Boolean))];
-      aiBits.push('I ran this page through the machine in Telefone: ' + rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + ', '
-        + total + ' pass' + (total === 1 ? '' : 'es') + ' in all' + (models.length ? ' (' + escHtml(models.join('; ')) + ')' : '')
-        + '. The passes are printed after this record as machine output. None of them is in the One-Pager.');
+    if(M.genloss && DB.tele.games.length){
+      const games = DB.tele.games, total = games.reduce((a, r) => a + (r.n || 0), 0);
+      const models = [...new Set(games.map(r => r.model).filter(Boolean))];
+      aiBits.push('I ran this page through the machine in Telefone: ' + games.length + ' game' + (games.length === 1 ? '' : 's') + ', '
+        + total + ' round' + (total === 1 ? '' : 's') + ' in all' + (models.length ? ' (' + escHtml(models.join('; ')) + ')' : '')
+        + '. The rounds are printed after this record as machine output. None of them is in the One-Pager.');
     }
     const aiUse = aiBits.length ? aiBits.join(' ') : 'No AI was used on this One-Pager.';
 
@@ -8425,19 +8429,19 @@ You: Really. The first line only has to exist, not be good.`;
   }
   function genlossHTML(M){
     if (!M.genloss) return '';
-    if (!DB.tele.rounds.length) return teleReflectionHTML();
+    if (!DB.tele.games.length) return teleReflectionHTML();
     const para = t => String(t || '').split(/\n+/).filter(Boolean).map(x => `<p>${escHtml(x)}</p>`).join('');
-    return teleReflectionHTML() + DB.tele.rounds.map((r, k) => {
+    return teleReflectionHTML() + DB.tele.games.map((r, k) => {
       const ps = Array.isArray(r.passes) && r.passes.length ? r.passes : [r.first, r.last];
       const last = ps.length - 1;
       const shown = [...new Set(GENLOSS_SHOWN.filter(i => i < last).concat(last))];
       return `
       <section class="op-session gl-sheet">
-        <h2>Telefone · round ${k + 1} of ${DB.tele.rounds.length}</h2>
-        <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}${escHtml(r.model || '')} · ${last} pass${last === 1 ? '' : 'es'} · ${r.survival}% of my words left${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</p>
-        <p>Pass zero is my writing. Every later pass is machine output, produced by handing it the
-        pass before and asking it to revise. None of it appears in my One-Pager.</p>
-        ${shown.map(i => `<h3>Pass ${i}${i ? ' — machine' : ' — mine'}</h3>${para(ps[i])}`).join('')}
+        <h2>Telefone · game ${k + 1} of ${DB.tele.games.length}</h2>
+        <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}${escHtml(r.model || '')} · ${last} round${last === 1 ? '' : 's'} · ${r.survival}% of my words left${r.why && TELE_END_WHY[r.why] ? ' · ended because ' + escHtml(TELE_END_WHY[r.why]()) : ''}${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</p>
+        <p>Round 0 is my writing. Every later round is machine output, produced by handing it the
+        round before and asking it to revise. None of it appears in my One-Pager.</p>
+        ${shown.map(i => `<h3>Round ${i}${i ? ' — machine' : ' — mine'}</h3>${para(ps[i])}`).join('')}
       </section>`;
     }).join('');
   }
@@ -9027,10 +9031,13 @@ You: Really. The first line only has to exist, not be good.`;
   }
 
   // ═══ Telefone — Generation Loss as a game of telephone.
-  //     Pass zero is the student's page. Each AI Revise hands the LATEST pass to the
-  //     model with whatever requests are ticked and files the reply as the next pass;
+  //     Round 0 is the student's page. Each AI Revise hands the LATEST round to the
+  //     model with whatever requests are ticked and files the reply as the next round;
   //     the compounding is the point. Nothing here is ever written into a One-Pager.
-  //     Passes and saved rounds live in DB.tele, so they survive a reload and travel
+  //     The game ends itself -- see teleEnding -- and the two rounds that matter, 0 and
+  //     the ending one, are shown side by side. (In code the rounds live in
+  //     DB.tele.passes, which is the old name kept so existing saves still open.)
+  //     Rounds and finished games live in DB.tele, so they survive a reload and travel
   //     in "Save my work"; the OP5 print sheet reads the rounds. Model calls go through
   //     callModel, so Settings → AI is the model chooser here too.
   const TELE_ASKS = [
@@ -9046,7 +9053,7 @@ You: Really. The first line only has to exist, not be good.`;
     body.classList.remove('wide', 'bleed');
     const T = DB.tele;
     if (teleCur > T.passes.length - 1) teleCur = T.passes.length - 1;
-    frame.innerHTML = `<div class="head"><h1>Telefone</h1><p>Telephone, except the machine is every player. Hand it a page, ask it to revise, and watch what it corrects away — pass after pass.</p></div>
+    frame.innerHTML = `<div class="head"><h1>Telefone</h1><p>Telephone, except the machine is every player. Hand it a page, ask it to revise, and watch what it corrects away — round after round. The game ends itself.</p></div>
       <div class="tele">
         <div class="tele-ask" id="teleAsk"></div>
         <div class="tele-strip" id="teleStrip"></div>
@@ -9054,9 +9061,9 @@ You: Really. The first line only has to exist, not be good.`;
           <div id="teleView"></div>
           <div class="tele-under">
             <div class="tele-label" id="teleLabel"></div>
-            <div class="tele-modes" role="radiogroup" aria-label="What to show on this pass">
+            <div class="tele-modes" role="radiogroup" aria-label="What to show on this round">
               <label><input type="radio" name="teleMode" value="left" ${teleMode === 'left' ? 'checked' : ''}><span>What's left</span></label>
-              <label><input type="radio" name="teleMode" value="changed" ${teleMode === 'changed' ? 'checked' : ''}><span>What this pass changed</span></label>
+              <label><input type="radio" name="teleMode" value="changed" ${teleMode === 'changed' ? 'checked' : ''}><span>What this round changed</span></label>
               <label><input type="radio" name="teleMode" value="lost" ${teleMode === 'lost' ? 'checked' : ''}><span>What's lost</span></label>
             </div>
           </div>
@@ -9091,6 +9098,32 @@ You: Really. The first line only has to exist, not be good.`;
     for (const w of base){ const c = have.get(w) || 0; if (c > 0){ kept++; have.set(w, c - 1); } }
     return base.length ? kept / base.length : 0;
   }
+  // ── When a game ends. Two ways, whichever comes first: the percentage has not moved for
+  //    three rounds running -- the machine has stopped changing it, which is one finding --
+  //    or what is left has fallen below a fifth of the student's words, which is the other.
+  //    TELE_MAX is the backstop. Nobody decides to stop; the game does. (Todd, 23 Sept 2026.)
+  const TELE_FLOOR = 20, TELE_SETTLED = 3;
+  const telePct = k => Math.round(teleSurvival(k) * 100);
+  function teleEnding(){
+    const k = DB.tele.passes.length - 1;
+    if (k < 1) return null;
+    const pct = telePct(k);
+    if (pct < TELE_FLOOR) return { round: k, pct, why: 'floor' };
+    if (k >= TELE_SETTLED - 1 && Array.from({ length: TELE_SETTLED }, (_, i) => telePct(k - i)).every(v => v === pct))
+      return { round: k, pct, why: 'settled' };
+    if (k >= TELE_MAX) return { round: k, pct, why: 'cap' };
+    return null;
+  }
+  const TELE_END_SAY = {
+    floor:   e => `The game is over at round ${e.round}: ${e.pct}% of your words are left, below a fifth.`,
+    settled: e => `The game is over at round ${e.round}: ${e.pct}%, unchanged for ${TELE_SETTLED} rounds running — the machine has stopped changing it.`,
+    cap:     e => `The game is over at round ${e.round}, the longest a game runs: ${e.pct}% of your words are left.`
+  };
+  const TELE_END_WHY = {
+    floor:   () => 'your words fell below a fifth',
+    settled: () => `the percentage held for ${TELE_SETTLED} rounds`,
+    cap:     () => `${TELE_MAX} rounds, the limit`
+  };
   function teleSentences(t){
     const s = String(t || '').split(/(?<=[.!?])\s+|\n+/).map(x => x.trim()).filter(Boolean);
     const w = teleWords(t).length;
@@ -9132,26 +9165,23 @@ You: Really. The first line only has to exist, not be good.`;
   function teleStripRow(){
     const el = document.getElementById('teleStrip'); if (!el) return;
     const P = DB.tele.passes;
-    const canRun = !teleRunning && P.length <= TELE_MAX && teleOn.some(Boolean);
+    const over = !!DB.tele.ended;
+    const canRun = !teleRunning && !over && P.length <= TELE_MAX && teleOn.some(Boolean);
     el.innerHTML = P.map((_, i) => {
       const pct = Math.round(teleSurvival(i) * 100);
       return `<button class="tele-tab${i === teleCur ? ' on' : ''}" data-i="${i}" role="tab" aria-selected="${i === teleCur}">
-        <span class="n">Pass ${i}${i === 0 ? '<small>yours</small>' : ''}</span><span class="pct">${pct}%</span></button>`;
+        <span class="n">Round ${i}${i === 0 ? '<small>yours</small>' : ''}</span><span class="pct">${pct}%</span></button>`;
     }).join('') + `<span class="tele-actions">
-        <button class="btn ghost sm" id="teleReset" ${P.length > 1 && !teleRunning ? '' : 'disabled'}>Start over</button>
-        <button class="btn go" id="teleRun" ${canRun ? '' : 'disabled'}>AI Revise</button>
-        <button class="btn ghost" id="teleRunAll" ${canRun ? '' : 'disabled'} title="Revise again and again, up to pass ${TELE_MAX}">×10</button>
+        <button class="btn ${over ? 'go' : 'ghost sm'}" id="teleReset" ${P.length > 1 && !teleRunning ? '' : 'disabled'}>${over ? 'New game' : 'Start over'}</button>
+        <button class="btn go" id="teleRun" ${canRun ? '' : 'disabled'} title="${over ? 'This game is over — start a new one' : 'One round: hand the last round to the machine and see what comes back'}">AI Revise</button>
         <button class="btn ghost" id="teleStopBtn" style="${teleRunning ? '' : 'display:none'}">Stop</button>
-        <button class="btn ghost sm" id="teleSave" ${P.length > 1 && !teleRunning ? '' : 'disabled'} title="Keep pass zero and the last pass, with the model and the count">Save round</button>
       </span>`;
     el.querySelectorAll('.tele-tab').forEach(b => b.addEventListener('click', () => { teleCur = +b.dataset.i; teleStripRow(); teleSheet(); }));
     document.getElementById('teleRun').addEventListener('click', () => teleRun(1));
-    document.getElementById('teleRunAll').addEventListener('click', () => teleRun(Math.min(10, TELE_MAX + 1 - P.length)));
     document.getElementById('teleStopBtn').addEventListener('click', () => { teleStop = true; });
-    document.getElementById('teleSave').addEventListener('click', teleSaveRound);
     document.getElementById('teleReset').addEventListener('click', () => {
-      if (!confirm('Throw away every pass after pass zero? (Saved rounds are kept.)')) return;
-      DB.tele.passes = [P[0]]; DB.tele.asked = []; teleCur = 0; saveDB(); teleSay(''); renderTele();
+      if (!confirm('Throw away every round after round 0 and start a new game? (Finished games are kept.)')) return;
+      DB.tele.passes = [P[0]]; DB.tele.asked = []; delete DB.tele.ended; teleCur = 0; saveDB(); teleSay(''); renderTele();
     });
   }
 
@@ -9162,7 +9192,7 @@ You: Really. The first line only has to exist, not be good.`;
     const editable = teleCur === 0 && P.length === 1 && !teleRunning;
     document.querySelector('.tele-modes').style.display = teleCur === 0 ? 'none' : '';
     if (teleCur === 0){
-      label.innerHTML = editable ? '<b>Pass 0</b> · your page — paste it, or send One-Pager 5 here, then AI Revise' : '<b>Pass 0</b> · your page';
+      label.innerHTML = editable ? '<b>Round 0</b> · your page — paste it, or send One-Pager 5 here, then AI Revise' : '<b>Round 0</b> · your page';
       if (editable){
         const op5 = (DB.freewrite.op5 || {}).shape || '';
         view.innerHTML = `<textarea class="tele-page" id="teleEditor" spellcheck="false" placeholder="Paste your Breaking the Rules page here — the shaped one from One-Pager 5, rules broken on purpose.">${escHtml(P[0])}</textarea>
@@ -9176,11 +9206,11 @@ You: Really. The first line only has to exist, not be good.`;
       } else view.innerHTML = `<div class="tele-page">${teleParas(P[0])}</div>`;
     } else {
       const why = DB.tele.asked[teleCur];
-      const made = `<b>Pass ${teleCur}</b> · machine output${why ? ' · asked to ' + escHtml(why) : ''}`;
+      const made = `<b>Round ${teleCur}</b> · machine output${why ? ' · asked to ' + escHtml(why) : ''}`;
       if (teleMode === 'lost'){
         // Pass ZERO against this pass, insertions dropped: your page with its holes
         // marked, so the % in the tab strip has a body to point at.
-        label.innerHTML = `<b>Pass ${teleCur}</b> · your page — struck through is everything gone by this pass`;
+        label.innerHTML = `<b>Round ${teleCur}</b> · your page — struck through is everything gone by this round`;
         const html = teleDiffOf(P[0], P[teleCur], teleLostKey).filter(([t]) => t !== 'ins').map(([t, w]) =>
           w === '\n' ? '\n' : t === 'eq' ? escHtml(w) : `<del>${escHtml(w)}</del>`).join(' ');
         view.innerHTML = `<div class="tele-page tele-diff tele-lost">${html}</div>`;
@@ -9205,7 +9235,7 @@ You: Really. The first line only has to exist, not be good.`;
     if (teleCur > 0){
       const d = teleDiffOf(P[teleCur - 1], P[teleCur]);
       const del = d.filter(x => x[0] === 'del' && x[1] !== '\n').length, ins = d.filter(x => x[0] === 'ins' && x[1] !== '\n').length;
-      changed = `<div class="tele-stat"><span class="v">−${del} / +${ins}</span><span class="k">words cut / added this pass</span></div>`;
+      changed = `<div class="tele-stat"><span class="v">−${del} / +${ins}</span><span class="k">words cut / added this round</span></div>`;
     }
     el.innerHTML = `
       <div class="tele-stat"><span class="v">${s.words}</span><span class="k">words</span></div>
@@ -9220,13 +9250,33 @@ You: Really. The first line only has to exist, not be good.`;
   function teleClean(text){
     let t = String(text || '').trim().replace(/^"""\s*|\s*"""$/g, '').replace(/^```\w*\s*|\s*```$/g, '').trim();
     // markIfTruncated's note is for Romano's chat bubble; here it would become part of the next pass.
-    if (/\[…cut off — /.test(t)) throw new Error('The reply was cut off — the page is too long for one pass. Trim pass zero and start over.');
+    if (/\[…cut off — /.test(t)) throw new Error('The reply was cut off — the page is too long for one round. Trim round 0 and start over.');
     return t;
   }
   function teleAddPass(text, why){
-    DB.tele.passes.push(text); DB.tele.asked[DB.tele.passes.length - 1] = why; teleCur = DB.tele.passes.length - 1; saveDB();
+    DB.tele.passes.push(text); DB.tele.asked[DB.tele.passes.length - 1] = why; teleCur = DB.tele.passes.length - 1;
+    const end = teleEnding();
+    if (end) DB.tele.ended = end;
+    saveDB();
+    if (end) teleEndGame(end);
     teleStripRow(); teleSheet();
-    if (DB.tele.passes.length > TELE_MAX) teleSay(`That's ${TELE_MAX} passes. ${Math.round(teleSurvival(TELE_MAX) * 100)}% of your words made it to the end of the line.`);
+  }
+  // The game is over: file it whole, say which of the two ways ended it, and show round 0
+  // beside the ending round. No button, nothing for the student to decide.
+  function teleEndGame(end){
+    const P = DB.tele.passes;
+    DB.tele.games.push({
+      id: Date.now().toString(36), when: new Date().toISOString(),
+      model: aiLabel(), n: end.round,
+      asked: [...new Set(DB.tele.asked.slice(1).filter(Boolean))].join(' / '),
+      survival: end.pct, why: end.why,
+      first: P[0], last: P[end.round], passes: P.slice()
+    });
+    saveDB();
+    logEvent('ai', 'Telefone game ended', { rounds: end.round, why: end.why, survival: end.pct, model: aiLabel() });
+    teleSay(TELE_END_SAY[end.why](end) + ` Round 0 and round ${end.round} are below, side by side — game ${DB.tele.games.length}, and it prints with One-Pager 5.`);
+    teleRoundsList();
+    try { document.getElementById('teleRounds').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_){}
   }
   // Free tiers meter tokens per minute, and a 500-word page spends roughly 1,400 of them
   // a pass. OP5 asks for ten passes in a row, so a 429 is an ordinary event in this loop,
@@ -9256,16 +9306,16 @@ You: Really. The first line only has to exist, not be good.`;
   async function teleRun(count){
     if (teleRunning) return;
     if (getProvider() === 'none'){ teleSay('This one needs AI on — pick a model under ⚙ Settings → AI. It is the experiment.', true); openSettingsAI(); return; }
-    if (!String(DB.tele.passes[0]).trim()){ teleSay('Pass zero is empty — paste your page first.', true); return; }
+    if (!String(DB.tele.passes[0]).trim()){ teleSay('Round 0 is empty — paste your page first.', true); return; }
     teleRunning = true; teleStop = false; teleAskRow(); teleStripRow(); teleSheet();
     try {
       for (let k = 0; k < count && DB.tele.passes.length <= TELE_MAX; k++){
-        if (teleStop){ teleSay(`Stopped at pass ${DB.tele.passes.length - 1}. The passes so far are kept.`); break; }
+        if (teleStop){ teleSay(`Stopped at round ${DB.tele.passes.length - 1}. The rounds so far are kept.`); break; }
         const n = DB.tele.passes.length;
         const why = teleAskedShort();
         let text = '', got = false;
         for (let attempt = 0; attempt <= TELE_RETRIES && !teleStop; attempt++){
-          teleSay(`Pass ${n}: the machine is revising pass ${n - 1}…`);
+          teleSay(`Round ${n}: the machine is revising round ${n - 1}…`);
           try {
             text = teleClean(await callModel(telePrompt() + '\n\n"""\n' + DB.tele.passes[n - 1] + '\n"""', { maxTokens: 2500, throwErrors: true }));
             got = true; break;
@@ -9273,13 +9323,13 @@ You: Really. The first line only has to exist, not be good.`;
             // Anything that is not the meter -- a dead key, a retired model -- is the
             // student's to fix, and waiting on it would only hide the reason.
             if (!teleIsLimit(e) || attempt === TELE_RETRIES) throw e;
-            logEvent('ai', 'Telefone rate limited', { pass: n, attempt: attempt + 1 });
-            await teleHold(teleWaitSecs(e), `Pass ${n} hit ${aiLabel()}'s rate limit`);
+            logEvent('ai', 'Telefone rate limited', { round: n, attempt: attempt + 1 });
+            await teleHold(teleWaitSecs(e), `Round ${n} hit ${aiLabel()}'s rate limit`);
           }
         }
-        if (!got){ teleSay(`Stopped at pass ${DB.tele.passes.length - 1}. The passes so far are kept.`); break; }
+        if (!got){ teleSay(`Stopped at round ${DB.tele.passes.length - 1}. The rounds so far are kept.`); break; }
         if (!text){ teleSay('The machine returned nothing — try again.', true); break; }
-        logEvent('ai', 'Telefone pass ' + n, { model: aiLabel(), asked: why, chars: text.length });
+        logEvent('ai', 'Telefone round ' + n, { model: aiLabel(), asked: why, chars: text.length });
         if (DB.tele.passes.length < TELE_MAX) teleSay('');
         teleAddPass(text, why);
         // A breath between passes, so ten in a row does not arrive as one burst.
@@ -9294,55 +9344,38 @@ You: Really. The first line only has to exist, not be good.`;
   }
 
   // ── rounds
-  function teleSaveRound(){
-    const P = DB.tele.passes;
-    if (P.length < 2) return;
-    const n = P.length - 1;
-    DB.tele.rounds.push({
-      id: Date.now().toString(36), when: new Date().toISOString(),
-      model: aiLabel(), n,
-      asked: [...new Set(DB.tele.asked.slice(1).filter(Boolean))].join(' / '),
-      survival: Math.round(teleSurvival(n) * 100),
-      first: P[0], last: P[n], passes: P.slice()
-    });
-    saveDB();
-    logEvent('ai', 'Telefone round saved', { passes: n, model: aiLabel() });
-    teleRoundsList();
-    teleSay(`Round ${DB.tele.rounds.length} saved — ${n} pass${n === 1 ? '' : 'es'}, ${Math.round(teleSurvival(n) * 100)}% of your words left. Start over to play another.`);
-    document.getElementById('teleRounds').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
   function teleRoundsList(){
     const el = document.getElementById('teleRounds'); if (!el) return;
-    const rounds = DB.tele.rounds;
+    const rounds = DB.tele.games;
     const fmtDate = iso => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     if (!rounds.length){
-      el.innerHTML = `<div class="tele-rh"><h2>Rounds</h2></div><div class="tele-round empty">Nothing saved yet. Play a round, then press <b>Save round</b> to keep pass zero and the last pass here — three or four rounds make a set. Saved rounds print with One-Pager 5.</div>`;
+      el.innerHTML = `<div class="tele-rh"><h2>Games</h2></div><div class="tele-round empty">No game has finished yet. Press <b>AI Revise</b> and keep going: the game ends itself when the percentage stops moving for ${TELE_SETTLED} rounds, or when less than a fifth of your words is left. Round 0 and the ending round are kept here, side by side — three or four games make a set, and they print with One-Pager 5.</div>`;
       return;
     }
-    el.innerHTML = `<div class="tele-rh"><h2>Rounds</h2><span class="note">${rounds.length} saved</span><span class="tele-tools"><button class="btn ghost sm" id="telePrint">Print rounds (PDF)</button></span></div>`
+    el.innerHTML = `<div class="tele-rh"><h2>Games</h2><span class="note">${rounds.length} played</span><span class="tele-tools"><button class="btn ghost sm" id="telePrint">Print games (PDF)</button></span></div>`
       + rounds.map((r, i) => `<article class="tele-round">
-        <div class="top"><div class="tele-label"><b>Round ${i + 1}</b> ${fmtDate(r.when)} · ${escHtml(r.model)} · ${r.n} pass${r.n === 1 ? '' : 'es'} · ${r.survival}% of the words left${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</div>
-          <div class="tele-tools"><button class="btn ghost sm" data-open="${r.id}" title="Put this round back in the tabs">Reopen</button><button class="btn ghost sm" data-del="${r.id}">Delete</button></div></div>
+        <div class="top"><div class="tele-label"><b>Game ${i + 1}</b> ${fmtDate(r.when)} · ${escHtml(r.model)} · ended at round ${r.n} · ${r.survival}% of the words left${r.why && TELE_END_WHY[r.why] ? ' · ' + escHtml(TELE_END_WHY[r.why]()) : ''}${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</div>
+          <div class="tele-tools"><button class="btn ghost sm" data-open="${r.id}" title="Put this game's rounds back in the tabs">Reopen</button><button class="btn ghost sm" data-del="${r.id}">Delete</button></div></div>
         <div class="cols">
-          <div class="col"><h4>Pass 0 <span>· yours</span></h4><div class="tele-page">${teleParas(r.first)}</div></div>
-          <div class="col"><h4>Pass ${r.n} <span>· the machine's</span></h4><div class="tele-page">${teleParas(r.last)}</div></div>
+          <div class="col"><h4>Round 0 <span>· yours</span></h4><div class="tele-page">${teleParas(r.first)}</div></div>
+          <div class="col"><h4>Round ${r.n} <span>· the machine's</span></h4><div class="tele-page">${teleParas(r.last)}</div></div>
         </div></article>`).join('');
     document.getElementById('telePrint').addEventListener('click', telePrintRounds);
     el.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
-      if (!confirm('Delete this round? It cannot be recovered.')) return;
-      DB.tele.rounds = rounds.filter(r => r.id !== b.dataset.del); saveDB(); teleRoundsList();
+      if (!confirm('Delete this game? It cannot be recovered.')) return;
+      DB.tele.games = rounds.filter(r => r.id !== b.dataset.del); saveDB(); teleRoundsList();
     }));
     el.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => {
       if (teleRunning) return;
       const r = rounds.find(x => x.id === b.dataset.open); if (!r) return;
-      if (DB.tele.passes.length > 1 && !confirm('Replace the passes in the tabs with this round?')) return;
+      if (DB.tele.passes.length > 1 && !confirm("Replace the rounds in the tabs with this game's?")) return;
       const ps = Array.isArray(r.passes) && r.passes.length ? r.passes.slice() : [r.first, r.last];
       DB.tele.passes = ps; DB.tele.asked = []; DB.tele.asked[ps.length - 1] = r.asked; teleCur = ps.length - 1; saveDB();
       teleSay(''); renderTele(); window.scrollTo({ top: 0, behavior: 'smooth' });
     }));
   }
   function telePrintRounds(){
-    const rounds = DB.tele.rounds; if (!rounds.length) return;
+    const rounds = DB.tele.games; if (!rounds.length) return;
     const para = t => String(t || '').split(/\n+/).filter(Boolean).map(x => `<p>${escHtml(x)}</p>`).join('');
     const fmtDate = iso => new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
     const html = `<section class="op-session gl-sheet"><h2>Telefone — ${rounds.length} round${rounds.length === 1 ? '' : 's'}</h2>
