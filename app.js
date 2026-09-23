@@ -9164,10 +9164,8 @@ You: Really. The first line only has to exist, not be good.`;
   function teleAskRow(){
     const el = document.getElementById('teleAsk'); if (!el) return;
     el.innerHTML = `<span class="tele-lbl">Ask it to</span>` + TELE_ASKS.map((a, i) =>
-      `<label title="${escHtml(a.say)}"><input type="checkbox" data-i="${i}" ${teleOn[i] ? 'checked' : ''} ${teleRunning ? 'disabled' : ''}>${escHtml(a.short)}</label>`).join('')
-      + `<span class="tele-model"><span class="note">${escHtml(aiLabel())}</span> <button class="btn ghost sm" id="teleModel">Change model</button></span>`;
+      `<label title="${escHtml(a.say)}"><input type="checkbox" data-i="${i}" ${teleOn[i] ? 'checked' : ''} ${teleRunning ? 'disabled' : ''}>${escHtml(a.short)}</label>`).join('');
     el.querySelectorAll('input').forEach(c => c.addEventListener('change', () => { teleOn[+c.dataset.i] = c.checked; teleStripRow(); }));
-    document.getElementById('teleModel').addEventListener('click', () => openSettingsAI());
   }
 
   // ── the tabs

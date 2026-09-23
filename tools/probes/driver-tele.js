@@ -118,6 +118,20 @@
        /404|does not exist|do not have access/.test(msg) && !/check your connection/i.test(msg), JSON.stringify(msg));
     ok('T17 the button recovers for another try', !!document.getElementById('teleRun') && !document.getElementById('teleRun').disabled);
 
+    // With no provider chosen, AI Revise must carry the student to Settings -> AI
+    // rather than fail quietly -- the pane no longer has a Change model button of its own.
+    localStorage.removeItem('cr_provider');
+    document.getElementById('teleRun').click();
+    await sleep(600);
+    var aiPane = document.getElementById('set-ai');
+    ok('T18 with no model set, AI Revise opens Settings -> AI',
+       !!aiPane && aiPane.classList.contains('on'),
+       aiPane ? ('set-ai.on=' + aiPane.classList.contains('on')) : 'no AI pane');
+    ok('T19 and says where to go', /Settings/i.test(document.getElementById('teleStatus').textContent),
+       JSON.stringify(document.getElementById('teleStatus').textContent.trim()));
+    ok('T20 the pane no longer carries its own model control',
+       !document.getElementById('teleModel') && !document.querySelector('.tele-model'), 'none present');
+
     ok('Z1 no uncaught errors', ERRS.length === 0, ERRS.join(' | '));
     done();
   }

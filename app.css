@@ -2237,7 +2237,6 @@ body.fwsolo .fwback:hover { background: var(--comment-bg); border-color: var(--a
 .tele-ask label { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); cursor: pointer; white-space: nowrap; }
 .tele-ask input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
 .tele-ask label:has(input:disabled) { opacity: .55; cursor: default; }
-.tele-model { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
 .tele-strip { display: flex; align-items: flex-end; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--comment-border); padding-left: 2px; }
 .tele-tab { appearance: none; font: inherit; border: 1px solid var(--comment-border); border-bottom: none; background: var(--margin-bg); color: var(--muted);
   padding: 7px 12px 6px; border-radius: 7px 7px 0 0; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 66px; position: relative; top: 1px; }
