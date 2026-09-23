@@ -2281,7 +2281,10 @@ textarea.tele-page { width: 100%; max-width: none; min-height: 280px; box-sizing
 .tele-from { margin-top: 8px; }
 .tele-diff del { color: var(--danger); background: rgba(139,51,51,.10); text-decoration: line-through; text-decoration-thickness: 1.5px; border-radius: 2px; padding: 0 1px; }
 .tele-diff ins { color: var(--go); background: rgba(42,90,58,.12); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; border-radius: 2px; padding: 0 1px; }
-.tele-under { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--comment-border); }
+.tele-under { display: flex; align-items: center; gap: 12px; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--comment-border); }
+.tele-under .tele-label { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tele-under .tele-modes { margin-left: auto; flex: none; }
+.tele-under .tele-statwrap { flex: none; }
 .tele-label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .tele-label b { color: var(--ink); }
 /* Three ways to read a pass: the text as it stands, what this pass changed
@@ -2291,6 +2294,10 @@ textarea.tele-page { width: 100%; max-width: none; min-height: 280px; box-sizing
 .tele-modes label { display: inline-flex; align-items: center; font-size: 13px; color: var(--muted); padding: 5px 11px; cursor: pointer; user-select: none; border-left: 1px solid var(--comment-border); }
 .tele-modes label:first-child { border-left: 0; }
 .tele-modes label:hover { color: var(--accent); }
+/* Round 0 has nothing behind it: the comparison views stay in place and go inert, so
+   the row keeps its shape and nobody wonders where the control went. */
+.tele-modes label:has(input:disabled) { opacity: .4; cursor: default; }
+.tele-modes label:has(input:disabled):hover { color: var(--muted); }
 .tele-modes input { position: absolute; opacity: 0; width: 0; height: 0; }
 .tele-modes input:checked + span { color: var(--accent); font-weight: 600; }
 .tele-modes label:has(input:checked) { background: var(--highlight-soft); }

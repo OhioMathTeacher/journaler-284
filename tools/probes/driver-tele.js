@@ -45,13 +45,25 @@
     var modes = document.querySelector('.tele-modes');
     ok('T3 the three-way switch is present', !!modes && modes.querySelectorAll('input[name="teleMode"]').length === 3,
        modes ? modes.querySelectorAll('input').length + ' options' : 'no switch');
-    ok('T4 pass 0 hides the switch, having nothing to compare',
-       !!modes && getComputedStyle(modes).display === 'none', modes ? getComputedStyle(modes).display : '-');
+    ok('T4 round 0 keeps the switch in place, with the comparisons inert',
+       !!modes && getComputedStyle(modes).display !== 'none'
+       && !document.querySelector('input[name="teleMode"][value="left"]').disabled
+       && document.querySelector('input[name="teleMode"][value="changed"]').disabled
+       && document.querySelector('input[name="teleMode"][value="lost"]').disabled,
+       modes ? ('display=' + getComputedStyle(modes).display + ' disabled=' +
+         [].slice.call(modes.querySelectorAll('input')).map(function(i){ return i.value + ':' + i.disabled; }).join(',')) : '-');
+    var zeroBox = modes.getBoundingClientRect();
 
     var tabs = document.querySelectorAll('.tele-tab');
     tabs[2].click();
     await sleep(250);
-    ok('T5 moving off pass 0 shows the switch', getComputedStyle(document.querySelector('.tele-modes')).display !== 'none');
+    var liveBox = document.querySelector('.tele-modes').getBoundingClientRect();
+    ok('T5 the switch does not move between round 0 and a later round',
+       Math.abs(liveBox.left - zeroBox.left) < 1 && Math.abs(liveBox.top - zeroBox.top) < 1,
+       'round 0 at ' + Math.round(zeroBox.left) + ',' + Math.round(zeroBox.top)
+       + ' / round 2 at ' + Math.round(liveBox.left) + ',' + Math.round(liveBox.top));
+    ok('T5b and every option is live once there is something to compare',
+       ![].slice.call(document.querySelectorAll('input[name="teleMode"]')).some(function(i){ return i.disabled; }));
     ok('T6 it opens on "what\'s left" — the plain text, no marks',
        !!document.querySelector('.tele-page') && !document.querySelector('.tele-page.tele-diff'));
 
@@ -90,8 +102,11 @@
 
     tabs[0].click();
     await sleep(250);
-    ok('T13 returning to pass 0 hides the switch again',
-       getComputedStyle(document.querySelector('.tele-modes')).display === 'none');
+    ok('T13 returning to round 0 leaves the switch where it was, comparisons inert again',
+       getComputedStyle(document.querySelector('.tele-modes')).display !== 'none'
+       && document.querySelector('input[name="teleMode"][value="lost"]').disabled
+       && document.querySelector('input[name="teleMode"][value="left"]').checked,
+       'left checked=' + document.querySelector('input[name="teleMode"][value="left"]').checked);
 
     // A failing model call must say WHY. callModel's fail() throws from inside the try
     // that catches network faults, so every specific reason -- bad key, retired model --

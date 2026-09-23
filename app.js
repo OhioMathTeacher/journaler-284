@@ -9110,7 +9110,17 @@ You: Really. The first line only has to exist, not be good.`;
     const view = document.getElementById('teleView'), label = document.getElementById('teleLabel'); if (!view) return;
     const P = DB.tele.passes;
     const editable = teleCur === 0 && P.length === 1 && !teleRunning;
-    document.querySelector('.tele-modes').style.display = teleCur === 0 ? 'none' : '';
+    const atZero = teleCur === 0;
+    const shown = atZero ? 'left' : teleMode;
+    document.querySelectorAll('input[name="teleMode"]').forEach(r => {
+      const comparative = r.value !== 'left';
+      r.disabled = atZero && comparative;
+      r.checked = r.value === shown;
+      const lab = r.closest('label');
+      if (lab) lab.title = (atZero && comparative)
+        ? 'Round 0 is your own page — there is nothing before it to compare it with.'
+        : '';
+    });
     if (teleCur === 0){
       label.innerHTML = editable ? '<b>Round 0</b> · your page — paste it, or send One-Pager 5 here, then AI Revise' : '<b>Round 0</b> · your page';
       if (editable){
@@ -9127,14 +9137,14 @@ You: Really. The first line only has to exist, not be good.`;
     } else {
       const why = DB.tele.asked[teleCur];
       const made = `<b>Round ${teleCur}</b> · machine output${why ? ' · asked to ' + escHtml(why) : ''}`;
-      if (teleMode === 'lost'){
+      if (shown === 'lost'){
         // Pass ZERO against this pass, insertions dropped: your page with its holes
         // marked, so the % in the tab strip has a body to point at.
         label.innerHTML = `<b>Round ${teleCur}</b> · your page — struck through is everything gone by this round`;
         const html = teleDiffOf(P[0], P[teleCur], teleLostKey).filter(([t]) => t !== 'ins').map(([t, w]) =>
           w === '\n' ? '\n' : t === 'eq' ? escHtml(w) : `<del>${escHtml(w)}</del>`).join(' ');
         view.innerHTML = `<div class="tele-page tele-diff tele-lost">${html}</div>`;
-      } else if (teleMode === 'changed'){
+      } else if (shown === 'changed'){
         label.innerHTML = made;
         const html = teleDiffOf(P[teleCur - 1], P[teleCur]).map(([t, w]) =>
           w === '\n' ? (t === 'del' ? '' : '\n') : t === 'eq' ? escHtml(w) : t === 'del' ? `<del>${escHtml(w)}</del>` : `<ins>${escHtml(w)}</ins>`).join(' ');
