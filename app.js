@@ -3010,7 +3010,7 @@ async function runReflection(rf, text, hooks) {
       ${M.genloss ? `
       <section class="genloss" id="genloss">
         <div class="stagelabel"><span class="n">3</span> Generation Loss — play Telefone</div>
-        <p class="stagenote">Your One-Pager is <strong>pass zero</strong>. Telefone asks the machine to clean it up, then cleans up the cleanup, pass after pass. Nothing it returns enters your page — save a round there and it prints with this One-Pager as evidence.</p>
+        <p class="stagenote">Your One-Pager is <strong>round 0</strong>. Telefone asks the machine to clean it up, then cleans up the cleanup, round after round. Nothing it returns enters your page — the run is kept when it stops, and prints with this One-Pager as evidence.</p>
         <div class="gushbar">
           <button class="btn go" id="glSend">Send this page to Telefone →</button>
           <span class="note" id="glStatus"></span>
@@ -3103,7 +3103,7 @@ async function runReflection(rf, text, hooks) {
       glSend.addEventListener('click', () => {
         const pg = document.getElementById('page');
         const zero = pg ? pg.innerText.trim() : '';
-        if (!zero) { st.textContent = 'Shape your One-Pager first — that is pass zero.'; return; }
+        if (!zero) { st.textContent = 'Shape your One-Pager first — that is round 0.'; return; }
         if (DB.tele.passes.length > 1 && !confirm('Telefone has a run in progress. Replace it with this page? (Finished runs are kept.)')) return;
         DB.tele.passes = [zero]; DB.tele.asked = []; saveDB();
         logEvent('ai', 'sent One-Pager 5 to Telefone', { chars: zero.length });
@@ -9378,20 +9378,20 @@ You: Really. The first line only has to exist, not be good.`;
     }));
   }
   function telePrintRounds(){
-    const rounds = DB.tele.games; if (!rounds.length) return;
+    const runs = DB.tele.games; if (!runs.length) return;
     const para = t => String(t || '').split(/\n+/).filter(Boolean).map(x => `<p>${escHtml(x)}</p>`).join('');
     const fmtDate = iso => new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
-    const html = `<section class="op-session gl-sheet"><h2>Telefone — ${rounds.length} round${rounds.length === 1 ? '' : 's'}</h2>
+    const html = `<section class="op-session gl-sheet"><h2>Telefone — ${runs.length} run${runs.length === 1 ? '' : 's'}</h2>
       <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}${escHtml(fmtDate(new Date().toISOString()))}</p>
-      <p>Pass zero in each round is my writing. The last pass is machine output, produced by handing the machine the pass before and asking it to revise, again and again.</p></section>`
+      <p>Round 0 in each run is my writing. Every later round is machine output, produced by handing the machine the round before and asking it to revise, again and again.</p></section>`
       + teleReflectionHTML()
-      + rounds.map((r, i) => `<section class="op-session gl-sheet">
-        <h2>Round ${i + 1}</h2>
-        <p class="op-sub">${escHtml(fmtDate(r.when))} · ${escHtml(r.model)} · ${r.n} pass${r.n === 1 ? '' : 'es'} · ${r.survival}% of my words left${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</p>
-        <h3>Pass 0 — mine</h3>${para(r.first)}
-        <h3>Pass ${r.n} — machine</h3>${para(r.last)}
+      + runs.map((r, i) => `<section class="op-session gl-sheet">
+        <h2>Run ${i + 1}</h2>
+        <p class="op-sub">${escHtml(fmtDate(r.when))} · ${escHtml(r.model)} · ended at round ${r.n} · ${r.survival}% of my words left${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</p>
+        <h3>Round 0 — mine</h3>${para(r.first)}
+        <h3>Round ${r.n} — machine</h3>${para(r.last)}
       </section>`).join('');
-    printDoc('printOnePager', html, 'Telefone — rounds');
+    printDoc('printOnePager', html, 'Telefone — runs');
   }
 
   // ---------- tabs + focus ----------
