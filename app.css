@@ -2258,8 +2258,18 @@ textarea.tele-page { width: 100%; max-width: none; min-height: 280px; box-sizing
 .tele-under { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--comment-border); }
 .tele-label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .tele-label b { color: var(--ink); }
-.tele-switch { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: var(--muted); cursor: pointer; user-select: none; }
-.tele-switch input { accent-color: var(--accent); margin: 0; }
+/* Three ways to read a pass: the text as it stands, what this pass changed
+   (k-1 vs k), and what is gone since pass zero (0 vs k). Radios, not buttons,
+   so arrow keys move between them without any JS. */
+.tele-modes { display: inline-flex; border: 1px solid var(--comment-border); border-radius: 6px; overflow: hidden; background: var(--comment-bg); }
+.tele-modes label { display: inline-flex; align-items: center; font-size: 13px; color: var(--muted); padding: 5px 11px; cursor: pointer; user-select: none; border-left: 1px solid var(--comment-border); }
+.tele-modes label:first-child { border-left: 0; }
+.tele-modes label:hover { color: var(--accent); }
+.tele-modes input { position: absolute; opacity: 0; width: 0; height: 0; }
+.tele-modes input:checked + span { color: var(--accent); font-weight: 600; }
+.tele-modes label:has(input:checked) { background: var(--highlight-soft); }
+.tele-modes label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tele-lost del { opacity: .9; }
 .tele-stats { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 14px; }
 .tele-stat { display: flex; flex-direction: column; gap: 1px; }
 .tele-stat .v { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }

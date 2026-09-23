@@ -9020,7 +9020,7 @@ You: Really. The first line only has to exist, not be good.`;
   ];
   const TELE_MAX = 20;
   const teleOn = [true, true, true];
-  let teleCur = 0, teleRunning = false, teleStop = false, teleDiff = false;
+  let teleCur = 0, teleRunning = false, teleStop = false, teleMode = 'left';
 
   function renderTele(){
     body.classList.remove('wide', 'bleed');
@@ -9034,7 +9034,11 @@ You: Really. The first line only has to exist, not be good.`;
           <div id="teleView"></div>
           <div class="tele-under">
             <div class="tele-label" id="teleLabel"></div>
-            <label class="tele-switch"><input type="checkbox" id="teleDiff" ${teleDiff ? 'checked' : ''}> Show what this pass changed</label>
+            <div class="tele-modes" role="radiogroup" aria-label="What to show on this pass">
+              <label><input type="radio" name="teleMode" value="left" ${teleMode === 'left' ? 'checked' : ''}><span>What's left</span></label>
+              <label><input type="radio" name="teleMode" value="changed" ${teleMode === 'changed' ? 'checked' : ''}><span>What this pass changed</span></label>
+              <label><input type="radio" name="teleMode" value="lost" ${teleMode === 'lost' ? 'checked' : ''}><span>What's lost</span></label>
+            </div>
           </div>
           <div class="tele-stats" id="teleStats"></div>
           <div class="note tele-status" id="teleStatus"></div>
@@ -9047,13 +9051,15 @@ You: Really. The first line only has to exist, not be good.`;
         </section>
       </div>`;
     document.getElementById('teleReflection').addEventListener('input', e => { DB.tele.reflection = e.target.value; saveDB(); });
-    document.getElementById('teleDiff').addEventListener('change', e => { teleDiff = e.target.checked; teleSheet(); });
+    document.querySelectorAll('input[name="teleMode"]').forEach(r =>
+      r.addEventListener('change', e => { if (e.target.checked){ teleMode = e.target.value; teleSheet(); } }));
     teleAskRow(); teleStripRow(); teleSheet(); teleRoundsList();
   }
 
   // ── words
   const teleNorm  = w => w.toLowerCase().replace(/[^\p{L}\p{N}']/gu, '');
   const teleWords = t => String(t || '').split(/\s+/).filter(Boolean);
+  const teleLostKey = w => w === '\n' ? '\n' : (teleNorm(w) || w);
   const teleToks  = t => String(t || '').replace(/\r/g, '').replace(/\n/g, ' \n ').split(/[ \t]+/).filter(Boolean);
   function teleSurvival(k){
     const P = DB.tele.passes;
@@ -9071,15 +9077,16 @@ You: Really. The first line only has to exist, not be good.`;
     return { words: w, sentences: s.length, avg: s.length ? w / s.length : 0 };
   }
   // Word-level LCS; line breaks are tokens so the diff keeps the shape of the page.
-  function teleDiffOf(a, b){
+  function teleDiffOf(a, b, key){
     const A = teleToks(a), B = teleToks(b), n = A.length, m = B.length;
+    const k = key || (w => w), KA = A.map(k), KB = B.map(k);
     const L = new Array(n + 1);
     for (let i = 0; i <= n; i++) L[i] = new Uint16Array(m + 1);
     for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
-      L[i][j] = A[i] === B[j] ? L[i+1][j+1] + 1 : Math.max(L[i+1][j], L[i][j+1]);
+      L[i][j] = KA[i] === KB[j] ? L[i+1][j+1] + 1 : Math.max(L[i+1][j], L[i][j+1]);
     const out = []; let i = 0, j = 0;
     while (i < n && j < m){
-      if (A[i] === B[j]){ out.push(['eq', A[i]]); i++; j++; }
+      if (KA[i] === KB[j]){ out.push(['eq', A[i]]); i++; j++; }
       else if (L[i+1][j] >= L[i][j+1]){ out.push(['del', A[i]]); i++; }
       else { out.push(['ins', B[j]]); j++; }
     }
@@ -9133,7 +9140,7 @@ You: Really. The first line only has to exist, not be good.`;
     const view = document.getElementById('teleView'), label = document.getElementById('teleLabel'); if (!view) return;
     const P = DB.tele.passes;
     const editable = teleCur === 0 && P.length === 1 && !teleRunning;
-    document.querySelector('.tele-switch').style.display = teleCur === 0 ? 'none' : '';
+    document.querySelector('.tele-modes').style.display = teleCur === 0 ? 'none' : '';
     if (teleCur === 0){
       label.innerHTML = editable ? '<b>Pass 0</b> · your page — paste it, or send One-Pager 5 here, then AI Revise' : '<b>Pass 0</b> · your page';
       if (editable){
@@ -9149,12 +9156,23 @@ You: Really. The first line only has to exist, not be good.`;
       } else view.innerHTML = `<div class="tele-page">${teleParas(P[0])}</div>`;
     } else {
       const why = DB.tele.asked[teleCur];
-      label.innerHTML = `<b>Pass ${teleCur}</b> · machine output${why ? ' · asked to ' + escHtml(why) : ''}`;
-      if (teleDiff){
+      const made = `<b>Pass ${teleCur}</b> · machine output${why ? ' · asked to ' + escHtml(why) : ''}`;
+      if (teleMode === 'lost'){
+        // Pass ZERO against this pass, insertions dropped: your page with its holes
+        // marked, so the % in the tab strip has a body to point at.
+        label.innerHTML = `<b>Pass ${teleCur}</b> · your page — struck through is everything gone by this pass`;
+        const html = teleDiffOf(P[0], P[teleCur], teleLostKey).filter(([t]) => t !== 'ins').map(([t, w]) =>
+          w === '\n' ? '\n' : t === 'eq' ? escHtml(w) : `<del>${escHtml(w)}</del>`).join(' ');
+        view.innerHTML = `<div class="tele-page tele-diff tele-lost">${html}</div>`;
+      } else if (teleMode === 'changed'){
+        label.innerHTML = made;
         const html = teleDiffOf(P[teleCur - 1], P[teleCur]).map(([t, w]) =>
           w === '\n' ? (t === 'del' ? '' : '\n') : t === 'eq' ? escHtml(w) : t === 'del' ? `<del>${escHtml(w)}</del>` : `<ins>${escHtml(w)}</ins>`).join(' ');
         view.innerHTML = `<div class="tele-page tele-diff">${html}</div>`;
-      } else view.innerHTML = `<div class="tele-page">${teleParas(P[teleCur])}</div>`;
+      } else {
+        label.innerHTML = made;
+        view.innerHTML = `<div class="tele-page">${teleParas(P[teleCur])}</div>`;
+      }
     }
     teleStatsRow();
   }
