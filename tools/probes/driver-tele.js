@@ -174,6 +174,23 @@
          && st.tele.passes.length === 1, st.tele.passes.length + ' passes');
     }
 
+    // Start over means an empty box, not "round 0 kept and everything else thrown away".
+    window.confirm = function(){ return true; };
+    var rs = document.getElementById('teleReset');
+    ok('T26 Start over is offered while there is anything to clear', !!rs && !rs.disabled,
+       rs ? ('disabled=' + rs.disabled) : 'missing');
+    if(rs){
+      rs.click();
+      await sleep(400);
+      var st2 = JSON.parse(localStorage.getItem('cr284_state'));
+      ok('T27 it wipes round 0 as well, leaving nothing behind',
+         st2.tele.passes.length === 1 && String(st2.tele.passes[0]).trim() === '',
+         st2.tele.passes.length + ' passes, round 0 = ' + JSON.stringify(String(st2.tele.passes[0]).slice(0,40)));
+      var ed2 = document.getElementById('teleEditor');
+      ok('T28 and leaves an empty box ready to type in', !!ed2 && ed2.value === '',
+         ed2 ? JSON.stringify(ed2.value.slice(0,30)) : 'no editor');
+    }
+
     ok('Z1 no uncaught errors', ERRS.length === 0, ERRS.join(' | '));
     done();
   }

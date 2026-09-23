@@ -9092,7 +9092,7 @@ You: Really. The first line only has to exist, not be good.`;
       return `<button class="tele-tab${i === teleCur ? ' on' : ''}" data-i="${i}" role="tab" aria-selected="${i === teleCur}">
         <span class="n">Round ${i}${i === 0 ? '<small>yours</small>' : ''}</span><span class="pct">${pct}%</span></button>`;
     }).join('') + `<span class="tele-actions">
-        <button class="btn ${over ? 'go' : 'ghost sm'}" id="teleReset" ${P.length > 1 && !teleRunning ? '' : 'disabled'}>Start over</button>
+        <button class="btn ${over ? 'go' : 'ghost sm'}" id="teleReset" ${(P.length > 1 || String(P[0] || '').trim()) && !teleRunning ? '' : 'disabled'}>Start over</button>
         <button class="btn go" id="teleRun" ${canRun ? '' : 'disabled'} title="${over ? 'It has stopped — edit round 0 to try something else' : 'One round: hand the last round to the machine and see what comes back'}">AI Revise</button>
         <button class="btn ghost" id="teleStopBtn" style="${teleRunning ? '' : 'display:none'}">Stop</button>
       </span>`;
@@ -9100,8 +9100,9 @@ You: Really. The first line only has to exist, not be good.`;
     document.getElementById('teleRun').addEventListener('click', () => teleRun(1));
     document.getElementById('teleStopBtn').addEventListener('click', () => { teleStop = true; });
     document.getElementById('teleReset').addEventListener('click', () => {
-      if (!confirm('Throw away every round after round 0?')) return;
-      DB.tele.passes = [P[0]]; DB.tele.asked = []; delete DB.tele.ended; teleCur = 0; saveDB(); teleSay(''); renderTele();
+      if (!confirm('Clear round 0 and every round after it?')) return;
+      DB.tele.passes = ['']; DB.tele.asked = []; delete DB.tele.ended; teleCur = 0; saveDB(); teleSay(''); renderTele();
+      const ed = document.getElementById('teleEditor'); if (ed) ed.focus();
     });
   }
 
