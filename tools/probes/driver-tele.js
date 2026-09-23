@@ -24,6 +24,13 @@
       "The fence was broken and nobody fixed it. Rain came into the kitchen and got into everything.",
       "The fence was broken, and no one repaired it. Rain entered the kitchen and soaked everything."
     ], asked: [null, 'clean it up & correct it', 'rewrite in clear, standard English'], rounds: [], reflection: '' } };
+    st.name = 'A Student';
+    st.freewrite = { op5: { shape: '<p>My One-Pager, which must survive.</p>', gush: 'the gush' } };
+    st.currere  = { regressive: 'a currere entry' };
+    st.journal  = [{ id:'j1', pieceId:'free', pieceKind:'freewrite', date:'2026-09-23',
+                     ts:'2026-09-23T10:00:00', text:'a notebook entry that must survive' }];
+    st.readings = [{ id:'f:one.pdf', name:'one.pdf', type:'pdf' }];
+    st.highlights = {}; st.turnin = {}; st.qa = {};
     localStorage.setItem('cr284_state', JSON.stringify(st));
     // A provider, so AI Revise is live for the error-path checks at the end.
     localStorage.setItem('cr_provider', 'groq');
@@ -189,6 +196,18 @@
       var ed2 = document.getElementById('teleEditor');
       ok('T28 and leaves an empty box ready to type in', !!ed2 && ed2.value === '',
          ed2 ? JSON.stringify(ed2.value.slice(0,30)) : 'no editor');
+      // Start over is Telefone's own button. It must not reach anything else in the app.
+      ok('T29 Start over touches nothing outside Telefone',
+         st2.name === 'A Student'
+         && (((st2.freewrite||{}).op5||{}).shape || '').indexOf('must survive') > -1
+         && ((st2.currere||{}).regressive === 'a currere entry')
+         && ((st2.journal||[]).length === 1)
+         && ((st2.readings||[]).length === 1),
+         'name=' + JSON.stringify(st2.name)
+         + ' op5=' + JSON.stringify((((st2.freewrite||{}).op5||{}).shape||'').slice(0,28))
+         + ' currere=' + JSON.stringify((st2.currere||{}).regressive)
+         + ' journal=' + (st2.journal||[]).length
+         + ' readings=' + (st2.readings||[]).length);
     }
 
     ok('Z1 no uncaught errors', ERRS.length === 0, ERRS.join(' | '));
@@ -198,7 +217,13 @@
     try { fetch('/', { method: 'POST', body: JSON.stringify(OUT) }); } catch(e){}
   }
   window.addEventListener('load', function(){
-    if(sessionStorage.getItem('teleProbe')) setTimeout(run, 500);
+    if(sessionStorage.getItem('teleProbe')) setTimeout(function(){
+      Promise.resolve().then(run).catch(function(e){
+        ok('X! the suite threw before it finished', false,
+           (e && e.message || e) + ' @@ ' + ((e && e.stack) || '').split('\n').slice(0,4).join(' <- '));
+        done();
+      });
+    }, 500);
     else setTimeout(seedAndReload, 300);
   });
 })();
