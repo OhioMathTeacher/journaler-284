@@ -2252,7 +2252,12 @@ body.fwsolo .fwback:hover { background: var(--comment-bg); border-color: var(--a
      far enough for a diff to stop wrapping every other word, short of the wall of
      text that a 1500px line would be. */
   .tele-page { max-width: 90ch; }
-  .tele-stats { margin-top: 16px; }
+  /* Trim the frame around the passage: the label row was spending 34px of margin and
+     padding on a 1px rule, and the sheet 44px of vertical padding. Each pixel here is
+     a line of the page the student does not get to see. */
+  .tele-sheet { padding: 16px 22px 12px; }
+  .tele-under { margin-top: 10px; padding-top: 10px; }
+  .tele-status:empty { min-height: 0; margin-top: 0; }
 }
 .tele-ask { display: flex; align-items: center; gap: 6px 18px; flex-wrap: wrap; margin: 0 0 12px; font-size: 14px; color: var(--muted); }
 .tele-lbl { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
@@ -2291,7 +2296,18 @@ textarea.tele-page { width: 100%; max-width: none; min-height: 280px; box-sizing
 .tele-modes label:has(input:checked) { background: var(--highlight-soft); }
 .tele-modes label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
 .tele-lost del { opacity: .9; }
-.tele-stats { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 14px; }
+/* The figures live in a popover now, so the sheet gives its height to the passage.
+   Same shape as the reader's .vb-pop: anchored under its button, closed by a click
+   outside or Escape. */
+.tele-statwrap { position: relative; display: inline-flex; }
+.tele-statbtn { display: inline-flex; align-items: center; gap: 6px; }
+.tele-statbtn svg { width: 12px; height: 12px; fill: currentColor; }
+.tele-statbtn.on { background: var(--highlight-soft); color: var(--accent); }
+.tele-stats.tele-pop { position: absolute; bottom: calc(100% + 8px); right: 0; z-index: 40;
+  display: grid; grid-template-columns: repeat(2, minmax(96px, auto)); gap: 12px 22px;
+  background: var(--comment-bg); border: 1px solid var(--comment-border); border-radius: 9px;
+  box-shadow: 0 10px 28px rgba(44,36,22,.20); padding: 12px 14px; margin: 0; }
+.tele-stats.tele-pop[hidden] { display: none; }
 .tele-stat { display: flex; flex-direction: column; gap: 1px; }
 .tele-stat .v { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
 .tele-stat .k { font-size: 12.5px; color: var(--muted); }

@@ -42,9 +42,23 @@
     ok('G3 the sheet runs with it', !!(sheet && tele) && sheet.w > tele.w * 0.9,
        sheet && tele ? (sheet.w + ' of ' + tele.w) : 'missing');
 
-    ['.tele-stats', '.tele-status'].forEach(function(sel){
-      ok('G4 ' + sel + ' sits under the sheet', !!document.querySelector('.tele-sheet ' + sel));
-    });
+    ok('G4 the status line sits under the sheet', !!document.querySelector('.tele-sheet .tele-status'));
+    // The figures are behind a button so the passage gets the height. They must be out of
+    // the flow until asked for, and must actually open when asked.
+    var sBtn = document.getElementById('teleStatBtn'), sPop = document.getElementById('teleStats');
+    ok('G4a the figures are hidden behind a button', !!sBtn && !!sPop && sPop.hidden,
+       sPop ? ('hidden=' + sPop.hidden) : 'no popover');
+    var beforeH = document.querySelector('.tele-page').clientHeight;
+    if(sBtn) sBtn.click();
+    await sleep(200);
+    ok('G4b clicking it shows the figures', !!sPop && !sPop.hidden && /words/.test(sPop.textContent),
+       sPop ? sPop.textContent.replace(/\s+/g,' ').trim().slice(0,70) : '-');
+    ok('G4c and opening them does not shrink the passage',
+       document.querySelector('.tele-page').clientHeight === beforeH,
+       beforeH + ' -> ' + document.querySelector('.tele-page').clientHeight);
+    document.body.click();
+    await sleep(200);
+    ok('G4d a click outside closes them again', !!sPop && sPop.hidden);
     ok('G5 nothing is left of the rail, the runs list or the reflection',
        !document.querySelector('.tele-rail') && !document.querySelector('.tele-rounds')
        && !document.querySelector('.tele-reflect') && !document.getElementById('teleReflection'),

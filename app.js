@@ -8987,11 +8987,24 @@ You: Really. The first line only has to exist, not be good.`;
               <label><input type="radio" name="teleMode" value="changed" ${teleMode === 'changed' ? 'checked' : ''}><span>What this round changed</span></label>
               <label><input type="radio" name="teleMode" value="lost" ${teleMode === 'lost' ? 'checked' : ''}><span>What's lost</span></label>
             </div>
+            <div class="tele-statwrap" id="teleStatWrap">
+              <button class="btn ghost sm tele-statbtn" id="teleStatBtn" aria-expanded="false" aria-controls="teleStats" title="The figures for this round">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><rect x="1" y="9" width="3" height="6"/><rect x="6.5" y="5" width="3" height="10"/><rect x="12" y="2" width="3" height="13"/></svg>Figures
+              </button>
+              <div class="tele-stats tele-pop" id="teleStats" hidden></div>
+            </div>
           </div>
-          <div class="tele-stats" id="teleStats"></div>
           <div class="note tele-status" id="teleStatus"></div>
         </div>
       </div>`;
+    (function(){
+      const b = document.getElementById('teleStatBtn'), pop = document.getElementById('teleStats');
+      if(!b || !pop) return;
+      const set = open => { pop.hidden = !open; b.setAttribute('aria-expanded', String(open)); b.classList.toggle('on', open); };
+      b.addEventListener('click', e => { e.stopPropagation(); set(pop.hidden); });
+      document.addEventListener('click', e => { const w = document.getElementById('teleStatWrap'); if(w && !w.contains(e.target)) set(false); });
+      document.addEventListener('keydown', e => { if(e.key === 'Escape' && !pop.hidden){ set(false); b.focus(); } });
+    })();
     document.querySelectorAll('input[name="teleMode"]').forEach(r =>
       r.addEventListener('change', e => { if (e.target.checked){ teleMode = e.target.value; teleSheet(); } }));
     teleAskRow(); teleStripRow(); teleSheet();
