@@ -79,6 +79,29 @@
       }
     }
     ok('G7 the two-column layout is gated behind a min-width query', gated, conds.join(' ; ') || 'NOT gated');
+    // A finished game puts a long sentence in the status line. The rail is a flex column
+    // in a height-capped grid row, so its children shrink by default -- and text that is
+    // squeezed below its own height spills over whatever comes next instead of scrolling.
+    // Todd saw the ending message printed straight through the Games header.
+    var status = document.getElementById('teleStatus');
+    status.textContent = 'The game is over at round 5: 73%, unchanged for 3 rounds running — the machine has stopped changing it. Round 0 and round 5 are below, side by side — game 1, and it prints with One-Pager 5.';
+    await sleep(250);
+    var kids = [].slice.call(document.querySelector('.tele-rail').children);
+    var overlaps = [];
+    for(var i = 0; i + 1 < kids.length; i++){
+      var a = kids[i].getBoundingClientRect(), b = kids[i+1].getBoundingClientRect();
+      if(b.top < a.bottom - 1){
+        overlaps.push((kids[i].className||kids[i].id) + ' bottom=' + Math.round(a.bottom)
+          + ' overlaps ' + (kids[i+1].className||kids[i+1].id) + ' top=' + Math.round(b.top)
+          + ' by ' + Math.round(a.bottom - b.top) + 'px');
+      }
+    }
+    ok('G8 nothing in the rail is printed over anything else', overlaps.length === 0, overlaps.join(' | ') || 'no overlap');
+    // The squeeze also crops content: a box shorter than its own text has lost some.
+    var cropped = kids.filter(function(k){ return k.scrollHeight > k.clientHeight + 2 && getComputedStyle(k).overflowY === 'visible'; })
+                      .map(function(k){ return (k.className||k.id) + ' ' + k.scrollHeight + ' in ' + k.clientHeight; });
+    ok('G9 no rail block is squeezed shorter than its own content', cropped.length === 0, cropped.join(' | ') || 'none squeezed');
+
     ok('Z1 no uncaught errors', ERRS.length === 0, ERRS.join(' | '));
     try { fetch('/',{method:'POST',body:JSON.stringify(OUT)}); } catch(e){}
   }
