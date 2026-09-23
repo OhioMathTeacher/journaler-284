@@ -9355,7 +9355,7 @@ You: Really. The first line only has to exist, not be good.`;
       el.innerHTML = `<div class="tele-rh"><h2>Runs</h2></div><div class="tele-round empty">No run has finished yet. Press <b>AI Revise</b> and keep going: a run stops itself when the percentage holds for ${TELE_SETTLED} rounds, or when less than a fifth of your words is left. Round 0 and the last round are kept here, side by side — three or four runs make a set, and they print with One-Pager 5.</div>`;
       return;
     }
-    el.innerHTML = `<div class="tele-rh"><h2>Runs</h2><span class="note">${rounds.length} so far</span><span class="tele-tools"><button class="btn ghost sm" id="telePrint">Print runs (PDF)</button></span></div>`
+    el.innerHTML = `<div class="tele-rh"><h2>Runs</h2><span class="note">${rounds.length} so far · these print with One-Pager 5</span></div>`
       + rounds.map((r, i) => `<article class="tele-round">
         <div class="top"><div class="tele-label"><b>Run ${i + 1}</b> ${fmtDate(r.when)} · ${escHtml(r.model)} · ended at round ${r.n} · ${r.survival}% of the words left${r.why && TELE_END_WHY[r.why] ? ' · ' + escHtml(TELE_END_WHY[r.why]()) : ''}${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</div>
           <div class="tele-tools"><button class="btn ghost sm" data-open="${r.id}" title="Put this run's rounds back in the tabs">Reopen</button><button class="btn ghost sm" data-del="${r.id}">Delete</button></div></div>
@@ -9363,7 +9363,6 @@ You: Really. The first line only has to exist, not be good.`;
           <div class="col"><h4>Round 0 <span>· yours</span></h4><div class="tele-page">${teleParas(r.first)}</div></div>
           <div class="col"><h4>Round ${r.n} <span>· the machine's</span></h4><div class="tele-page">${teleParas(r.last)}</div></div>
         </div></article>`).join('');
-    document.getElementById('telePrint').addEventListener('click', telePrintRounds);
     el.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
       if (!confirm('Delete this run? It cannot be recovered.')) return;
       DB.tele.games = rounds.filter(r => r.id !== b.dataset.del); saveDB(); teleRoundsList();
@@ -9376,22 +9375,6 @@ You: Really. The first line only has to exist, not be good.`;
       DB.tele.passes = ps; DB.tele.asked = []; DB.tele.asked[ps.length - 1] = r.asked; teleCur = ps.length - 1; saveDB();
       teleSay(''); renderTele(); window.scrollTo({ top: 0, behavior: 'smooth' });
     }));
-  }
-  function telePrintRounds(){
-    const runs = DB.tele.games; if (!runs.length) return;
-    const para = t => String(t || '').split(/\n+/).filter(Boolean).map(x => `<p>${escHtml(x)}</p>`).join('');
-    const fmtDate = iso => new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
-    const html = `<section class="op-session gl-sheet"><h2>Telefone — ${runs.length} run${runs.length === 1 ? '' : 's'}</h2>
-      <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}${escHtml(fmtDate(new Date().toISOString()))}</p>
-      <p>Round 0 in each run is my writing. Every later round is machine output, produced by handing the machine the round before and asking it to revise, again and again.</p></section>`
-      + teleReflectionHTML()
-      + runs.map((r, i) => `<section class="op-session gl-sheet">
-        <h2>Run ${i + 1}</h2>
-        <p class="op-sub">${escHtml(fmtDate(r.when))} · ${escHtml(r.model)} · ended at round ${r.n} · ${r.survival}% of my words left${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</p>
-        <h3>Round 0 — mine</h3>${para(r.first)}
-        <h3>Round ${r.n} — machine</h3>${para(r.last)}
-      </section>`).join('');
-    printDoc('printOnePager', html, 'Telefone — runs');
   }
 
   // ---------- tabs + focus ----------

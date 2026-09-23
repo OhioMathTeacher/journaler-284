@@ -132,6 +132,14 @@
     ok('T20 the pane no longer carries its own model control',
        !document.getElementById('teleModel') && !document.querySelector('.tele-model'), 'none present');
 
+    ok('T21 the pane offers no PDF of its own — the One-Pager export is the deliverable',
+       !document.getElementById('telePrint')
+       && ![].slice.call(document.querySelectorAll('.tele button')).some(function(b){ return /pdf|print/i.test(b.textContent); }),
+       [].slice.call(document.querySelectorAll('.tele button')).map(function(b){ return b.textContent.trim(); }).join(' | '));
+    ok('T22 the rail says where the runs end up instead',
+       /print(s)? with One-Pager 5/i.test(document.querySelector('.tele-rail').textContent),
+       JSON.stringify((document.querySelector('.tele-rh') || {}).textContent || ''));
+
     ok('Z1 no uncaught errors', ERRS.length === 0, ERRS.join(' | '));
     done();
   }

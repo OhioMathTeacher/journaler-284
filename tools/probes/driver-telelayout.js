@@ -102,6 +102,14 @@
                       .map(function(k){ return (k.className||k.id) + ' ' + k.scrollHeight + ' in ' + k.clientHeight; });
     ok('G9 no rail block is squeezed shorter than its own content', cropped.length === 0, cropped.join(' | ') || 'none squeezed');
 
+    var rh = document.querySelector('.tele-rail .tele-rh');
+    ok('G10 the populated Runs heading offers no PDF of its own',
+       !!rh && !rh.querySelector('button'),
+       rh ? JSON.stringify(rh.textContent.trim()) : 'no heading');
+    ok('G11 and says where the runs actually print',
+       !!rh && /print with One-Pager 5/i.test(rh.textContent),
+       rh ? JSON.stringify(rh.textContent.trim()) : 'no heading');
+
     ok('Z1 no uncaught errors', ERRS.length === 0, ERRS.join(' | '));
     try { fetch('/',{method:'POST',body:JSON.stringify(OUT)}); } catch(e){}
   }
