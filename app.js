@@ -9056,6 +9056,7 @@ You: Really. The first line only has to exist, not be good.`;
     frame.innerHTML = `<div class="head"><h1>Telefone</h1><p>Telephone, except the machine is every player. Hand it a page, ask it to revise, and watch what it corrects away — round after round. The game ends itself.</p></div>
       <div class="tele">
         <div class="tele-ask" id="teleAsk"></div>
+        <div class="tele-main">
         <div class="tele-strip" id="teleStrip"></div>
         <div class="tele-sheet">
           <div id="teleView"></div>
@@ -9067,15 +9068,18 @@ You: Really. The first line only has to exist, not be good.`;
               <label><input type="radio" name="teleMode" value="lost" ${teleMode === 'lost' ? 'checked' : ''}><span>What's lost</span></label>
             </div>
           </div>
+        </div>
+        </div>
+        <aside class="tele-rail">
           <div class="tele-stats" id="teleStats"></div>
           <div class="note tele-status" id="teleStatus"></div>
-        </div>
         <section class="tele-rounds" id="teleRounds"></section>
         <section class="tele-reflect">
           <div class="tele-rh"><h2>Generation Loss reflection</h2><span class="note">prints with One-Pager 5 · the 4-point row</span></div>
           <p class="tele-lead">Read your rounds, then write. <em>What did the machine fix first? What is gone by the end that was there at the start? What refused to go? What does that mean for your writing — and for the writing of your students?</em></p>
           <textarea class="tele-page tele-reflection" id="teleReflection" placeholder="That part is yours.">${escHtml(T.reflection || '')}</textarea>
         </section>
+        </aside>
       </div>`;
     document.getElementById('teleReflection').addEventListener('input', e => { DB.tele.reflection = e.target.value; saveDB(); });
     document.querySelectorAll('input[name="teleMode"]').forEach(r =>
@@ -9279,11 +9283,11 @@ You: Really. The first line only has to exist, not be good.`;
     try { document.getElementById('teleRounds').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_){}
   }
   // Free tiers meter tokens per minute, and a 500-word page spends roughly 1,400 of them
-  // a pass. OP5 asks for ten passes in a row, so a 429 is an ordinary event in this loop,
-  // not the end of the run: wait the time the provider itself names, say so on screen so
-  // it does not look frozen, and go again at the same pass. TELE_GAP is the small pause
-  // between passes that keeps a burst from tripping the limit to begin with.
-  const TELE_GAP = 1200, TELE_RETRIES = 3, TELE_WAIT_MAX = 90;
+  // a round. OP5 is played one round at a time, but a student pressing AI Revise steadily
+  // still reaches the meter, so a 429 is an ordinary event here rather than the end of the
+  // game: wait the time the provider itself names, say so on screen so it does not look
+  // frozen, and go again at the same round.
+  const TELE_RETRIES = 3, TELE_WAIT_MAX = 90;
   const teleIsLimit = e => !!e && (e.status === 429 || /\b429\b|rate.?limit/i.test((e && e.message) || ''));
   function teleWaitSecs(e){
     const ra = e && e.retryAfter;
@@ -9332,10 +9336,6 @@ You: Really. The first line only has to exist, not be good.`;
         logEvent('ai', 'Telefone round ' + n, { model: aiLabel(), asked: why, chars: text.length });
         if (DB.tele.passes.length < TELE_MAX) teleSay('');
         teleAddPass(text, why);
-        // A breath between passes, so ten in a row does not arrive as one burst.
-        if (k + 1 < count && !teleStop && DB.tele.passes.length <= TELE_MAX){
-          await new Promise(r => setTimeout(r, TELE_GAP));
-        }
       }
     } catch (e){
       teleSay((e && e.message) || String(e), true);

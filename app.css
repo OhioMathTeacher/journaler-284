@@ -2288,6 +2288,51 @@ textarea.tele-page { width: 100%; max-width: none; min-height: 280px; box-sizing
 .tele-round .tele-page { font-size: 15.5px; line-height: 1.55; }
 .tele-round.empty { color: var(--muted); font-size: 14px; border-style: dashed; background: transparent; }
 .tele-reflect { margin-top: 30px; }
+
+/* ── Telefone reads across, not down.
+   Todd: "make the page more horizontal and less vertical so that no vertical
+   scrolling is required on a desktop." The pane was 920px of a 1485px frame with
+   461px of overflow below the fold -- the figures, the status, the saved rounds and
+   the reflection were all stacked under a sheet that had 565px of empty space beside
+   it. At desktop widths they move into a rail on the right, and the page area takes
+   its height from the viewport rather than from the passage, so the pane fits on one
+   screen whatever is pasted into it. Below 1100px nothing changes: one column, in
+   source order, which is also the order they are read in. */
+@media (min-width: 1100px){
+  /* The pane is given the screen's height ONCE -- everything inside divides what it is
+     handed. Budgeting each part in pixels instead (page = 100vh - 400px, and so on) is
+     what broke at eleven passes: the tab strip wrapped to a second row, nothing knew,
+     and the document grew by exactly that row. The single number here is the chrome
+     above and below the pane -- topbar, frame padding -- which does not change with
+     what the student pastes. */
+  .tele { display: grid; grid-template-columns: minmax(0, 1fr) clamp(330px, 30%, 440px);
+          grid-template-rows: auto minmax(0, 1fr);
+          column-gap: 26px; max-width: min(1500px, 100%);
+          height: calc(100vh - 175px); }
+  .tele-ask { grid-column: 1 / -1; }
+  .tele-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .tele-rail { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 14px;
+               overflow-y: auto; padding-right: 4px; }
+  .tele-rail .tele-lead { font-size: 13px; line-height: 1.5; margin: 0 0 8px; }
+  .tele-rail .tele-rh h2 { font-size: 16px; }
+  .tele-rail .tele-rh .note { font-size: 11.5px; }
+  .tele-rail .tele-stats,
+  .tele-rail .tele-rounds,
+  .tele-rail .tele-reflect { margin-top: 0; }
+  .tele-rail .tele-stats { gap: 16px; }
+  .tele-rail .tele-round .cols { grid-template-columns: 1fr; gap: 12px; }
+  .tele-rail textarea.tele-reflection { min-height: 160px; }
+  /* The sheet is what is left after the tab strip, and the passage is what is left
+     inside the sheet -- so a longer strip shortens the passage rather than the page. */
+  .tele-main .tele-sheet { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+  .tele-main #teleView { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+  .tele-main .tele-page { min-height: 0; flex: 1; max-height: none; overflow-y: auto; }
+  .tele-main textarea.tele-page { min-height: 0; height: auto; resize: none; }
+}
+/* Wider still: the frame stops growing the rail and gives the reading column the room. */
+@media (min-width: 1500px){
+  .tele { column-gap: 34px; }
+}
 .tele-lead { font-size: 15px; color: var(--muted); max-width: 70ch; margin: 0 0 10px; }
 textarea.tele-reflection { min-height: 200px; background: var(--comment-bg); border-style: solid; font-size: 16px; }
 @media (max-width: 720px) { .tele-round .cols { grid-template-columns: 1fr; } .tele-sheet { padding: 18px 16px; } .tele-actions { margin-left: 0; width: 100%; } }
