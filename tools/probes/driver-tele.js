@@ -158,6 +158,22 @@
        !/One-Pager 5|prints with|submit/i.test(claim),
        (claim.match(/[^.]*(One-Pager 5|prints with|submit)[^.]*/i) || ['no claim'])[0].trim().slice(0,90));
 
+    document.querySelectorAll('.tele-tab')[0].click();
+    await sleep(300);
+    var ed = document.getElementById('teleEditor');
+    ok('T23 round 0 is editable even after rounds exist', !!ed, ed ? 'textarea present' : 'read-only');
+    if(ed){
+      var had = document.querySelectorAll('.tele-tab').length;
+      ed.value = 'Something else entirely, typed over the old page.';
+      ed.dispatchEvent(new Event('input', {bubbles:true}));
+      await sleep(300);
+      ok('T24 typing over it drops the rounds made from the old text',
+         document.querySelectorAll('.tele-tab').length === 1, had + ' tabs -> ' + document.querySelectorAll('.tele-tab').length);
+      var st = JSON.parse(localStorage.getItem('cr284_state'));
+      ok('T25 and the new text is round 0', (st.tele.passes[0] || '').indexOf('Something else entirely') === 0
+         && st.tele.passes.length === 1, st.tele.passes.length + ' passes');
+    }
+
     ok('Z1 no uncaught errors', ERRS.length === 0, ERRS.join(' | '));
     done();
   }
