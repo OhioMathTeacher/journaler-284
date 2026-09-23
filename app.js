@@ -1043,8 +1043,13 @@ async function runReflection(rf, text, hooks) {
   if(!DB.notebook)  DB.notebook  = {};
   if(!DB.tele || !Array.isArray(DB.tele.passes)) DB.tele = { passes:[''], asked:[], games:[] };
   // Telefone's words, 2026-09-23: the texts in DB.tele.passes are ROUNDS on screen -- round 0
-  // is the student's own page -- and one play, from round 0 to the round the game ends on, is
-  // a GAME. Saves written before today called the games "rounds"; carry them over.
+  // is the student's own page, and the whole sequence from round 0 to where it stops is a
+  // RUN. It was called a "game" until today: naming it that meant explaining it, and the
+  // explanation ran longer than the result it was attached to (Todd, 23 Sept 2026).
+  // The STORAGE KEY stays DB.tele.games on purpose -- renaming stored data needs another
+  // migration on top of the rounds -> games one, and changes nothing a student sees. Copy
+  // and key differ here by choice. Saves written before today called them "rounds"; carry
+  // those over.
   if(Array.isArray(DB.tele.rounds) && !Array.isArray(DB.tele.games)){ DB.tele.games = DB.tele.rounds; delete DB.tele.rounds; }
   if(!Array.isArray(DB.tele.games)) DB.tele.games = [];
   if(!Array.isArray(DB.tele.asked))  DB.tele.asked  = [];
@@ -3088,10 +3093,10 @@ async function runReflection(rf, text, hooks) {
       const host = document.getElementById('genloss');
       // "done" once a game has ended -- that is what the OP5 reflection is about.
       if (host) host.dataset.done = DB.tele.games.length ? '1' : '';
-      if (st && DB.tele.games.length) st.textContent = `${DB.tele.games.length} game${DB.tele.games.length === 1 ? '' : 's'} played in Telefone.`;
+      if (st && DB.tele.games.length) st.textContent = `${DB.tele.games.length} run${DB.tele.games.length === 1 ? '' : 's'} finished in Telefone.`;
       const box = document.getElementById('glReflect');
       if (box && DB.tele.games.length) {
-        box.innerHTML = `<p class="stagenote gl-lead">Now the reflection — it prints with this One-Pager, and it is the same box as the one under your games in Telefone. <em>What did the machine fix first? What is gone by the end that was there at the start? What refused to go? What does that mean for your writing — and for the writing of your students?</em></p>
+        box.innerHTML = `<p class="stagenote gl-lead">Now the reflection — it prints with this One-Pager, and it is the same box as the one under your runs in Telefone. <em>What did the machine fix first? What is gone by the end that was there at the start? What refused to go? What does that mean for your writing — and for the writing of your students?</em></p>
           <textarea class="tele-page tele-reflection" id="glReflection" placeholder="That part is yours.">${escHtml(DB.tele.reflection || '')}</textarea>`;
         document.getElementById('glReflection').addEventListener('input', e => { DB.tele.reflection = e.target.value; saveDB(); });
       }
@@ -3099,7 +3104,7 @@ async function runReflection(rf, text, hooks) {
         const pg = document.getElementById('page');
         const zero = pg ? pg.innerText.trim() : '';
         if (!zero) { st.textContent = 'Shape your One-Pager first — that is pass zero.'; return; }
-        if (DB.tele.passes.length > 1 && !confirm('Telefone has a game in progress. Replace it with this page? (Saved rounds are kept.)')) return;
+        if (DB.tele.passes.length > 1 && !confirm('Telefone has a run in progress. Replace it with this page? (Finished runs are kept.)')) return;
         DB.tele.passes = [zero]; DB.tele.asked = []; saveDB();
         logEvent('ai', 'sent One-Pager 5 to Telefone', { chars: zero.length });
         show('tele');
@@ -8390,7 +8395,7 @@ You: Really. The first line only has to exist, not be good.`;
     if(M.genloss && DB.tele.games.length){
       const games = DB.tele.games, total = games.reduce((a, r) => a + (r.n || 0), 0);
       const models = [...new Set(games.map(r => r.model).filter(Boolean))];
-      aiBits.push('I ran this page through the machine in Telefone: ' + games.length + ' game' + (games.length === 1 ? '' : 's') + ', '
+      aiBits.push('I ran this page through the machine in Telefone: ' + games.length + ' run' + (games.length === 1 ? '' : 's') + ', '
         + total + ' round' + (total === 1 ? '' : 's') + ' in all' + (models.length ? ' (' + escHtml(models.join('; ')) + ')' : '')
         + '. The rounds are printed after this record as machine output. None of them is in the One-Pager.');
     }
@@ -8437,7 +8442,7 @@ You: Really. The first line only has to exist, not be good.`;
       const shown = [...new Set(GENLOSS_SHOWN.filter(i => i < last).concat(last))];
       return `
       <section class="op-session gl-sheet">
-        <h2>Telefone · game ${k + 1} of ${DB.tele.games.length}</h2>
+        <h2>Telefone · run ${k + 1} of ${DB.tele.games.length}</h2>
         <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}${escHtml(r.model || '')} · ${last} round${last === 1 ? '' : 's'} · ${r.survival}% of my words left${r.why && TELE_END_WHY[r.why] ? ' · ended because ' + escHtml(TELE_END_WHY[r.why]()) : ''}${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</p>
         <p>Round 0 is my writing. Every later round is machine output, produced by handing it the
         round before and asking it to revise. None of it appears in my One-Pager.</p>
@@ -9053,7 +9058,7 @@ You: Really. The first line only has to exist, not be good.`;
     body.classList.remove('wide', 'bleed');
     const T = DB.tele;
     if (teleCur > T.passes.length - 1) teleCur = T.passes.length - 1;
-    frame.innerHTML = `<div class="head"><h1>Telefone</h1><p>Telephone, except the machine is every player. Hand it a page, ask it to revise, and watch what it corrects away — round after round. The game ends itself.</p></div>
+    frame.innerHTML = `<div class="head"><h1>Telefone</h1><p>Telephone, except the machine is every player. Hand it a page, ask it to revise, and watch what it corrects away — round after round. The run stops itself.</p></div>
       <div class="tele">
         <div class="tele-ask" id="teleAsk"></div>
         <div class="tele-main">
@@ -9119,9 +9124,9 @@ You: Really. The first line only has to exist, not be good.`;
     return null;
   }
   const TELE_END_SAY = {
-    floor:   e => `The game is over at round ${e.round}: ${e.pct}% of your words are left, below a fifth.`,
-    settled: e => `The game is over at round ${e.round}: ${e.pct}%, unchanged for ${TELE_SETTLED} rounds running — the machine has stopped changing it.`,
-    cap:     e => `The game is over at round ${e.round}, the longest a game runs: ${e.pct}% of your words are left.`
+    floor:   e => `The run stops at round ${e.round}: ${e.pct}% of your words are left, below a fifth.`,
+    settled: e => `The run stops at round ${e.round}: ${e.pct}%, unchanged for ${TELE_SETTLED} rounds — the machine has stopped changing it.`,
+    cap:     e => `The run stops at round ${e.round}, as long as a run goes: ${e.pct}% of your words are left.`
   };
   const TELE_END_WHY = {
     floor:   () => 'your words fell below a fifth',
@@ -9176,15 +9181,15 @@ You: Really. The first line only has to exist, not be good.`;
       return `<button class="tele-tab${i === teleCur ? ' on' : ''}" data-i="${i}" role="tab" aria-selected="${i === teleCur}">
         <span class="n">Round ${i}${i === 0 ? '<small>yours</small>' : ''}</span><span class="pct">${pct}%</span></button>`;
     }).join('') + `<span class="tele-actions">
-        <button class="btn ${over ? 'go' : 'ghost sm'}" id="teleReset" ${P.length > 1 && !teleRunning ? '' : 'disabled'}>${over ? 'New game' : 'Start over'}</button>
-        <button class="btn go" id="teleRun" ${canRun ? '' : 'disabled'} title="${over ? 'This game is over — start a new one' : 'One round: hand the last round to the machine and see what comes back'}">AI Revise</button>
+        <button class="btn ${over ? 'go' : 'ghost sm'}" id="teleReset" ${P.length > 1 && !teleRunning ? '' : 'disabled'}>${over ? 'New run' : 'Start over'}</button>
+        <button class="btn go" id="teleRun" ${canRun ? '' : 'disabled'} title="${over ? 'This run has stopped — start a new one' : 'One round: hand the last round to the machine and see what comes back'}">AI Revise</button>
         <button class="btn ghost" id="teleStopBtn" style="${teleRunning ? '' : 'display:none'}">Stop</button>
       </span>`;
     el.querySelectorAll('.tele-tab').forEach(b => b.addEventListener('click', () => { teleCur = +b.dataset.i; teleStripRow(); teleSheet(); }));
     document.getElementById('teleRun').addEventListener('click', () => teleRun(1));
     document.getElementById('teleStopBtn').addEventListener('click', () => { teleStop = true; });
     document.getElementById('teleReset').addEventListener('click', () => {
-      if (!confirm('Throw away every round after round 0 and start a new game? (Finished games are kept.)')) return;
+      if (!confirm('Throw away every round after round 0 and start a new run? (Finished runs are kept.)')) return;
       DB.tele.passes = [P[0]]; DB.tele.asked = []; delete DB.tele.ended; teleCur = 0; saveDB(); teleSay(''); renderTele();
     });
   }
@@ -9277,8 +9282,8 @@ You: Really. The first line only has to exist, not be good.`;
       first: P[0], last: P[end.round], passes: P.slice()
     });
     saveDB();
-    logEvent('ai', 'Telefone game ended', { rounds: end.round, why: end.why, survival: end.pct, model: aiLabel() });
-    teleSay(TELE_END_SAY[end.why](end) + ` Round 0 and round ${end.round} are below, side by side — game ${DB.tele.games.length}, and it prints with One-Pager 5.`);
+    logEvent('ai', 'Telefone run ended', { rounds: end.round, why: end.why, survival: end.pct, model: aiLabel() });
+    teleSay(TELE_END_SAY[end.why](end) + ` Round 0 and round ${end.round} are kept below, side by side, and print with One-Pager 5.`);
     teleRoundsList();
     try { document.getElementById('teleRounds').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_){}
   }
@@ -9349,26 +9354,26 @@ You: Really. The first line only has to exist, not be good.`;
     const rounds = DB.tele.games;
     const fmtDate = iso => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     if (!rounds.length){
-      el.innerHTML = `<div class="tele-rh"><h2>Games</h2></div><div class="tele-round empty">No game has finished yet. Press <b>AI Revise</b> and keep going: the game ends itself when the percentage stops moving for ${TELE_SETTLED} rounds, or when less than a fifth of your words is left. Round 0 and the ending round are kept here, side by side — three or four games make a set, and they print with One-Pager 5.</div>`;
+      el.innerHTML = `<div class="tele-rh"><h2>Runs</h2></div><div class="tele-round empty">No run has finished yet. Press <b>AI Revise</b> and keep going: a run stops itself when the percentage holds for ${TELE_SETTLED} rounds, or when less than a fifth of your words is left. Round 0 and the last round are kept here, side by side — three or four runs make a set, and they print with One-Pager 5.</div>`;
       return;
     }
-    el.innerHTML = `<div class="tele-rh"><h2>Games</h2><span class="note">${rounds.length} played</span><span class="tele-tools"><button class="btn ghost sm" id="telePrint">Print games (PDF)</button></span></div>`
+    el.innerHTML = `<div class="tele-rh"><h2>Runs</h2><span class="note">${rounds.length} so far</span><span class="tele-tools"><button class="btn ghost sm" id="telePrint">Print runs (PDF)</button></span></div>`
       + rounds.map((r, i) => `<article class="tele-round">
-        <div class="top"><div class="tele-label"><b>Game ${i + 1}</b> ${fmtDate(r.when)} · ${escHtml(r.model)} · ended at round ${r.n} · ${r.survival}% of the words left${r.why && TELE_END_WHY[r.why] ? ' · ' + escHtml(TELE_END_WHY[r.why]()) : ''}${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</div>
-          <div class="tele-tools"><button class="btn ghost sm" data-open="${r.id}" title="Put this game's rounds back in the tabs">Reopen</button><button class="btn ghost sm" data-del="${r.id}">Delete</button></div></div>
+        <div class="top"><div class="tele-label"><b>Run ${i + 1}</b> ${fmtDate(r.when)} · ${escHtml(r.model)} · ended at round ${r.n} · ${r.survival}% of the words left${r.why && TELE_END_WHY[r.why] ? ' · ' + escHtml(TELE_END_WHY[r.why]()) : ''}${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</div>
+          <div class="tele-tools"><button class="btn ghost sm" data-open="${r.id}" title="Put this run's rounds back in the tabs">Reopen</button><button class="btn ghost sm" data-del="${r.id}">Delete</button></div></div>
         <div class="cols">
           <div class="col"><h4>Round 0 <span>· yours</span></h4><div class="tele-page">${teleParas(r.first)}</div></div>
           <div class="col"><h4>Round ${r.n} <span>· the machine's</span></h4><div class="tele-page">${teleParas(r.last)}</div></div>
         </div></article>`).join('');
     document.getElementById('telePrint').addEventListener('click', telePrintRounds);
     el.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
-      if (!confirm('Delete this game? It cannot be recovered.')) return;
+      if (!confirm('Delete this run? It cannot be recovered.')) return;
       DB.tele.games = rounds.filter(r => r.id !== b.dataset.del); saveDB(); teleRoundsList();
     }));
     el.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => {
       if (teleRunning) return;
       const r = rounds.find(x => x.id === b.dataset.open); if (!r) return;
-      if (DB.tele.passes.length > 1 && !confirm("Replace the rounds in the tabs with this game's?")) return;
+      if (DB.tele.passes.length > 1 && !confirm("Replace the rounds in the tabs with this run's?")) return;
       const ps = Array.isArray(r.passes) && r.passes.length ? r.passes.slice() : [r.first, r.last];
       DB.tele.passes = ps; DB.tele.asked = []; DB.tele.asked[ps.length - 1] = r.asked; teleCur = ps.length - 1; saveDB();
       teleSay(''); renderTele(); window.scrollTo({ top: 0, behavior: 'smooth' });
