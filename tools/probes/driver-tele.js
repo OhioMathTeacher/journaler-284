@@ -13,6 +13,7 @@
   function ok(n, p, d){ OUT.push({ n: n, p: !!p, d: d === undefined ? '' : String(d) }); }
   function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
   function pick(v){ return document.querySelector('input[name="teleMode"][value="' + v + '"]'); }
+  function DB_LEN(){ try { return (JSON.parse(localStorage.getItem('cr284_state')) || {}).tele.passes.length; } catch(e){ return -1; } }
 
   // Pass zero breaks rules on purpose, the way OP5 asks. Each pass tidies it further,
   // so there is real loss to strike -- including a word that appears twice in pass zero
@@ -24,6 +25,10 @@
       "The fence was broken, and no one repaired it. Rain entered the kitchen and soaked everything."
     ], asked: [null, 'clean it up & correct it', 'rewrite in clear, standard English'], rounds: [], reflection: '' } };
     localStorage.setItem('cr284_state', JSON.stringify(st));
+    // A provider, so AI Revise is live for the error-path checks at the end.
+    localStorage.setItem('cr_provider', 'groq');
+    localStorage.setItem('cr_groq_key', 'probe-key');
+    localStorage.setItem('cr_groq_model', 'openai/gpt-oss-120b');
     sessionStorage.setItem('teleProbe', '1');
     location.reload();
   }
@@ -87,6 +92,31 @@
     await sleep(250);
     ok('T13 returning to pass 0 hides the switch again',
        getComputedStyle(document.querySelector('.tele-modes')).display === 'none');
+
+    // A failing model call must say WHY. callModel's fail() throws from inside the try
+    // that catches network faults, so every specific reason -- bad key, retired model --
+    // was being rewritten as "check your connection", which sends the student to fix
+    // something that is not broken. From the outside that reads as "nothing happens".
+    var realFetch = window.fetch.bind(window);
+    window.fetch = function(u, o){
+      if(String(u).indexOf('groq.com') >= 0){
+        return Promise.resolve({ ok: false, status: 404,
+          json: function(){ return Promise.resolve({ error: { message: 'The model `openai/gpt-oss-120b` does not exist or you do not have access to it.' } }); },
+          text: function(){ return Promise.resolve('model not found'); } });
+      }
+      return realFetch(u, o);
+    };
+    var run1 = document.getElementById('teleRun');
+    ok('T14 AI Revise is live once a provider is set', !!run1 && !run1.disabled, run1 ? 'disabled=' + run1.disabled : 'missing');
+    var passesBefore = DB_LEN();
+    if(run1) run1.click();
+    await sleep(1500);
+    var st2 = document.getElementById('teleStatus');
+    var msg = st2 ? st2.textContent.trim() : '';
+    ok('T15 a failed pass adds nothing', DB_LEN() === passesBefore, passesBefore + ' -> ' + DB_LEN());
+    ok('T16 the failure names its real reason, not the connection',
+       /404|does not exist|do not have access/.test(msg) && !/check your connection/i.test(msg), JSON.stringify(msg));
+    ok('T17 the button recovers for another try', !!document.getElementById('teleRun') && !document.getElementById('teleRun').disabled);
 
     ok('Z1 no uncaught errors', ERRS.length === 0, ERRS.join(' | '));
     done();

@@ -399,7 +399,15 @@ function applyCustomPreset(name) {
 // otherwise file the error text as a pass.
 async function callModel(prompt, opts = {}) {
   const budget = opts.maxTokens || REPLY_MAX_TOKENS;   // NOT '|| budget' — that was a self-reference, and every caller without maxTokens (Ask Romano, the reflection partner) threw before reaching a provider
-  const fail = m => { if (opts.throwErrors) throw new Error(m); return m; };
+  const fail = (m, meta) => {
+    if (opts.throwErrors){
+      const e = new Error(m); e.reported = true;
+      if (meta){ e.status = meta.status; e.retryAfter = meta.retryAfter; }
+      throw e;
+    }
+    return m;
+  };
+  const retryAfterOf = res => { try { return res.headers && res.headers.get ? res.headers.get('retry-after') : null; } catch (_){ return null; } };
   const provider = getProvider();
   const apiKey   = getStoredKey(provider);
 
@@ -500,7 +508,7 @@ async function callModel(prompt, opts = {}) {
         const err = await res.json().catch(() => ({}));
         if (res.status === 401) return fail('Invalid Anthropic key. Update it via the AI button in the header.');
         if (res.status === 404) return fail('That Anthropic model is unavailable — it may have been retired. This needs a fix in the app, not a new key.');
-        return fail(`Anthropic API error ${res.status}: ${err?.error?.message || 'Unknown error'}`);
+        return fail(`Anthropic API error ${res.status}: ${err?.error?.message || 'Unknown error'}`, { status: res.status, retryAfter: retryAfterOf(res) });
       }
       const data = await res.json();
       return markIfTruncated(
@@ -508,6 +516,10 @@ async function callModel(prompt, opts = {}) {
         data.stop_reason === 'max_tokens'
       );
     } catch (err) {
+      // Only a genuine network fault reaches here as an unmarked error. A fail() we threw
+      // above already says WHY -- an invalid key, a retired model -- and must not be
+      // rewritten into 'check your connection', which sends the user to fix the wrong thing.
+      if (err && err.reported) throw err;
       return fail('Error reaching Anthropic. Please check your connection and try again.');
     }
   }
@@ -538,7 +550,7 @@ async function callModel(prompt, opts = {}) {
         // key fault sent students to replace a key that was working.
         if (res.status === 401 || res.status === 403) return fail('Invalid Gemini key. Update it via the AI button in the header.');
         if (res.status === 404) return fail('That Gemini model is unavailable — it may have been retired. This needs a fix in the app, not a new key.');
-        return fail(`Gemini API error ${res.status}: ${err?.error?.message || 'Unknown error'}`);
+        return fail(`Gemini API error ${res.status}: ${err?.error?.message || 'Unknown error'}`, { status: res.status, retryAfter: retryAfterOf(res) });
       }
       const data = await res.json();
       const cand = data.candidates?.[0];
@@ -547,6 +559,10 @@ async function callModel(prompt, opts = {}) {
         cand?.finishReason === 'MAX_TOKENS'
       );
     } catch (err) {
+      // Only a genuine network fault reaches here as an unmarked error. A fail() we threw
+      // above already says WHY -- an invalid key, a retired model -- and must not be
+      // rewritten into 'check your connection', which sends the user to fix the wrong thing.
+      if (err && err.reported) throw err;
       return fail('Error reaching Gemini. Please check your connection and try again.');
     }
   }
@@ -586,7 +602,7 @@ async function callModel(prompt, opts = {}) {
       }
       if (!res.ok) {
         if (res.status === 401) return fail('Invalid Groq key. Update it via the AI button in the header.');
-        return fail(`Groq API error ${res.status}: ${err?.error?.message || 'Unknown error'}`);
+        return fail(`Groq API error ${res.status}: ${err?.error?.message || 'Unknown error'}`, { status: res.status, retryAfter: retryAfterOf(res) });
       }
       const data = await res.json();
       return markIfTruncated(
@@ -594,6 +610,10 @@ async function callModel(prompt, opts = {}) {
         data.choices?.[0]?.finish_reason === 'length'
       );
     } catch (err) {
+      // Only a genuine network fault reaches here as an unmarked error. A fail() we threw
+      // above already says WHY -- an invalid key, a retired model -- and must not be
+      // rewritten into 'check your connection', which sends the user to fix the wrong thing.
+      if (err && err.reported) throw err;
       return fail('Error reaching Groq. Please check your connection and try again.');
     }
   }
@@ -611,7 +631,7 @@ async function callModel(prompt, opts = {}) {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         if (res.status === 401) return fail('Invalid API key. Update it via the AI button in the header.');
-        return fail(`API error ${res.status}: ${err?.error?.message || 'Unknown error'}`);
+        return fail(`API error ${res.status}: ${err?.error?.message || 'Unknown error'}`, { status: res.status, retryAfter: retryAfterOf(res) });
       }
       const data = await res.json();
       return markIfTruncated(
@@ -9208,6 +9228,31 @@ You: Really. The first line only has to exist, not be good.`;
     teleStripRow(); teleSheet();
     if (DB.tele.passes.length > TELE_MAX) teleSay(`That's ${TELE_MAX} passes. ${Math.round(teleSurvival(TELE_MAX) * 100)}% of your words made it to the end of the line.`);
   }
+  // Free tiers meter tokens per minute, and a 500-word page spends roughly 1,400 of them
+  // a pass. OP5 asks for ten passes in a row, so a 429 is an ordinary event in this loop,
+  // not the end of the run: wait the time the provider itself names, say so on screen so
+  // it does not look frozen, and go again at the same pass. TELE_GAP is the small pause
+  // between passes that keeps a burst from tripping the limit to begin with.
+  const TELE_GAP = 1200, TELE_RETRIES = 3, TELE_WAIT_MAX = 90;
+  const teleIsLimit = e => !!e && (e.status === 429 || /\b429\b|rate.?limit/i.test((e && e.message) || ''));
+  function teleWaitSecs(e){
+    const ra = e && e.retryAfter;
+    if (ra && isFinite(+ra)) return Math.min(TELE_WAIT_MAX, Math.max(1, Math.ceil(+ra)));
+    // Providers put the wait in the message when they do not put it in a header.
+    const m = /(?:try again in|retry after)\s*([\d.]+)\s*(ms|m|min|minutes?|s|sec|seconds?)?/i.exec((e && e.message) || '');
+    if (m){
+      const n = parseFloat(m[1]), unit = (m[2] || 's').toLowerCase();
+      const secs = unit === 'ms' ? n / 1000 : /^m/.test(unit) ? n * 60 : n;
+      return Math.min(TELE_WAIT_MAX, Math.max(1, Math.ceil(secs)));
+    }
+    return 20;
+  }
+  async function teleHold(secs, lead){
+    for (let s = secs; s > 0 && !teleStop; s--){
+      teleSay(`${lead} — going again in ${s}s. Press Stop to keep what you have.`);
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
   async function teleRun(count){
     if (teleRunning) return;
     if (getProvider() === 'none'){ teleSay('This one needs AI on — pick a model under ⚙ Settings → AI. It is the experiment.', true); openSettingsAI(); return; }
@@ -9217,16 +9262,34 @@ You: Really. The first line only has to exist, not be good.`;
       for (let k = 0; k < count && DB.tele.passes.length <= TELE_MAX; k++){
         if (teleStop){ teleSay(`Stopped at pass ${DB.tele.passes.length - 1}. The passes so far are kept.`); break; }
         const n = DB.tele.passes.length;
-        teleSay(`Pass ${n}: the machine is revising pass ${n - 1}…`);
         const why = teleAskedShort();
-        const text = teleClean(await callModel(telePrompt() + '\n\n"""\n' + DB.tele.passes[n - 1] + '\n"""', { maxTokens: 2500, throwErrors: true }));
+        let text = '', got = false;
+        for (let attempt = 0; attempt <= TELE_RETRIES && !teleStop; attempt++){
+          teleSay(`Pass ${n}: the machine is revising pass ${n - 1}…`);
+          try {
+            text = teleClean(await callModel(telePrompt() + '\n\n"""\n' + DB.tele.passes[n - 1] + '\n"""', { maxTokens: 2500, throwErrors: true }));
+            got = true; break;
+          } catch (e){
+            // Anything that is not the meter -- a dead key, a retired model -- is the
+            // student's to fix, and waiting on it would only hide the reason.
+            if (!teleIsLimit(e) || attempt === TELE_RETRIES) throw e;
+            logEvent('ai', 'Telefone rate limited', { pass: n, attempt: attempt + 1 });
+            await teleHold(teleWaitSecs(e), `Pass ${n} hit ${aiLabel()}'s rate limit`);
+          }
+        }
+        if (!got){ teleSay(`Stopped at pass ${DB.tele.passes.length - 1}. The passes so far are kept.`); break; }
         if (!text){ teleSay('The machine returned nothing — try again.', true); break; }
         logEvent('ai', 'Telefone pass ' + n, { model: aiLabel(), asked: why, chars: text.length });
         if (DB.tele.passes.length < TELE_MAX) teleSay('');
         teleAddPass(text, why);
+        // A breath between passes, so ten in a row does not arrive as one burst.
+        if (k + 1 < count && !teleStop && DB.tele.passes.length <= TELE_MAX){
+          await new Promise(r => setTimeout(r, TELE_GAP));
+        }
       }
     } catch (e){
       teleSay((e && e.message) || String(e), true);
+      try { document.getElementById('teleStatus').scrollIntoView({ block: 'nearest' }); } catch (_){}
     } finally { teleRunning = false; teleStop = false; teleAskRow(); teleStripRow(); teleSheet(); }
   }
 
