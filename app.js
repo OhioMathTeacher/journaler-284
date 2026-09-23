@@ -680,7 +680,6 @@ const REFLECT_LABEL = 'Reflecting on Writing';
 //    The prompt is fixed and dull on purpose: "the point isn't the prompt, it's watching
 //    what each pass erases" (OP5). Changing it per student would make the passes
 //    incomparable across the room.
-const GENLOSS_SHOWN = [0, 1, 5, 10];       // the passes the OP5 print sheet shows from each Telefone round
 
 const REFLECT_PROMPT_SOLO = 'How did the writing go? What did you leave out, '
   + 'and what do you most want a reader to notice?';
@@ -793,10 +792,6 @@ function paintReflection(rf, question, hooks) {
 //    hidden band is a hidden safety net. If the gush tripped DISTRESS the band shows at
 //    once, whatever step the student is on. Sequencing never outranks that.
 function syncStageBands(){
-  const gl = document.getElementById('genloss');
-  const pg = document.getElementById('page');
-  if (gl) gl.style.display = (pg && pg.innerText.trim()) ? '' : 'none';
-
   const rb = document.getElementById('reflectband');
   const rf = document.getElementById('reflect');
   if (!rb || !rf) return;
@@ -1041,19 +1036,13 @@ async function runReflection(rf, text, hooks) {
   if(!DB.freewrite) DB.freewrite = {};
   if(!DB.currere)   DB.currere   = {};
   if(!DB.notebook)  DB.notebook  = {};
-  if(!DB.tele || !Array.isArray(DB.tele.passes)) DB.tele = { passes:[''], asked:[], games:[] };
+  if(!DB.tele || !Array.isArray(DB.tele.passes)) DB.tele = { passes:[''], asked:[] };
   // Telefone's words, 2026-09-23: the texts in DB.tele.passes are ROUNDS on screen -- round 0
   // is the student's own page, and the whole sequence from round 0 to where it stops is a
-  // RUN. It was called a "game" until today: naming it that meant explaining it, and the
-  // explanation ran longer than the result it was attached to (Todd, 23 Sept 2026).
-  // The STORAGE KEY stays DB.tele.games on purpose -- renaming stored data needs another
-  // migration on top of the rounds -> games one, and changes nothing a student sees. Copy
-  // and key differ here by choice. Saves written before today called them "rounds"; carry
-  // those over.
-  if(Array.isArray(DB.tele.rounds) && !Array.isArray(DB.tele.games)){ DB.tele.games = DB.tele.rounds; delete DB.tele.rounds; }
-  if(!Array.isArray(DB.tele.games)) DB.tele.games = [];
+  // RUN. Nothing is filed: Telefone is an in-class conversation and submits nothing, so a
+  // finished run lives in the tabs until the next one replaces it. Older saves carry a
+  // .games or .rounds array; it is simply ignored and falls away on the next write.
   if(!Array.isArray(DB.tele.asked))  DB.tele.asked  = [];
-  if(typeof DB.tele.reflection !== 'string') DB.tele.reflection = '';
   let _saveT;
   // A failed save used to console.warn and nothing else: the student kept typing into
   // an app that had silently stopped recording, and found out at the end of the term.
@@ -2643,7 +2632,7 @@ async function runReflection(rf, text, hooks) {
       <p class="hint">One requirement, from the mentor texts: land at least one simile, metaphor, or bit of personification. The dog is a simile, the knight is a metaphor, and the IKEA desk that “snuggles up next to the foot of my bed” is personification. (Metaphor gets a whole day in Week 9.)</p>`,ph:'One page: place and process, 2–3 photos embedded. Use the image button.',photos:true},
     op3:{n:3,t:'Voice Print',f:'A voice you don’t hear anymore — one moment, in <em>pure dialogue</em>. <span class="hint">Just the voices. No narration.</span>',ph:'One page, mostly pure dialogue. New paragraph per speaker.'},
     op4:{n:4,t:'Show, Don’t Tell',f:'One small moment, through the senses. <span class="hint">Light, sound, smell, touch, taste. No dialogue. Make us feel it.</span>',ph:'One page. Cut every word that tells instead of shows.'},
-    op5:{n:5,genloss:true,t:'Breaking the Rules',f:'Something that matters, rules broken on purpose. <span class="hint">At least two Grammar B moves: fragments, labyrinths, purposeful misspelling, double voice.</span>',ph:'One page. Every “error” one you meant.'},
+    op5:{n:5,t:'Breaking the Rules',f:'Something that matters, rules broken on purpose. <span class="hint">At least two Grammar B moves: fragments, labyrinths, purposeful misspelling, double voice.</span>',ph:'One page. Every “error” one you meant.'},
   };
   const STEMS = ['A door you were afraid to open.','A room that no longer exists.','Something you were told not to say.','The first time a teacher was wrong about you.','A smell that returns you somewhere.','A voice you can still hear.','A rule you were glad to break.','The letter you never sent.','The teacher you’re trying not to become.'];
   let fwCur = 'op1';
@@ -3003,23 +2992,11 @@ async function runReflection(rf, text, hooks) {
         <input type="file" id="imgInput" accept="image/*" hidden ${M.photos?'multiple':''}>
        </div>
       </div>
-      <section class="reflectband" id="reflectband" style="display:none" ${M.genloss ? 'data-quiet="1"' : ''}>
+      <section class="reflectband" id="reflectband" style="display:none">
         <div class="stagelabel"><span class="n">3</span> ${REFLECT_LABEL}</div>
         <div class="reflect" id="reflect"></div>
       </section>
-      ${M.genloss ? `
-      <section class="genloss" id="genloss">
-        <div class="stagelabel"><span class="n">3</span> Generation Loss — play Telefone</div>
-        <p class="stagenote">Your One-Pager is <strong>round 0</strong>. Telefone asks the machine to clean it up, then cleans up the cleanup, round after round. Nothing it returns enters your page — the run is kept when it stops, and prints with this One-Pager as evidence.</p>
-        <div class="gushbar">
-          <button class="btn go" id="glSend">Send this page to Telefone →</button>
-          <span class="note" id="glStatus"></span>
-        </div>
-        <div id="glReflect"></div>
-      </section>` : ''}
-      <div class="composer-foot op-foot" id="opFoot" style="display:${fwGushed[fwCur]?'':'none'}"><button class="btn" id="opExport">Export One-Pager (PDF)</button><span class="note">${M.genloss
-        ? 'The PDF you submit: your One-Pager, then your writing session and AI-use log, your Generation Loss reflection, and your saved Telefone rounds.'
-        : 'The PDF you submit: your One-Pager, then your writing session and AI-use log.'}</span></div>`;
+      <div class="composer-foot op-foot" id="opFoot" style="display:${fwGushed[fwCur]?'':'none'}"><button class="btn" id="opExport">Export One-Pager (PDF)</button><span class="note">The PDF you submit: your One-Pager, then your writing session and AI-use log.</span></div>`;
     wireTimer();
     // Restore a saved gush + shaped one-pager for this OP.
     const saved = DB.freewrite[fwCur] || {};
@@ -3087,29 +3064,6 @@ async function runReflection(rf, text, hooks) {
     //    compounding is the whole point; ten calls on the original would just be ten
     //    first drafts. Passes live on the session so they survive a reload and can
     //    print, and they are never written into #page.
-    const glSend = document.getElementById('glSend');
-    if (glSend) {
-      const st = document.getElementById('glStatus');
-      const host = document.getElementById('genloss');
-      // "done" once a game has ended -- that is what the OP5 reflection is about.
-      if (host) host.dataset.done = DB.tele.games.length ? '1' : '';
-      if (st && DB.tele.games.length) st.textContent = `${DB.tele.games.length} run${DB.tele.games.length === 1 ? '' : 's'} finished in Telefone.`;
-      const box = document.getElementById('glReflect');
-      if (box && DB.tele.games.length) {
-        box.innerHTML = `<p class="stagenote gl-lead">Now the reflection — it prints with this One-Pager, and it is the same box as the one under your runs in Telefone. <em>What did the machine fix first? What is gone by the end that was there at the start? What refused to go? What does that mean for your writing — and for the writing of your students?</em></p>
-          <textarea class="tele-page tele-reflection" id="glReflection" placeholder="That part is yours.">${escHtml(DB.tele.reflection || '')}</textarea>`;
-        document.getElementById('glReflection').addEventListener('input', e => { DB.tele.reflection = e.target.value; saveDB(); });
-      }
-      glSend.addEventListener('click', () => {
-        const pg = document.getElementById('page');
-        const zero = pg ? pg.innerText.trim() : '';
-        if (!zero) { st.textContent = 'Shape your One-Pager first — that is round 0.'; return; }
-        if (DB.tele.passes.length > 1 && !confirm('Telefone has a run in progress. Replace it with this page? (Finished runs are kept.)')) return;
-        DB.tele.passes = [zero]; DB.tele.asked = []; saveDB();
-        logEvent('ai', 'sent One-Pager 5 to Telefone', { chars: zero.length });
-        show('tele');
-      });
-    }
     syncStageBands();
 
     const liftBtn = document.getElementById('liftBtn');
@@ -8392,13 +8346,6 @@ You: Really. The first line only has to exist, not be good.`;
     if(askedByAI) aiBits.push(escHtml(AI_TAG) + ' asked how the writing went \u2014 about the experience, not the content.');
     if(asks) aiBits.push('I asked ' + escHtml(AI_TAG) + ' about a passage of my own writing '
       + asks + ' time' + (asks === 1 ? '' : 's') + '. Nothing he said is in the One-Pager unless I typed it there myself.');
-    if(M.genloss && DB.tele.games.length){
-      const games = DB.tele.games, total = games.reduce((a, r) => a + (r.n || 0), 0);
-      const models = [...new Set(games.map(r => r.model).filter(Boolean))];
-      aiBits.push('I ran this page through the machine in Telefone: ' + games.length + ' run' + (games.length === 1 ? '' : 's') + ', '
-        + total + ' round' + (total === 1 ? '' : 's') + ' in all' + (models.length ? ' (' + escHtml(models.join('; ')) + ')' : '')
-        + '. The rounds are printed after this record as machine output. None of them is in the One-Pager.');
-    }
     const aiUse = aiBits.length ? aiBits.join(' ') : 'No AI was used on this One-Pager.';
 
     const exchange = s.question ? `
@@ -8419,37 +8366,6 @@ You: Really. The first line only has to exist, not be good.`;
       </section>`;
   }
 
-  // Machine output, printed as evidence and labelled as such on every pass. It follows
-  // the session record on its own page and is never measured against the one-page rule:
-  // none of it is the student's writing.
-  function teleReflectionHTML(){
-    const r = String(DB.tele.reflection || '').trim();
-    const para = t => String(t || '').split(/\n{2,}/).map(p => `<p>${escHtml(p).replace(/\n/g,'<br>')}</p>`).join('');
-    return `
-      <section class="op-session">
-        <h2>Generation Loss reflection</h2>
-        <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}What the machine fixed first, what is gone by the end, what refused to go — and what that means for my writing and my students'.</p>
-        ${r ? para(r) : '<p class="op-none">Not written yet.</p>'}
-      </section>`;
-  }
-  function genlossHTML(M){
-    if (!M.genloss) return '';
-    if (!DB.tele.games.length) return teleReflectionHTML();
-    const para = t => String(t || '').split(/\n+/).filter(Boolean).map(x => `<p>${escHtml(x)}</p>`).join('');
-    return teleReflectionHTML() + DB.tele.games.map((r, k) => {
-      const ps = Array.isArray(r.passes) && r.passes.length ? r.passes : [r.first, r.last];
-      const last = ps.length - 1;
-      const shown = [...new Set(GENLOSS_SHOWN.filter(i => i < last).concat(last))];
-      return `
-      <section class="op-session gl-sheet">
-        <h2>Telefone · run ${k + 1} of ${DB.tele.games.length}</h2>
-        <p class="op-sub">${(DB.name||'').trim() ? printedName() + ' · ' : ''}${escHtml(r.model || '')} · ${last} round${last === 1 ? '' : 's'} · ${r.survival}% of my words left${r.why && TELE_END_WHY[r.why] ? ' · ended because ' + escHtml(TELE_END_WHY[r.why]()) : ''}${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</p>
-        <p>Round 0 is my writing. Every later round is machine output, produced by handing it the
-        round before and asking it to revise. None of it appears in my One-Pager.</p>
-        ${shown.map(i => `<h3>Round ${i}${i ? ' — machine' : ' — mine'}</h3>${para(ps[i])}`).join('')}
-      </section>`;
-    }).join('');
-  }
 
   function exportOnePagerPDF(M){
     const pg = document.getElementById('page');
@@ -8483,7 +8399,7 @@ You: Really. The first line only has to exist, not be good.`;
       const pages = Math.ceil(measured / SHEET_PX.h);
       if(!confirm(`Your One-Pager runs about ${pages} pages at print size. A One-Pager is one page.\n\nCancel to cut it down, or OK to print it as it is.`)) return;
     }
-    printDoc('printOnePager', sheet + sessionRecordHTML(M) + genlossHTML(M), `One-Pager ${M.n} — ${M.t}`);
+    printDoc('printOnePager', sheet + sessionRecordHTML(M), `One-Pager ${M.n} — ${M.t}`);
   }
 
   // Eight dropdowns, each listing every entry as "17 · Sep 22 · Free-writes". Dropdowns
@@ -9061,7 +8977,6 @@ You: Really. The first line only has to exist, not be good.`;
     frame.innerHTML = `<div class="head"><h1>Telefone</h1><p>Telephone, except the machine is every player. Hand it a page, ask it to revise, and watch what it corrects away — round after round. The run stops itself.</p></div>
       <div class="tele">
         <div class="tele-ask" id="teleAsk"></div>
-        <div class="tele-main">
         <div class="tele-strip" id="teleStrip"></div>
         <div class="tele-sheet">
           <div id="teleView"></div>
@@ -9073,23 +8988,13 @@ You: Really. The first line only has to exist, not be good.`;
               <label><input type="radio" name="teleMode" value="lost" ${teleMode === 'lost' ? 'checked' : ''}><span>What's lost</span></label>
             </div>
           </div>
-        </div>
-        </div>
-        <aside class="tele-rail">
           <div class="tele-stats" id="teleStats"></div>
           <div class="note tele-status" id="teleStatus"></div>
-        <section class="tele-rounds" id="teleRounds"></section>
-        <section class="tele-reflect">
-          <div class="tele-rh"><h2>Generation Loss reflection</h2><span class="note">prints with One-Pager 5 · the 4-point row</span></div>
-          <p class="tele-lead">Read your rounds, then write. <em>What did the machine fix first? What is gone by the end that was there at the start? What refused to go? What does that mean for your writing — and for the writing of your students?</em></p>
-          <textarea class="tele-page tele-reflection" id="teleReflection" placeholder="That part is yours.">${escHtml(T.reflection || '')}</textarea>
-        </section>
-        </aside>
+        </div>
       </div>`;
-    document.getElementById('teleReflection').addEventListener('input', e => { DB.tele.reflection = e.target.value; saveDB(); });
     document.querySelectorAll('input[name="teleMode"]').forEach(r =>
       r.addEventListener('change', e => { if (e.target.checked){ teleMode = e.target.value; teleSheet(); } }));
-    teleAskRow(); teleStripRow(); teleSheet(); teleRoundsList();
+    teleAskRow(); teleStripRow(); teleSheet();
   }
 
   // ── words
@@ -9127,11 +9032,6 @@ You: Really. The first line only has to exist, not be good.`;
     floor:   e => `The run stops at round ${e.round}: ${e.pct}% of your words are left, below a fifth.`,
     settled: e => `The run stops at round ${e.round}: ${e.pct}%, unchanged for ${TELE_SETTLED} rounds — the machine has stopped changing it.`,
     cap:     e => `The run stops at round ${e.round}, as long as a run goes: ${e.pct}% of your words are left.`
-  };
-  const TELE_END_WHY = {
-    floor:   () => 'your words fell below a fifth',
-    settled: () => `the percentage held for ${TELE_SETTLED} rounds`,
-    cap:     () => `${TELE_MAX} rounds, the limit`
   };
   function teleSentences(t){
     const s = String(t || '').split(/(?<=[.!?])\s+|\n+/).map(x => x.trim()).filter(Boolean);
@@ -9268,22 +9168,13 @@ You: Really. The first line only has to exist, not be good.`;
     if (end) teleEndGame(end);
     teleStripRow(); teleSheet();
   }
-  // The game is over: file it whole, say which of the two ways ended it, and show round 0
-  // beside the ending round. No button, nothing for the student to decide.
+  // The run has stopped: say which of the two ways stopped it. Nothing is filed and
+  // nothing is submitted -- Telefone is a conversation now, and the tabs are the record
+  // while the conversation is happening.
   function teleEndGame(end){
-    const P = DB.tele.passes;
-    DB.tele.games.push({
-      id: Date.now().toString(36), when: new Date().toISOString(),
-      model: aiLabel(), n: end.round,
-      asked: [...new Set(DB.tele.asked.slice(1).filter(Boolean))].join(' / '),
-      survival: end.pct, why: end.why,
-      first: P[0], last: P[end.round], passes: P.slice()
-    });
     saveDB();
     logEvent('ai', 'Telefone run ended', { rounds: end.round, why: end.why, survival: end.pct, model: aiLabel() });
-    teleSay(TELE_END_SAY[end.why](end) + ` Round 0 and round ${end.round} are kept below, side by side, and print with One-Pager 5.`);
-    teleRoundsList();
-    try { document.getElementById('teleRounds').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_){}
+    teleSay(TELE_END_SAY[end.why](end) + ` Round 0 and round ${end.round} are both still in the tabs — compare them.`);
   }
   // Free tiers meter tokens per minute, and a 500-word page spends roughly 1,400 of them
   // a round. OP5 is played one round at a time, but a student pressing AI Revise steadily
@@ -9347,35 +9238,6 @@ You: Really. The first line only has to exist, not be good.`;
   }
 
   // ── rounds
-  function teleRoundsList(){
-    const el = document.getElementById('teleRounds'); if (!el) return;
-    const rounds = DB.tele.games;
-    const fmtDate = iso => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    if (!rounds.length){
-      el.innerHTML = `<div class="tele-rh"><h2>Runs</h2></div><div class="tele-round empty">No run has finished yet. Press <b>AI Revise</b> and keep going: a run stops itself when the percentage holds for ${TELE_SETTLED} rounds, or when less than a fifth of your words is left. Round 0 and the last round are kept here, side by side — three or four runs make a set, and they print with One-Pager 5.</div>`;
-      return;
-    }
-    el.innerHTML = `<div class="tele-rh"><h2>Runs</h2><span class="note">${rounds.length} so far · these print with One-Pager 5</span></div>`
-      + rounds.map((r, i) => `<article class="tele-round">
-        <div class="top"><div class="tele-label"><b>Run ${i + 1}</b> ${fmtDate(r.when)} · ${escHtml(r.model)} · ended at round ${r.n} · ${r.survival}% of the words left${r.why && TELE_END_WHY[r.why] ? ' · ' + escHtml(TELE_END_WHY[r.why]()) : ''}${r.asked ? ' · asked to ' + escHtml(r.asked) : ''}</div>
-          <div class="tele-tools"><button class="btn ghost sm" data-open="${r.id}" title="Put this run's rounds back in the tabs">Reopen</button><button class="btn ghost sm" data-del="${r.id}">Delete</button></div></div>
-        <div class="cols">
-          <div class="col"><h4>Round 0 <span>· yours</span></h4><div class="tele-page">${teleParas(r.first)}</div></div>
-          <div class="col"><h4>Round ${r.n} <span>· the machine's</span></h4><div class="tele-page">${teleParas(r.last)}</div></div>
-        </div></article>`).join('');
-    el.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
-      if (!confirm('Delete this run? It cannot be recovered.')) return;
-      DB.tele.games = rounds.filter(r => r.id !== b.dataset.del); saveDB(); teleRoundsList();
-    }));
-    el.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => {
-      if (teleRunning) return;
-      const r = rounds.find(x => x.id === b.dataset.open); if (!r) return;
-      if (DB.tele.passes.length > 1 && !confirm("Replace the rounds in the tabs with this run's?")) return;
-      const ps = Array.isArray(r.passes) && r.passes.length ? r.passes.slice() : [r.first, r.last];
-      DB.tele.passes = ps; DB.tele.asked = []; DB.tele.asked[ps.length - 1] = r.asked; teleCur = ps.length - 1; saveDB();
-      teleSay(''); renderTele(); window.scrollTo({ top: 0, behavior: 'smooth' });
-    }));
-  }
 
   // ---------- tabs + focus ----------
   const R = { tips:renderTip, free:renderFree, cur:renderCur, read:renderRead, note:renderNote, tele:renderTele };

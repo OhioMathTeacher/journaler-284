@@ -24,7 +24,7 @@
 
   function seedAndReload(){
     localStorage.setItem('cr284_state', JSON.stringify({ v:6, tele:{
-      passes:[words(520)], asked:[null], games:[], reflection:'' } }));
+      passes:[words(520)], asked:[null] } }));
     localStorage.setItem('cr_provider','groq');
     localStorage.setItem('cr_groq_key','probe-key');
     localStorage.setItem('cr_groq_model','openai/gpt-oss-120b');

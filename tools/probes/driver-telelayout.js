@@ -1,33 +1,29 @@
-// Telefone reads across, not down.
+// Telefone is one full-width column, and it fits on one screen.
 //
-// Todd: "make the page more horizontal and less vertical so that no vertical scrolling
-// is required on a desktop." Before this, the pane was 920px of a 1485px frame and ran
-// 461px past the fold: the figures, the status line, the saved rounds and the reflection
-// were stacked UNDER a sheet with 565px of empty space beside it.
+// The pane went through three shapes in one night. It was 920px of a 1485px frame with
+// 461px of overflow below the fold; then two columns, a reading column and a rail
+// holding the figures, the saved runs and the reflection; and now one column again,
+// because the reflection and the runs list are gone (Telefone submits nothing — it is an
+// in-class conversation) and nothing was left to stand beside the page.
 //
-// What has to keep holding: at a desktop width the pane fits on one screen, the rail
-// sits beside the reading column rather than under it, and a long passage scrolls inside
-// its own sheet instead of growing the document. The narrow layout is not exercised here
-// -- the harness fixes the window at 1500x1000 -- so instead this checks that the
-// two-column rules are GATED behind a min-width query, which is what keeps a phone on
-// one column.
+// What has to keep holding: the pane uses the width it has, it needs no vertical
+// scrolling at a desktop size, the passage scrolls inside its own sheet rather than
+// growing the document, and nothing is drawn shorter than its own text.
 (function(){
   var OUT = [], ERRS = [];
-  window.addEventListener('error', function(e){ ERRS.push('ERROR ' + (e.message||e)); });
+  window.addEventListener('error', function(e){ ERRS.push('ERROR ' + (e.message||e) + ' @@ ' + ((e.error&&e.error.stack)||'').split('\n').slice(0,4).join(' <- ')); });
   function ok(n,p,d){ OUT.push({n:n,p:!!p,d:d===undefined?'':String(d)}); }
   function sleep(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
   function box(sel){ var e=document.querySelector(sel); if(!e) return null; var r=e.getBoundingClientRect();
     return {w:Math.round(r.width),h:Math.round(r.height),t:Math.round(r.top),l:Math.round(r.left),r:Math.round(r.right),b:Math.round(r.bottom)}; }
 
   function seedAndReload(){
-    // A real OP5 page, plus ten passes and two saved rounds -- the fullest the pane
-    // ever gets, which is the state that has to fit.
+    // A real OP5 page and eleven rounds — the fullest the pane ever gets, which is the
+    // state that has to fit.
     var line = 'The fence was broke and nobody fixed it. Rain got in the kitchen and everything. ';
     var p = [new Array(36).join(line)];
     for(var i=1;i<=10;i++) p.push('The fence was broken and nobody fixed it. Rain came in. Revision ' + i + '. ' + new Array(20).join('word '));
-    var rounds = [1,2].map(function(k){ return { id:'r'+k, when:new Date().toISOString(), model:'Groq', n:10,
-      asked:'clean it up', survival:61, first:p[0], last:p[10] }; });
-    localStorage.setItem('cr284_state', JSON.stringify({v:6, tele:{passes:p, asked:[null], games:rounds, reflection:'Some words about what went.'}}));
+    localStorage.setItem('cr284_state', JSON.stringify({v:6, tele:{passes:p, asked:[null]}}));
     localStorage.setItem('cr_provider','groq'); localStorage.setItem('cr_groq_key','k');
     sessionStorage.setItem('layoutProbe','1'); location.reload();
   }
@@ -40,75 +36,43 @@
     ok('G1 the desktop pane needs no vertical scrolling', doc <= innerHeight + 2,
        'document ' + doc + ' vs viewport ' + innerHeight + ' (overflow ' + (doc - innerHeight) + 'px)');
 
-    var sheet = box('.tele-sheet'), rail = box('.tele-rail'), main = box('.tele-main');
-    ok('G2 the rail sits beside the reading column, not under it',
-       !!(sheet && rail) && rail.l >= sheet.r - 1 && rail.t < sheet.b,
-       rail && sheet ? ('sheet right=' + sheet.r + ', rail left=' + rail.l + ' top=' + rail.t) : 'missing');
-
-    var tele = box('.tele'), frame = box('.frame');
-    ok('G3 the pane uses the width it has', !!(tele && frame) && tele.w > frame.w * 0.9,
+    var tele = box('.tele'), frame = box('.frame'), sheet = box('.tele-sheet');
+    ok('G2 the pane runs the width of the frame', !!(tele && frame) && tele.w > frame.w * 0.9,
        tele && frame ? (tele.w + ' of ' + frame.w + 'px frame') : 'missing');
+    ok('G3 the sheet runs with it', !!(sheet && tele) && sheet.w > tele.w * 0.9,
+       sheet && tele ? (sheet.w + ' of ' + tele.w) : 'missing');
 
-    // Everything that used to be stacked below the sheet is now in the rail.
-    ['.tele-stats', '.tele-status', '.tele-rounds', '.tele-reflect'].forEach(function(sel){
-      var e = document.querySelector('.tele-rail ' + sel);
-      ok('G4 ' + sel + ' is in the rail', !!e);
+    ['.tele-stats', '.tele-status'].forEach(function(sel){
+      ok('G4 ' + sel + ' sits under the sheet', !!document.querySelector('.tele-sheet ' + sel));
     });
+    ok('G5 nothing is left of the rail, the runs list or the reflection',
+       !document.querySelector('.tele-rail') && !document.querySelector('.tele-rounds')
+       && !document.querySelector('.tele-reflect') && !document.getElementById('teleReflection'),
+       'all absent');
 
-    // A passage longer than the screen must scroll inside the sheet, not stretch the page.
-    var page = document.querySelector('.tele-main .tele-page');
-    ok('G5 a long passage scrolls inside its own sheet',
-       !!page && page.scrollHeight > page.clientHeight + 2 ? getComputedStyle(page).overflowY === 'auto' : true,
+    var page = document.querySelector('.tele-page');
+    ok('G6 a long passage scrolls inside its own sheet',
+       !!page && (page.scrollHeight > page.clientHeight + 2 ? getComputedStyle(page).overflowY === 'auto' : true),
        page ? ('content ' + page.scrollHeight + ' in ' + page.clientHeight + ', overflow-y=' + getComputedStyle(page).overflowY) : 'no page');
+    ok('G7 the passage got the room the rail used to take',
+       !!page && page.clientHeight > 300, page ? (page.clientHeight + 'px tall') : '-');
 
-    ok('G6 the run controls are still on screen', (function(){
-      var a = box('.tele-actions');
-      return !!a && a.b <= innerHeight && a.w > 0;
-    })(), JSON.stringify(box('.tele-actions')));
+    ok('G8 the run controls are on screen', (function(){ var a=box('.tele-actions'); return !!a && a.b <= innerHeight && a.w > 0; })(),
+       JSON.stringify(box('.tele-actions')));
 
-    // The two-column rules must be gated, or a phone gets a 440px rail it cannot use.
-    var gated = false, conds = [];
-    for(var i=0;i<document.styleSheets.length;i++){
-      var ss = document.styleSheets[i], rules;
-      try { rules = ss.cssRules; } catch(e){ continue; }
-      for(var j=0;j<rules.length;j++){
-        var r = rules[j];
-        if(r.type === CSSRule.MEDIA_RULE && /min-width/.test(r.conditionText) && /\.tele-rail/.test(r.cssText)){
-          gated = true; conds.push(r.conditionText);
-        }
-      }
-    }
-    ok('G7 the two-column layout is gated behind a min-width query', gated, conds.join(' ; ') || 'NOT gated');
-    // A finished game puts a long sentence in the status line. The rail is a flex column
-    // in a height-capped grid row, so its children shrink by default -- and text that is
-    // squeezed below its own height spills over whatever comes next instead of scrolling.
-    // Todd saw the ending message printed straight through the Games header.
+    // A finished run puts one long sentence in the status line. Flex children shrink by
+    // default, and text squeezed below its own height paints over what follows -- which
+    // is how the ending message once printed through the heading under it.
     var status = document.getElementById('teleStatus');
-    status.textContent = 'The game is over at round 5: 73%, unchanged for 3 rounds running — the machine has stopped changing it. Round 0 and round 5 are below, side by side — game 1, and it prints with One-Pager 5.';
+    status.textContent = 'The run stops at round 5: 73%, unchanged for 3 rounds — the machine has stopped changing it. Round 0 and round 5 are both still in the tabs — compare them.';
     await sleep(250);
-    var kids = [].slice.call(document.querySelector('.tele-rail').children);
-    var overlaps = [];
-    for(var i = 0; i + 1 < kids.length; i++){
-      var a = kids[i].getBoundingClientRect(), b = kids[i+1].getBoundingClientRect();
-      if(b.top < a.bottom - 1){
-        overlaps.push((kids[i].className||kids[i].id) + ' bottom=' + Math.round(a.bottom)
-          + ' overlaps ' + (kids[i+1].className||kids[i+1].id) + ' top=' + Math.round(b.top)
-          + ' by ' + Math.round(a.bottom - b.top) + 'px');
-      }
-    }
-    ok('G8 nothing in the rail is printed over anything else', overlaps.length === 0, overlaps.join(' | ') || 'no overlap');
-    // The squeeze also crops content: a box shorter than its own text has lost some.
+    var kids = [].slice.call(document.querySelector('.tele-sheet').children);
     var cropped = kids.filter(function(k){ return k.scrollHeight > k.clientHeight + 2 && getComputedStyle(k).overflowY === 'visible'; })
                       .map(function(k){ return (k.className||k.id) + ' ' + k.scrollHeight + ' in ' + k.clientHeight; });
-    ok('G9 no rail block is squeezed shorter than its own content', cropped.length === 0, cropped.join(' | ') || 'none squeezed');
-
-    var rh = document.querySelector('.tele-rail .tele-rh');
-    ok('G10 the populated Runs heading offers no PDF of its own',
-       !!rh && !rh.querySelector('button'),
-       rh ? JSON.stringify(rh.textContent.trim()) : 'no heading');
-    ok('G11 and says where the runs actually print',
-       !!rh && /print with One-Pager 5/i.test(rh.textContent),
-       rh ? JSON.stringify(rh.textContent.trim()) : 'no heading');
+    ok('G9 nothing under the sheet is drawn shorter than its own text', cropped.length === 0, cropped.join(' | ') || 'none squeezed');
+    ok('G10 and the page still does not scroll with that message on it',
+       document.documentElement.scrollHeight <= innerHeight + 2,
+       'document ' + document.documentElement.scrollHeight + ' vs ' + innerHeight);
 
     ok('Z1 no uncaught errors', ERRS.length === 0, ERRS.join(' | '));
     try { fetch('/',{method:'POST',body:JSON.stringify(OUT)}); } catch(e){}

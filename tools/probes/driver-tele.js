@@ -136,9 +136,12 @@
        !document.getElementById('telePrint')
        && ![].slice.call(document.querySelectorAll('.tele button')).some(function(b){ return /pdf|print/i.test(b.textContent); }),
        [].slice.call(document.querySelectorAll('.tele button')).map(function(b){ return b.textContent.trim(); }).join(' | '));
-    ok('T22 the rail says where the runs end up instead',
-       /print(s)? with One-Pager 5/i.test(document.querySelector('.tele-rail').textContent),
-       JSON.stringify((document.querySelector('.tele-rh') || {}).textContent || ''));
+    var claim = [].slice.call(document.querySelectorAll('.tele'))
+      .map(function(n){ return n.textContent; }).join(' ')
+      .replace(/Use my One-Pager 5/g, '');
+    ok('T22 the pane claims no tie to One-Pager 5 — it submits nothing',
+       !/One-Pager 5|prints with|submit/i.test(claim),
+       (claim.match(/[^.]*(One-Pager 5|prints with|submit)[^.]*/i) || ['no claim'])[0].trim().slice(0,90));
 
     ok('Z1 no uncaught errors', ERRS.length === 0, ERRS.join(' | '));
     done();
