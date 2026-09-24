@@ -683,6 +683,7 @@
   --panel-recess: rgba(44,36,22,.035);
   background: var(--panel-bg); border: 1px solid var(--panel-line);
   border-radius: 12px; padding: 1.8rem; width: 500px; max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 3rem); overflow-y: auto;
   position: relative;
   box-shadow: 0 24px 64px rgba(44,36,22,0.28);
 }
@@ -1427,23 +1428,28 @@ body.focus .iconbtn { display: none !important; }
    and a tick, none of which hover does. */
 .ai-card.on { border-color: var(--cave-glow, #D4A843); background: rgba(212,168,67,.16);
   box-shadow: inset 3px 0 0 var(--cave-glow, #D4A843); padding-left: 15px; }
-.ai-card.on .ai-card-main b { color: #FFF3DC; }
+.ai-card.on .ai-card-main b { color: var(--panel-ink); }
 .ai-card.on::after { content: "✓ in use"; flex: 0 0 auto; font-family: var(--sans);
   font-size: 12px; font-weight: 700; color: #2b2a26; background: var(--cave-glow, #D4A843);
   border-radius: 4px; padding: 2px 7px; }
 .ai-card.on .ai-badge { display: none; }   /* the tick replaces "Local" on the chosen one */
 .ai-card-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.ai-card-main b { font-family: var(--sans); font-size: 15.5px; color: #F0E6D2; font-weight: 600; }
+.ai-card-main b { font-family: var(--sans); font-size: 15.5px; color: var(--panel-ink); font-weight: 600; }
 .ai-card-main small { font-family: var(--sans); font-size: 13px; color: var(--panel-dim); word-break: break-all; }
-.ai-badge { flex: 0 0 auto; font-family: var(--sans); font-size: 12px; color: #9FC5E8;
-  background: rgba(159,197,232,.14); border-radius: 4px; padding: 2px 7px; }
+.ai-badge { flex: 0 0 auto; font-family: var(--sans); font-size: 12px; color: var(--panel-dim);
+  background: var(--panel-fill-hi); border-radius: 4px; padding: 2px 7px; }
 .ai-add { border: 1px dashed var(--panel-line); border-radius: 8px; padding: 10px 12px; }
 .ai-add b { display: block; font-family: var(--sans); font-size: 15px; color: var(--panel-ink); }
 .ai-add small { display: block; font-family: var(--sans); font-size: 13px; color: var(--panel-dim); margin-bottom: 6px; }
 .ai-add input { width: 100%; box-sizing: border-box; background: var(--panel-recess); border: 1px solid var(--panel-line);
-  color: #F0E6D2; border-radius: 6px; padding: 6px 8px; font: 12px var(--sans); }
+  color: var(--panel-ink); border-radius: 6px; padding: 6px 8px; font: 12px var(--sans); }
 .ai-scan { font-family: var(--sans); font-size: 14.5px; color: var(--panel-dim); margin: 0; }
-.ai-foot { font-family: var(--sans); font-size: 12.5px; color: #6B7A8A; margin: 12px 0 6px; }
+/* The disclosure lives in About → Romano & AI now. This is the door to it, and it has to
+   look like a link inside a pane whose <a> is otherwise unstyled. */
+.ai-privacy { margin: 0 0 4px; }
+.ai-privacy a { font-family: var(--sans); font-size: 14.5px; font-weight: 600; color: var(--panel-accent); text-decoration: none; }
+.ai-privacy a:hover { text-decoration: underline; }
+.ai-foot { font-family: var(--sans); font-size: 12.5px; color: var(--panel-dim); margin: 12px 0 6px; }
 .ai-disable { font-family: var(--sans); font-size: 14px; color: var(--panel-dim); background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; }
 .ai-disable:hover { color: #E88; }
 
