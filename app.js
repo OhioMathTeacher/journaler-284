@@ -193,6 +193,9 @@ function localProbeEndpoints() {
 // that to work, which is the whole reason not to try.
 const LOCAL_PREFERRED = ['qwen3.5:9b', 'qwen3.5:4b'];
 let _showAllLocal = false;
+// Remembered across re-renders: saving the class key re-renders the pane, and a fold
+// that snapped shut under the person who had just opened it would read as a bug.
+let _aiAdvOpen = false;
 
 // ⚠ One box, three URLs. The probe tries localhost, 127.0.0.1 and the host that
 // served the page, and on ToddGPT all three answer — so an undeduplicated list shows
@@ -208,13 +211,23 @@ function flattenLocal(found){
 }
 
 // [{url, id}] narrowed to the preferred model, or everything if none is there.
+// How many to show when no course model is on the machine. The panel carries real
+// controls UNDER the list -- Add local server, the class key, the ports note, Disable
+// AI -- and a full model list pushed every one of them below the fold, on a pane the
+// student had already scrolled to reach. Todd, 24 Sept 2026: "I want users to be able
+// to see the stuff on the bottom without scrolling."
+//
+// ⚠ The fallback used to return the WHOLE list with hidden:0, which also meant no
+//   "show all" button was drawn -- so the cap and the way past it both went missing
+//   on exactly the machines that needed them: any laptop without qwen3.5.
+const LOCAL_SHOWN = 3;
 function preferLocal(found){
   const all = flattenLocal(found);
   for(const want of LOCAL_PREFERRED){
     const hit = all.find(x => x.id === want || String(x.id).startsWith(want + '-'));
-    if(hit) return { list: [hit], hidden: all.length - 1 };
+    if(hit) return { list: [hit], hidden: all.length - 1, course: true };
   }
-  return { list: all, hidden: 0 };
+  return { list: all.slice(0, LOCAL_SHOWN), hidden: Math.max(0, all.length - LOCAL_SHOWN), course: false };
 }
 
 let _localModels = [];
@@ -9478,7 +9491,11 @@ You: Really. The first line only has to exist, not be good.`;
         const cur = getProvider() === 'local' ? (getLocalEndpoint() + '|' + getLocalModel()) : '';
         const pick = preferLocal(found);
         const all = flattenLocal(found);
-        const shown = _showAllLocal ? all : pick.list;
+        let shown = _showAllLocal ? all : pick.list;
+        if(!_showAllLocal && cur){
+          const inUse = all.find(m => (m.url + '|' + m.id) === cur);
+          if(inUse && !shown.some(m => m.id === inUse.id && m.url === inUse.url)) shown = shown.concat([inUse]);
+        }
         if(pick.hidden && !_showAllLocal) logEvent('ai', 'local models hidden', {
           shown: pick.list.map(x => x.id), hidden: pick.hidden });
         shown.forEach(m => {
@@ -9496,7 +9513,7 @@ You: Really. The first line only has to exist, not be good.`;
           const more = document.createElement('button');
           more.className = 'ai-more';
           more.textContent = _showAllLocal
-            ? 'Show only the model for this course'
+            ? (pick.course ? 'Show only the model for this course' : 'Show fewer')
             : `Show all ${all.length} models on this server`;
           more.onclick = () => { _showAllLocal = !_showAllLocal; renderAiTab(); };
           list.appendChild(more);
@@ -9508,7 +9525,19 @@ You: Really. The first line only has to exist, not be good.`;
         add.className = 'ai-add';
         add.innerHTML = '<b>+ Add local server</b><small>Custom URL — anything speaking OpenAI-compatible /v1/chat/completions</small>' +
                         '<input type="text" id="aiAddUrl" placeholder="http://127.0.0.1:11434" autocomplete="off" spellcheck="false">';
-        list.appendChild(add);
+        // ⚠ FOLDED BY DEFAULT. Measured: these two boxes are 221px of a 457px list --
+        //    more than the models themselves -- and they are for the rare case (a server
+        //    on another machine, a key for a proxied class server). Open, they pushed the
+        //    ports note and Disable AI off the bottom of the panel.
+        const adv = document.createElement('details');
+        adv.className = 'ai-adv';
+        adv.open = _aiAdvOpen;
+        adv.addEventListener('toggle', () => { _aiAdvOpen = adv.open; });
+        const sum = document.createElement('summary');
+        sum.textContent = 'Add a server, or a class key';
+        adv.appendChild(sum);
+        adv.appendChild(add);
+        list.appendChild(adv);
 
         // Class key. Blank for a model on your own machine, which is the normal
         // case and wants no credentials. Filled in only when the server is one
@@ -9519,7 +9548,7 @@ You: Really. The first line only has to exist, not be good.`;
         keyBox.innerHTML = '<b>Class key <span style="font-weight:400;color:#6b7280">(optional)</span></b>'
           + '<small>Leave empty for a model on this computer. Needed only for a shared server that asks for one.</small>'
           + '<input type="password" id="aiLocalKey" placeholder="none" autocomplete="off" spellcheck="false">';
-        list.appendChild(keyBox);
+        adv.appendChild(keyBox);
         const kinp = keyBox.querySelector('#aiLocalKey');
         kinp.value = getLocalKey();
         // Saved on the way out rather than per keystroke: this is pasted, and a

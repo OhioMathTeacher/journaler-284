@@ -1418,7 +1418,12 @@ body.focus .iconbtn { display: none !important; }
 .ai-getkey { display: inline-block; margin-top: 4px; font-family: var(--sans);
   font-size: 13px; color: #D4A843; text-decoration: none; }
 .ai-getkey:hover { text-decoration: underline; }
-.ai-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; padding-right: 6px; }
+/* ⚠ NO SCROLLER HERE. The list is not only models: renderAiTab appends "Add local
+   server" and the class-key box into it, so a 320px cap cut off the controls under the
+   cards and put a second scrollbar inside a panel that already has its own. The model
+   list is capped at LOCAL_SHOWN now, and the panel's own max-height is the one ceiling
+   -- one scrollbar, at the edge of the dialog, where it can be seen. */
+.ai-list { display: flex; flex-direction: column; gap: 8px; padding-right: 6px; }
 .ai-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
   text-align: left; background: var(--panel-fill); border: 1px solid transparent; border-radius: 8px;
   padding: 10px 12px; cursor: pointer; }
@@ -1438,6 +1443,15 @@ body.focus .iconbtn { display: none !important; }
 .ai-card-main small { font-family: var(--sans); font-size: 13px; color: var(--panel-dim); word-break: break-all; }
 .ai-badge { flex: 0 0 auto; font-family: var(--sans); font-size: 12px; color: var(--panel-dim);
   background: var(--panel-fill-hi); border-radius: 4px; padding: 2px 7px; }
+/* The fold that holds them. Closed, it is one line; open, the two boxes stack inside. */
+.ai-adv { border-top: 1px solid var(--panel-line); padding-top: 8px; margin-top: 2px; }
+.ai-adv > summary { font-family: var(--sans); font-size: 13px; color: var(--panel-dim);
+  cursor: pointer; list-style: none; padding: 4px 2px; text-decoration: underline; text-underline-offset: 2px; }
+.ai-adv > summary::-webkit-details-marker { display: none; }
+.ai-adv > summary::before { content: "\25B8"; text-decoration: none; display: inline-block; margin-right: 6px; }
+.ai-adv[open] > summary::before { content: "\25BE"; }
+.ai-adv > summary:hover { color: var(--panel-accent); }
+.ai-adv .ai-add { margin-top: 8px; }
 .ai-add { border: 1px dashed var(--panel-line); border-radius: 8px; padding: 10px 12px; }
 .ai-add b { display: block; font-family: var(--sans); font-size: 15px; color: var(--panel-ink); }
 .ai-add small { display: block; font-family: var(--sans); font-size: 13px; color: var(--panel-dim); margin-bottom: 6px; }
