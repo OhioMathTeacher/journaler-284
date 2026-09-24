@@ -6,5 +6,7 @@ _q_*.html
 # The probe chapter tools/probes/run.py builds and then deletes.
 _p_*.pdf
 
-# Python bytecode from the tools/ scripts.
-tools/__pycache__/
+# Python bytecode. Was tools/__pycache__/ alone, which is why a root __pycache__/ and
+# tools/probes/__pycache__/ both turned up untracked after a probe run. A bare name
+# matches at every depth.
+__pycache__/
