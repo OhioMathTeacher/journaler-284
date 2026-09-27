@@ -3401,9 +3401,9 @@ async function runReflection(rf, text, hooks) {
 
   // ---------- Currere ----------
   const MO = { reg:{k:'Moment 1 · Regressive',t:'Go back',f:'Free-associate your life in schools, as far back as you can reach. <span class="hint">No order, no editing.</span>',kind:'gush'},
-    pro:{k:'Moment 2 · Progressive',t:'Go forward',f:'Imagine yourself teaching a year, five years from now. <span class="hint">This one is harder. Let it be.</span>',kind:'gush'},
-    ana:{k:'Moment 3 · Analytical',t:'Lay them side by side',f:'Set past and future next to each other. <span class="hint">What runs through both? Name it.</span>',kind:'ana'},
-    syn:{k:'Moment 4 · Synthetical',t:'Put it back together',f:'Write the piece that carries the thread across past, present, and future. <span class="hint">No timer. Edit freely.</span>',kind:'syn'} };
+    pro:{k:'Moment 2 · Progressive',t:'Go forward',f:'Project yourself into your future and write it as if you were remembering it — not a wish list, but what is <em>likely</em>, built out of the gush you just wrote. <span class="hint">Harder than the first. Moore says so too. Let it be.</span>',kind:'gush'},
+    ana:{k:'Moment 3 · Analytical',t:'Set them beside each other',f:'Name the themes and connections that run through <em>both</em>. <span class="hint">Not what they mean — what recurs.</span>',kind:'ana'},
+    syn:{k:'Moment 4 · Synthetical',t:'Hold all three at once',f:'Where you have been, where you are going, and the themes that connect them — then what it changes about the teacher you intend to be. <span class="hint">No timer. Edit freely.</span>',kind:'syn'} };
   let curCur='reg';
   const curBursts = { reg: (DB.currere.reg || ''), pro: (DB.currere.pro || '') };
   // A currere gush ended with Romano asking how the remembering went and NOWHERE to answer:
@@ -3466,7 +3466,7 @@ async function runReflection(rf, text, hooks) {
         <p class="stagenote">Looking for what recurs across everything you have kept, not just these two? The notebook counts it for you.</p>
         <button class="btn ghost" id="themesBtn">What keeps coming back →</button>
         <p class="stagenote" style="margin-top:16px">What runs through both? Name it here — this is the comparison, and it is your writing, not the app's.</p>
-        <textarea class="gush" id="anaNote" placeholder="What comes back in both the past and the future? Name it plainly.">${escHtml((DB.currere||{}).ana||'')}</textarea>
+        <textarea class="gush" id="anaNote" placeholder="What themes and connections run through both the past and the future? Name them plainly — not what they mean yet.">${escHtml((DB.currere||{}).ana||'')}</textarea>
         <div style="margin-top:12px"><button class="btn ghost sm" id="anaAddNb">＋ Add to notebook</button></div>`;
       document.getElementById('themesBtn').addEventListener('click',()=>{ noteMode='threads'; show('note'); });
       const anaTa = document.getElementById('anaNote');
