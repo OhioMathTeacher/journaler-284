@@ -3402,7 +3402,7 @@ async function runReflection(rf, text, hooks) {
   // ---------- Currere ----------
   const MO = { reg:{k:'Moment 1 · Regressive',t:'Go back',f:'Free-associate your life in schools, as far back as you can reach. <span class="hint">No order, no editing.</span>',kind:'gush'},
     pro:{k:'Moment 2 · Progressive',t:'Go forward',f:'Project yourself into your future and write it as if you were remembering it — not a wish list, but what is <em>likely</em>, built out of the gush you just wrote. <span class="hint">Harder than the first. Moore says so too. Let it be.</span>',kind:'gush'},
-    ana:{k:'Moment 3 · Analytical',t:'Set them beside each other',f:'Name the themes and connections that run through <em>both</em>. <span class="hint">Not what they mean — what recurs.</span>',kind:'ana'},
+    ana:{k:'Moment 3 · Analytical',t:'Examine the in-between',f:'Your past and your future, side by side. Name the themes and connections that run through <em>both</em> — whatever does is working on you <em>now</em>. <span class="hint">Not what it means — what recurs.</span>',kind:'ana'},
     syn:{k:'Moment 4 · Synthetical',t:'Hold all three at once',f:'Where you have been, where you are going, and the themes that connect them — then what it changes about the teacher you intend to be. <span class="hint">No timer. Edit freely.</span>',kind:'syn'} };
   let curCur='reg';
   const curBursts = { reg: (DB.currere.reg || ''), pro: (DB.currere.pro || '') };
