@@ -3406,6 +3406,23 @@ async function runReflection(rf, text, hooks) {
     syn:{k:'Moment 4 · Synthetical',t:'Put it back together',f:'Write the piece that carries the thread across past, present, and future. <span class="hint">No timer. Edit freely.</span>',kind:'syn'} };
   let curCur='reg';
   const curBursts = { reg: (DB.currere.reg || ''), pro: (DB.currere.pro || '') };
+  // A currere gush ended with Romano asking how the remembering went and NOWHERE to answer:
+  // startGush was called without reflect hooks, so paintReflection painted the question and
+  // stopped. The One-Pager path has passed reflectHooks(opKey) all along. Same shape here,
+  // one session per moment, so the exchange is saved and leaves with the notebook.
+  function curSessionPatch(key, patch){
+    const S = (DB.currere.sessions = DB.currere.sessions || {});
+    S[key] = Object.assign({}, S[key], patch);
+    saveDB();
+  }
+  function curReflectHooks(key){
+    const s = (DB.currere.sessions || {})[key] || {};
+    return {
+      answer: s.answer || '',
+      onQuestion: (q, from) => curSessionPatch(key, { question: q, questionFrom: from || 'ai' }),
+      onAnswer:   v => curSessionPatch(key, { answer: v }),
+    };
+  }
   function renderCur(){
     body.classList.remove('wide', 'bleed');
     const spine = Object.entries(MO).map(([k,m])=>`<button class="moment ${k===curCur?'on':''} ${curBursts[k]?'has':''}" data-mo="${k}"><span class="mname"><span class="dot"></span>${m.t}</span><span class="mkind">${m.kind==='gush'?'timed gush':m.kind==='ana'?'compare':'open draft'}</span></button>`).join('');
@@ -3421,11 +3438,21 @@ async function runReflection(rf, text, hooks) {
       st.innerHTML=`<p class="kicker">${m.k}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
         <div class="gushbar"><div class="timerset" id="timerset"><button class="tadj" id="tminus">−</button><span class="timer editable" id="timer">8:00</span><button class="tadj" id="tplus">+</button></div><button class="btn go" id="startBtn">Start the gush</button><span class="locknote" id="lockmsg">Set your minutes, then start → locks + Focus.</span></div>
         <textarea class="gush" id="gush" placeholder="Don’t stop, don’t fix." disabled></textarea>
-        <div class="reflect" id="reflect" style="display:none"><span class="lbl">${REFLECT_LABEL}</span><span>How did remembering go? <em>(stubbed)</em></span></div>
+        <div class="stagelabel" id="curReflectLabel" style="display:none">${REFLECT_LABEL}</div>
+        <div class="reflect" id="reflect" style="display:none"></div>
         <div style="margin-top:12px"><button class="btn ghost sm" id="curAddNb">＋ Add to notebook</button></div>`;
       wireTimer();
       if(curBursts[curCur]){ document.getElementById('gush').value = curBursts[curCur]; }
-      document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,onEnd:()=>{curBursts[curCur]=document.getElementById('gush').value||'(gush)';DB.currere[curCur]=curBursts[curCur];saveDB();}}));
+      // Repaint a saved reflection, exactly as the One-Pager path does, so a student who
+      // comes back to a moment tomorrow still sees the question and the answer they gave.
+      const curSaved = (DB.currere.sessions || {})[curCur] || {};
+      if(curSaved.question){
+        const rfc = document.getElementById('reflect'), lbc = document.getElementById('curReflectLabel');
+        if(rfc){ rfc.dataset.on = '1'; rfc.style.display = 'block';
+          if(lbc) lbc.style.display = 'block';
+          paintReflection(rfc, curSaved.question, curReflectHooks(curCur)); }
+      }
+      document.getElementById('startBtn').addEventListener('click',()=>startGush(gushSecs,{focus:true,reflect:curReflectHooks(curCur),onEnd:()=>{curBursts[curCur]=document.getElementById('gush').value||'(gush)';DB.currere[curCur]=curBursts[curCur];saveDB();const lb=document.getElementById('curReflectLabel');if(lb)lb.style.display='block';}}));
       const curAdd = document.getElementById('curAddNb'); if(curAdd) curAdd.onclick = ()=>elevate('cur-'+curCur, 'currere', m.k+' · '+m.t, document.getElementById('gush').value);
     } else if(m.kind==='ana'){
       // Moment 3 was the one currere moment with no way into the notebook -- and the
