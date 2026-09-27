@@ -3460,7 +3460,12 @@ async function runReflection(rf, text, hooks) {
       // and gave the student nowhere to name it: two read-only panes and a stubbed AI
       // button. The comparison the other three moments exist to produce could not be
       // written down, let alone kept.
-      const pane=k=>curBursts[k]?`<div class="pane">${curBursts[k]}</div>`:`<div class="pane" style="color:var(--muted);font-style:italic">Run this gush first.</div>`;
+      // escHtml, and NOT decoration. The pane interpolated the gush raw, so any '<'
+      // followed by a letter was parsed as a tag and that stretch of the student's own
+      // writing VANISHED from the comparison. A gush is exactly where a stray angle
+      // bracket happens. The CSS now keeps newlines too — an 8-minute stream of
+      // consciousness rendered as one blob, which is the opposite of comparable.
+      const pane=k=>curBursts[k]?`<div class="pane">${escHtml(curBursts[k])}</div>`:`<div class="pane" style="color:var(--muted);font-style:italic">Run this gush first.</div>`;
       st.innerHTML=`<p class="kicker">${m.k}</p><h2>${m.t}</h2><p class="framing">${m.f}</p>
         <div class="sbs"><div><h4>Regressive · past</h4>${pane('reg')}</div><div><h4>Progressive · future</h4>${pane('pro')}</div></div>
         <p class="stagenote">Looking for what recurs across everything you have kept, not just these two? The notebook counts it for you.</p>

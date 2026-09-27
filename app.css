@@ -276,7 +276,12 @@
   /* analytical */
   .sbs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
   .sbs h4 { margin: 0 0 8px; font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
-  .sbs .pane { background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; padding: 12px; min-height: 120px; font-family: var(--write); font-size: 16px; }
+  /* pre-wrap: the gush is written with line breaks and must be read with them.
+     max-height + auto: a long regressive gush grew the pane until the "name it"
+     textarea below was off the bottom of the screen -- in the one moment whose whole
+     job is looking at both panes and then writing underneath them. */
+  .sbs .pane { background: #fff; border: 1px solid var(--comment-border); border-radius: 7px; padding: 12px; min-height: 120px; max-height: 44vh; overflow: auto; white-space: pre-wrap; font-family: var(--write); font-size: 16px; line-height: 1.5; }
+  @media (max-width: 720px) { .sbs { grid-template-columns: 1fr; } .sbs .pane { max-height: 32vh; } }
   .aiout { background: var(--margin-bg); border-left: 3px solid var(--accent-light); border-radius: 0 6px 6px 0; padding: 12px 14px; font-size: 16px; margin-top: 8px; } .aiout .stub { color: var(--muted); font-style: italic; }
 
   /* READINGS — full width two-pane */
