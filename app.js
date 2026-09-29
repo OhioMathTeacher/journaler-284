@@ -3400,10 +3400,10 @@ async function runReflection(rf, text, hooks) {
   }
 
   // ---------- Currere ----------
-  const MO = { reg:{k:'Moment 1 · Regressive',t:'Go back',f:'Free-associate your life in schools, as far back as you can reach. <span class="hint">No order, no editing.</span>',kind:'gush'},
-    pro:{k:'Moment 2 · Progressive',t:'Go forward',f:'Project yourself into your future and write it as if you were remembering it — not a wish list, but what is <em>likely</em>, built out of the gush you just wrote. <span class="hint">Harder than the first. Moore says so too. Let it be.</span>',kind:'gush'},
-    ana:{k:'Moment 3 · Analytical',t:'Examine the in-between',f:'Your past and your future, side by side. Name the themes and connections that run through <em>both</em> — whatever does is working on you <em>now</em>. <span class="hint">Not what it means — what recurs.</span>',kind:'ana'},
-    syn:{k:'Moment 4 · Synthetical',t:'Hold all three at once',f:'Where you have been, where you are going, and the themes that connect them — then what it changes about the teacher you intend to be. <span class="hint">No timer. Edit freely.</span>',kind:'syn'} };
+  const MO = { reg:{k:'Movement 1 · Regressive',t:'Go back',f:'Free-associate your life in schools, as far back as you can reach. <span class="hint">No order, no editing.</span>',kind:'gush'},
+    pro:{k:'Movement 2 · Progressive',t:'Go forward',f:'Project yourself into your future and write it as if you were remembering it — not a wish list, but what is <em>likely</em>, built out of the gush you just wrote. <span class="hint">Harder than the first. Moore says so too. Let it be.</span>',kind:'gush'},
+    ana:{k:'Movement 3 · Analytical',t:'Examine the in-between',f:'Your past and your future, side by side. Name the themes and connections that run through <em>both</em> — whatever does is working on you <em>now</em>. <span class="hint">Not what it means — what recurs.</span>',kind:'ana'},
+    syn:{k:'Movement 4 · Synthetical',t:'Hold all three at once',f:'Where you have been, where you are going, and the themes that connect them — then what it changes about the teacher you intend to be. <span class="hint">No timer. Edit freely.</span>',kind:'syn'} };
   let curCur='reg';
   const curBursts = { reg: (DB.currere.reg || ''), pro: (DB.currere.pro || '') };
   // A currere gush ended with Romano asking how the remembering went and NOWHERE to answer:
@@ -3427,7 +3427,7 @@ async function runReflection(rf, text, hooks) {
     body.classList.remove('wide', 'bleed');
     const spine = Object.entries(MO).map(([k,m])=>`<button class="moment ${k===curCur?'on':''} ${curBursts[k]?'has':''}" data-mo="${k}"><span class="mname"><span class="dot"></span>${m.t}</span><span class="mkind">${m.kind==='gush'?'timed gush':m.kind==='ana'?'compare':'open draft'}</span></button>`).join('');
     frame.innerHTML = `<div class="head"><h1>Your Currere</h1><p>Four movements, run in order the way a current runs. Structure loosens as you go.</p></div>
-      <div class="layout"><nav class="spine"><p class="lead">The four moments</p>${spine}<p class="runline">Gushes → comparison → open page.</p></nav><main class="stage" id="stage"></main></div>`;
+      <div class="layout"><nav class="spine"><p class="lead">The four movements</p>${spine}<p class="runline">Gushes → comparison → open page.</p></nav><main class="stage" id="stage"></main></div>`;
     frame.querySelectorAll('[data-mo]').forEach(b=>b.addEventListener('click',()=>{if(G.running)return;curCur=b.dataset.mo;renderCur();}));
     const m=MO[curCur],st=document.getElementById('stage');
     setTimeout(()=>{ const host=document.getElementById('stage');
@@ -3484,7 +3484,7 @@ async function runReflection(rf, text, hooks) {
       const synTa = document.getElementById('gush');
       if(DB.currere.syn){ synTa.value = DB.currere.syn; }
       synTa.addEventListener('input', ()=>{ DB.currere.syn = synTa.value; saveDB(); });
-      const synAdd = document.getElementById('synAddNb'); if(synAdd) synAdd.onclick = ()=>elevate('cur-syn', 'currere', 'Moment 4 · Synthetical', synTa.value);
+      const synAdd = document.getElementById('synAddNb'); if(synAdd) synAdd.onclick = ()=>elevate('cur-syn', 'currere', 'Movement 4 · Synthetical', synTa.value);
     }
   }
 
@@ -7250,7 +7250,7 @@ You: Really. The first line only has to exist, not be good.`;
     out.push({ id:'cur-reg', kind:'currere', title:MO.reg.k+' · '+MO.reg.t, label:MO.reg.k, text:cur.reg });
     out.push({ id:'cur-pro', kind:'currere', title:MO.pro.k+' · '+MO.pro.t, label:MO.pro.k, text:cur.pro });
     out.push({ id:'cur-ana', kind:'currere', title:MO.ana.k+' · '+MO.ana.t, label:MO.ana.k, text:cur.ana });
-    out.push({ id:'cur-syn', kind:'currere', title:'Moment 4 · Synthetical', label:MO.syn.k, text:cur.syn });
+    out.push({ id:'cur-syn', kind:'currere', title:'Movement 4 · Synthetical', label:MO.syn.k, text:cur.syn });
     return out;
   }
 
@@ -7350,7 +7350,7 @@ You: Really. The first line only has to exist, not be good.`;
     currere: { row:'Required entries', pts:5,
       full:'“All four present: the Week 1 baseline, currere gushes and brainstorms, the topic map, and source notes.”',
       part:'“One missing.”', none:'“Two or more missing.”',
-      note:'Keep every moment you write — mark one as the required entry. Moment 3 counts too.' },
+      note:'Keep every movement you write — mark one as the required entry. Movement 3 counts too.' },
     letter: { row:'Look-Back Letter', pts:10,
       full:'“Written in our last class, to the writer who answered why do we write? on day one.”',
       part:'“Present but perfunctory.”', none:'“Missing.”',
