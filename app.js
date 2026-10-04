@@ -863,14 +863,45 @@ async function runReflection(rf, text, hooks) {
     return;
   }
   try {
+    // throwErrors, and it is load-bearing. callModel's fail() only THROWS when asked;
+    // otherwise it RETURNS the error message as an ordinary string -- and this caller
+    // treated whatever came back as Romano's question. So a rate limit saved
+    // "Groq API error 429: Rate limit reached" into session.question and printed it on the
+    // submitted PDF under the heading "Romano - AI asked", as though that were the question
+    // the student had been asked to answer. Twenty students share one key here, so 429 is
+    // the ordinary case. Make a failure a failure and let the catch below handle it.
     const reply = await callModel(REFLECTION_PARTNER
       + '\n\n(For pacing context only — never quote or critique this:)\n"""\n'
-      + String(text || '').slice(0, 4000) + '\n"""');
+      + String(text || '').slice(0, 4000) + '\n"""', { throwErrors: true });
     if (hooks) hooks.onQuestion(reply);
     paintReflection(rf, reply, hooks);   // resets rf, so the note goes on after
     appendDistressNote(rf, note);
   } catch (e) {
-    bodyEl.innerHTML = '<em>' + AI_NAME + ' is unavailable right now.</em>';
+    // Romano could not be reached -- a rate limit, a dead network, a stale key. This used to
+    // paint the apology and NOTHING ELSE: no question, no textarea, no onQuestion call, so
+    // the reflection was never saved and the One-Pager export dropped the whole block,
+    // because runOpSession renders the exchange only `if(s.question)`. Two students lost the
+    // Reflecting on Writing note exactly that way on OP5 (4 Oct 2026) and had nowhere to put
+    // it -- the assignment asked for something the app had quietly made impossible, and the
+    // grader could not tell the difference between that and not bothering.
+    //
+    // The fallback already existed four lines up, in the no-provider branch. Reach for it.
+    // Twenty students share one key here, so a class all gushing at 12:30 is the ordinary
+    // case for this catch, not the rare one.
+    //
+    // 'app' is the honest provenance: no model answered, so the export prints "Reflecting on
+    // Writing" over the app's own prompt instead of crediting Romano with a question he never
+    // asked -- and the AI-use log says no AI was used, which is true.
+    if (hooks) hooks.onQuestion(REFLECT_PROMPT_SOLO, 'app');
+    paintReflection(rf, REFLECT_PROMPT_SOLO, hooks);   // resets rf, so the notes go on after
+    // DOM only, never persisted -- same rule as appendDistressNote. An outage is a fact about
+    // this minute, not about the writing, and it has no business on a submitted document.
+    const why = document.createElement('p');
+    why.className = 'reflect-note';
+    why.textContent = AI_NAME + ' could not be reached just now, so this is the question the '
+      + 'app asks instead. Answer it here either way \u2014 it is part of the assignment, and it '
+      + 'saves and prints exactly the same.';
+    rf.appendChild(why);
     appendDistressNote(rf, note);
   }
 }

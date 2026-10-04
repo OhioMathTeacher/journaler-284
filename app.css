@@ -243,6 +243,7 @@
   .reflect-distress { margin: 12px 0 0; padding: 10px 12px; border-left: 3px solid var(--accent);
     border-radius: 4px; background: var(--margin-bg); color: var(--ink);
     font-size: 15px; line-height: 1.55; }
+  .reflect-note { margin: 10px 0 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
   .reflect-answer { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; min-height: 76px; resize: vertical; font-family: var(--write); font-size: 16px; line-height: 1.5; color: var(--ink, #2b2a26); background: var(--parchment); border: 1px solid var(--comment-border); border-radius: 6px; padding: 9px 11px; }
   .reflect-answer:focus { outline: none; border-color: var(--accent); }
 
