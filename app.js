@@ -9773,7 +9773,13 @@ You: Really. The first line only has to exist, not be good.`;
     } catch(e){ readingsDirState = 'missing'; rerenderReadIfVisible(); }
   })();
 
-  show('tips');
+  // Deep links into a tab: ohiomathteacher.github.io/journaler-284/#telefone opens
+  // straight on Telefone (the Week 8 class page links it). Anything else, or nothing,
+  // opens on Tips as it always has.
+  const HASH_TABS = { telefone: 'tele' };
+  const hashTab = () => HASH_TABS[location.hash.slice(1).toLowerCase()];
+  show(hashTab() || 'tips');
+  window.addEventListener('hashchange', () => { const t = hashTab(); if(t && !G.running) show(t); });
 })();
 
 // ===== init =====
