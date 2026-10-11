@@ -1775,7 +1775,34 @@ async function runReflection(rf, text, hooks) {
   //
   // The one exception is the seven-day sweep, which can only be caught at launch,
   // because that is the only moment we get to run at all. See nagOnBoot.
-  const NAG_SNOOZE_KEY = 'cr284_nag_snoozed';   // this session only
+  // ── one banner slot, several things that want it ──────────────────────────
+  // There is a single #backupNag element, and until now whoever spoke last won:
+  // nagBanner removed whatever was there. At boot that made nagIfWebView beat
+  // nagOnBoot purely because line 9754 runs after 9753 -- the right outcome by
+  // accident, which is the kind of thing that silently inverts the next time
+  // someone reorders two calls.
+  //
+  // So rank them, lowest number wins, and say why the order is this order:
+  //   webview  a reader inside Canvas cannot save a file or make a PDF AT ALL,
+  //            and their storage is separate from the real browser. Nothing else
+  //            matters until they are out of it.
+  //   sweep    seven days from losing everything, and it is the only warning we
+  //            cannot issue later -- we do not run during those seven days.
+  //   backup   work exists only in this browser. Urgent, but recoverable advice
+  //            that we get to repeat at every tab switch.
+  //   update   the only one that is not about losing work, so it yields to all
+  //            three. A student who misses it loses a bug fix, not a One-Pager.
+  const NAG_RANK = { webview: 1, sweep: 2, backup: 3, update: 4 };
+
+  // ⚠ Per-kind, not one shared flag. With a single key, dismissing "you have
+  // unsaved work" also silenced the in-app-browser warning for the session --
+  // two unrelated messages, one ✕. Snoozing is per message now.
+  function nagSnoozed(kind){
+    try { return !!sessionStorage.getItem('cr284_nag_snoozed_' + kind); } catch(e){ return false; }
+  }
+  function nagSnooze(kind){
+    try { sessionStorage.setItem('cr284_nag_snoozed_' + kind, '1'); } catch(e){}
+  }
   function recordBackup(){
     DB.lastBackup = { ts: Date.now(), marks: countMarks(DB), entries: (DB.journal || []).length };
     saveDB();
@@ -1799,21 +1826,28 @@ async function runReflection(rf, text, hooks) {
   const WEBKIT_SWEEPS = (IOS || /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent))
                         && !isStandalone();
 
-  function nagBanner(html, actionLabel, onAction){
+  function nagBanner(kind, html, actionLabel, onAction){
+    const rank = NAG_RANK[kind] || 99;
     let el = document.getElementById('backupNag');
+    // Something more urgent is already on screen. Say nothing rather than
+    // replacing a warning about losing work with a notice about a bug fix.
+    // ⚠ Returns FALSE here, and callers must honour it -- see maybeNagBackup.
+    if(el && (NAG_RANK[el.dataset.nag] || 99) < rank) return false;
     if(el) el.remove();
     el = document.createElement('div');
     el.id = 'backupNag';
+    el.dataset.nag = kind;
     el.innerHTML = `<div class="nag-text">${html}</div>
       <div class="nag-btns"><button class="nag-go">${escHtml(actionLabel)}</button>
       <button class="nag-x" aria-label="Not now" title="Not now">✕</button></div>`;
     el.querySelector('.nag-go').onclick = () => { el.remove(); onAction(); };
     el.querySelector('.nag-x').onclick = () => {
       el.remove();
-      try { sessionStorage.setItem(NAG_SNOOZE_KEY, '1'); } catch(e){}
-      logEvent('save', 'backup reminder dismissed');
+      nagSnooze(kind);
+      logEvent('save', kind + ' reminder dismissed');
     };
     document.body.appendChild(el);
+    return true;
   }
   // The reminder OPENS the thing it is nagging about. Pointing at ⚙ Settings → My work
   // is what let Carlos go two weeks without finding it.
@@ -1826,8 +1860,9 @@ async function runReflection(rf, text, hooks) {
   let _nagShown = false;
   function maybeNagBackup(){
     if(_nagShown) return;
-    try { if(sessionStorage.getItem(NAG_SNOOZE_KEY)) return; } catch(e){}
-    if(document.getElementById('backupNag')) return;
+    if(nagSnoozed('backup')) return;
+    // No longer "is ANY banner up" -- nagBanner decides that by rank now, so a
+    // backup warning can still replace a lower-ranked update notice.
     const r = workAtRisk();
     // ⚠ ONE NOTEBOOK ENTRY IS ENOUGH ON ITS OWN. The entry is the graded artifact of
     // this course and represents a sitting's writing; a mark is a line someone liked.
@@ -1845,11 +1880,17 @@ async function runReflection(rf, text, hooks) {
     const since = r.never ? 'You have not saved a backup yet.'
       : r.days >= 1 ? `Your last backup was ${r.days} day${r.days === 1 ? '' : 's'} ago.`
       : 'Since your last backup,';
-    _nagShown = true;
-    logEvent('save', 'backup reminder shown', { marks: r.marks, entries: r.entries, days: r.days });
-    nagBanner(`${since} ${r.days === 0 && !r.never ? 'you have added' : 'You have'} ${what}
+    // ⚠ Burn the once-per-session flag only if the banner ACTUALLY appeared.
+    // Setting it first meant a higher-ranked warning holding the slot silently
+    // spent the backup reminder for the rest of the session -- the reader would
+    // never be told their work is unsaved, because something else spoke once.
+    // Found by the priority test, not by reading this.
+    const shown = nagBanner('backup', `${since} ${r.days === 0 && !r.never ? 'you have added' : 'You have'} ${what}
       that ${r.marks + r.entries === 1 ? 'exists' : 'exist'} only in this browser.`,
       '⤓ Save my work', nagAction);
+    if(!shown) return;
+    _nagShown = true;
+    logEvent('save', 'backup reminder shown', { marks: r.marks, entries: r.entries, days: r.days });
   }
   // The in-app browser gets its say on boot AND at the moment of failure: on boot
   // because the storage is separate (work done here is invisible to Chrome), at the
@@ -1860,7 +1901,7 @@ async function runReflection(rf, text, hooks) {
     const how = ANDROID
       ? 'Open Journaler in Chrome instead: tap ⋮ and choose <b>Open in browser</b>, or type the address into Chrome.'
       : 'Open Journaler in Safari instead: tap the ⋯ or compass icon and choose <b>Open in Safari</b>.';
-    nagBanner(`${lead ? '<b>' + escHtml(lead) + '</b> ' : ''}This page is inside another app,
+    nagBanner('webview', `${lead ? '<b>' + escHtml(lead) + '</b> ' : ''}This page is inside another app,
       which cannot save files or make PDFs and keeps a separate copy of your work. ${how}`,
       ANDROID ? 'Open in Chrome' : 'Copy the address',
       ANDROID ? () => { location.href = OPEN_IN_CHROME_URL; }
@@ -1869,7 +1910,7 @@ async function runReflection(rf, text, hooks) {
   function nagIfWebView(){
     if(!WEBVIEW) return;
     logEvent('boot', 'in-app browser detected', navigator.userAgent);
-    try { if(sessionStorage.getItem(NAG_SNOOZE_KEY)) return; } catch(e){}
+    if(nagSnoozed('webview')) return;
     webviewWarn('');
   }
   // ⚠ THE ONE LAUNCH-TIME NAG, and it earns the slot because there is no other moment
@@ -1883,10 +1924,11 @@ async function runReflection(rf, text, hooks) {
     DB.lastVisit = Date.now(); saveDB();
     if(!WEBKIT_SWEEPS) return;
     if(!countMarks(DB) && !(DB.journal || []).length) return;   // nothing here to lose
+    if(nagSnoozed('sweep')) return;      // dismissed this session; it returns next launch
     const away = last ? Math.floor((Date.now() - last) / 86400000) : 0;
     if(away < 4) return;
     logEvent('save', 'seven-day storage warning shown', { daysAway: away });
-    nagBanner(`You were away <b>${away} days</b>. Safari erases a site’s saved work after
+    nagBanner('sweep', `You were away <b>${away} days</b>. Safari erases a site’s saved work after
       <b>seven</b> days away — add Journaler to your Home Screen and it stops doing that.`,
       'Show me how', () => openAbout('safe'));
   }
