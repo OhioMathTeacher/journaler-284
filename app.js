@@ -9795,6 +9795,38 @@ You: Really. The first line only has to exist, not be good.`;
   try { nagOnBoot(); } catch(e){ console.warn('nagOnBoot', e); }
   try { nagIfWebView(); } catch(e){ console.warn('nagIfWebView', e); }
 
+  // ⚠ THE UPDATE CHECK HAS TO RUN HERE, not only when someone opens Settings.
+  //
+  // checkForUpdate had exactly one caller: the Diagnostics tab. No student opens
+  // Diagnostics, so no student was ever told a newer build existed. Meanwhile
+  // Pages serves index.html with max-age=600 and Safari holds it far longer --
+  // Todd was running 318P build 54 for a MONTH while 60 was published, and only
+  // found out because the app happened to warn him about something else.
+  //
+  // And a stale index.html pins a stale app.js with it, because the ?v= tag lives
+  // inside the page the cache is holding. The whole app freezes as a set. For an
+  // app that ships most days, with graded writing inside it, that means fixes do
+  // not reach the people they were made for.
+  //
+  // Rank 4: it yields to every warning that is about losing work.
+  // Delayed: boot has enough to do.
+  // Silent on failure: offline is not worth a word, and checkForUpdate already
+  // records the reason in the log.
+  function nagIfUpdate(){
+    if(nagSnoozed('update')) return;
+    if(G.running) return;                 // never interrupt a timed write
+    checkForUpdate(false).then(() => {
+      // Re-check both: the fetch took time, and a gush can start inside it.
+      if(!_update || _update.state !== 'available') return;
+      if(G.running || nagSnoozed('update')) return;
+      nagBanner('update',
+        `A newer Journaler is published. This one is <b>${escHtml(BUILD)}</b>.
+         Updating keeps everything you have written.`,
+        '⟳ Update now', applyUpdate);
+    }, () => {});
+  }
+  setTimeout(() => { try { nagIfUpdate(); } catch(e){ console.warn('nagIfUpdate', e); } }, 4000);
+
   try {
     const note = sessionStorage.getItem('cr284_import_note');
     if(note){ sessionStorage.removeItem('cr284_import_note'); setTimeout(() => toast(note), 400); }
