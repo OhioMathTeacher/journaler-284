@@ -30,8 +30,10 @@ Underneath, they have almost nothing in common any more.
 | Archive | `.json` | `.zip` |
 | Cache busting | none on the page itself | `?v=` on all four asset tags, bumped every deploy |
 
-As of 2026-10-11 exactly four function names exist in both: `saveWork`, `reportDigest`,
-`checkForUpdate`, `applyUpdate`.
+As of 2026-10-11 exactly three function names exist in both: `reportDigest`,
+`checkForUpdate`, `applyUpdate`. Everything else has been renamed, rescoped or rewritten.
+(`saveWork` is 284's alone — 318P calls its equivalent `exportAll`, which is the kind of
+near-miss that makes a grep-and-copy across the two apps worse than useless.)
 
 **So code does not port between them.** A fix in one is a reimplementation in the other, not
 a copy-paste. Budget accordingly — and check first whether the problem even exists here,
