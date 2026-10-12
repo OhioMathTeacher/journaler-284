@@ -1783,6 +1783,12 @@ async function runReflection(rf, text, hooks) {
   // someone reorders two calls.
   //
   // So rank them, lowest number wins, and say why the order is this order:
+  //   empty    the work is not gone, but the reader is looking at proof that it is.
+  //            Nothing we could say about saving or sweeping matters while they
+  //            believe a term of writing just vanished. Ranked above webview
+  //            because the two cannot co-occur anyway (see nagIfEmptyInstalled)
+  //            and this one is the only banner that answers a question the reader
+  //            is already asking.
   //   webview  a reader inside Canvas cannot save a file or make a PDF AT ALL,
   //            and their storage is separate from the real browser. Nothing else
   //            matters until they are out of it.
@@ -1791,8 +1797,8 @@ async function runReflection(rf, text, hooks) {
   //   backup   work exists only in this browser. Urgent, but recoverable advice
   //            that we get to repeat at every tab switch.
   //   update   the only one that is not about losing work, so it yields to all
-  //            three. A student who misses it loses a bug fix, not a One-Pager.
-  const NAG_RANK = { webview: 1, sweep: 2, backup: 3, update: 4 };
+  //            four. A student who misses it loses a bug fix, not a One-Pager.
+  const NAG_RANK = { empty: 1, webview: 2, sweep: 3, backup: 4, update: 5 };
 
   // ⚠ Per-kind, not one shared flag. With a single key, dismissing "you have
   // unsaved work" also silenced the in-app-browser warning for the session --
@@ -1931,6 +1937,47 @@ async function runReflection(rf, text, hooks) {
     nagBanner('sweep', `You were away <b>${away} days</b>. Safari erases a site’s saved work after
       <b>seven</b> days away — add Journaler to your Home Screen and it stops doing that.`,
       'Show me how', () => openAbout('safe'));
+  }
+
+  // ═══ The installed app that opens empty ════════════════════════════════════
+  // ⚠ iOS GIVES A HOME-SCREEN APP ITS OWN STORAGE CONTAINER. Everything written in
+  // Safari stays in Safari; the new icon opens on an empty one. Nothing is actually
+  // lost -- the Safari tab and the saved file both still have it -- but what the reader
+  // SEES is a term of writing gone, and that is the whole problem. Todd, 2026-10-11,
+  // installed Journaler himself, having WRITTEN the prose warning about this and having
+  // been told twice in the previous hour, and still read it as total loss. Three
+  // warnings in prose did not survive the moment. So this one is in code, fires at the
+  // moment, and carries the way out in the banner itself.
+  //
+  // Narrow on purpose -- the rule is "this container may be a separate one", not
+  // "the app is installed":
+  //   IOS           an installed PWA on Android SHARES storage with Chrome, so an empty
+  //                 one there is a genuine newcomer and this banner would be a lie.
+  //   isStandalone  in the Safari tab the work is right there; nothing to explain.
+  //   zero work     an import reloads the page, so ANY work here -- opened or typed --
+  //                 is proof this is no longer the empty container.
+  //
+  // ⚠ Deliberately NOT gated on first visit. A frightened reader force-quits and
+  // reopens, and that relaunch is exactly when they need the way out most; a
+  // once-only flag would have spent itself on the launch they panicked through.
+  // Zero work is self-limiting on its own: the moment they open their file or write
+  // a line, this stops firing for good.
+  function nagIfEmptyInstalled(){
+    if(!(IOS && isStandalone())) return;
+    if(countMarks(DB) || (DB.journal || []).length) return;
+    if(nagSnoozed('empty')) return;
+    const shown = nagBanner('empty',
+      `This Home Screen app keeps storage of its own, so it opens empty —
+       <b>your writing is not lost.</b> It is still in Safari, and in the file you saved.
+       Open that file here and all of it comes back.`,
+      '⤒ Open my file', openWorkFile);
+    if(shown) logEvent('save', 'empty installed app rescue shown');
+  }
+  // The banner IS the door. ⚠ Must stay synchronous from the click: a file input only
+  // opens on a real user gesture, and an await before .click() throws that away on iOS.
+  function openWorkFile(){
+    const wfi = document.getElementById('workFileInput');
+    if(wfi) wfi.click(); else nagAction();   // nagAction at least lands them on the pane
   }
 
   // ═══ Bringing another archive INTO this one ════════════════════════════════
@@ -9792,6 +9839,7 @@ You: Really. The first line only has to exist, not be good.`;
   // so it cannot resurface on the next ordinary reload. A reader who merged two archives
   // has to be TOLD what arrived; the whole point is that nothing was replaced, which is
   // exactly the outcome that looks like nothing happened.
+  try { nagIfEmptyInstalled(); } catch(e){ console.warn('nagIfEmptyInstalled', e); }
   try { nagOnBoot(); } catch(e){ console.warn('nagOnBoot', e); }
   try { nagIfWebView(); } catch(e){ console.warn('nagIfWebView', e); }
 
