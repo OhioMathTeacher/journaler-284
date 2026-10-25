@@ -7847,6 +7847,80 @@ You: Really. The first line only has to exist, not be good.`;
         toward Kept practice — you can come back to the same reading later and write again.</p>
       ${rows}</div>`;
   }
+  // A flag counts when it sits on an entry from its own act with at least FLAG_MIN_WORDS.
+  // Read by the summary at the top of My Progress AND by row 4 below it, so the two can
+  // never disagree about how many of the three are done.
+  function flagsCounting(ord, T){
+    return ['flag1','flag2','flag3'].map((k, i) => {
+      const e = T[k] && ord.find(x => x.id === T[k]);
+      return !!e && actOfDate(e.date) === i && wordsIn(e) >= FLAG_MIN_WORDS;
+    });
+  }
+
+  // ── THE HANDOUT'S TABLE, AT THE TOP (Todd, 2026-10-25): "It should say that clearly! I'm
+  // thinking replicate that table near the top of 'My Progress' and indicate how many have
+  // been completed thus far." The four rows sat below the draft tray and the readings
+  // roster, so the most prominent count on the screen was the readings line, which no row
+  // of the rubric scores. The wording here is the table in Writers Notebook Guidelines.docx,
+  // section 8, word for word. Change the handout and this changes with it, by hand.
+  const NB_RUBRIC = [
+    { row: 'Kept practice', pts: 20,
+      full: '20 or more dated entries, spread across the whole term at roughly one per session. The notebook shows a habit: you wrote when it was going well and when it was not.',
+      part: '12–19 entries, or the term is uneven — long silences, or a stretch written all at once. Twenty-eight entries dated in November is not a practice.',
+      none: 'Fewer than 12 entries, or nothing dated, so no practice can be seen.' },
+    { row: 'Required entries', pts: 5,
+      full: 'All four present: the Week 1 baseline, currere gushes and brainstorms, the topic map, and source notes.',
+      part: 'One missing.',
+      none: 'Two or more missing.' },
+    { row: 'Look-Back Letter', pts: 10,
+      full: 'Written in our last class, to the writer who answered why do we write? on day one.',
+      part: 'Present but perfunctory.',
+      none: 'Missing.' },
+    { row: 'Thinking on the page', pts: 15,
+      full: 'From your three flagged entries and your reading of a thread: the thinking moves. Entries turn — you arrive somewhere you were not heading. Your reading names something real that changed between the first entry and the last, and points at the evidence.',
+      part: 'Real thinking is visible. You go past the first answer more than once, and the thread reading sees something, even if it stays general. Or: honest and present, but mostly arriving where you started.',
+      none: 'The entries report rather than think, or perform a reflection they have not done. No thread reading, or one that only lists what the entries were about.' },
+  ];
+  function rubricSummary(){
+    const ord  = numberedEntries();
+    const T    = turnin();
+    const days = new Set(ord.map(e => e.date)).size;
+    const reqKeys = ['baseline','currere','topicmap','sources'];
+    const reqHave = reqKeys.filter(k => T[k]);
+    const reqMiss = reqKeys.filter(k => !T[k]).map(slotLabel);
+    const flagsOK = flagsCounting(ord, T).filter(Boolean).length;
+    const ana = analysisDone();
+    const so = [
+      { ok: ord.length >= ENTRIES_BANDS.full,
+        txt: `<strong>${ord.length} of ${ENTRIES_BANDS.full}</strong> entries` +
+             (ord.length ? `<em>on ${days} different day${days === 1 ? '' : 's'}</em>` : '') },
+      { ok: reqHave.length === 4,
+        txt: `<strong>${reqHave.length} of 4</strong> kept` +
+             (reqMiss.length ? `<em>still to keep: ${escHtml(reqMiss.join(', '))}</em>` : '') },
+      { ok: !!T['letter'],
+        txt: T['letter'] ? `<strong>written</strong>` : `<strong>not yet</strong><em>you write it in our last class</em>` },
+      { ok: flagsOK === 3 && ana,
+        txt: `<strong>${flagsOK} of 3</strong> flagged entries count` +
+             `<em>reading of a thread: ${ana ? 'kept' : 'not written yet'}</em>` },
+    ];
+    return `<div class="nbrub">
+      <p class="nbrub-h">How your notebook is graded — ${NB_TOTAL} points, due Wednesday, December 2</p>
+      <table class="nbrub-t">
+        <thead><tr><th>Part</th><th>Full marks</th><th>So far</th></tr></thead>
+        <tbody>${NB_RUBRIC.map((r, i) => `
+          <tr class="${so[i].ok ? 'ok' : ''}">
+            <td class="nbrub-row">${r.row}<span>${r.pts} pts</span></td>
+            <td class="nbrub-full">${escHtml(r.full)}
+              <span class="nbrub-band"><b>Partial:</b> ${escHtml(r.part)}</span>
+              <span class="nbrub-band"><b>None:</b> ${escHtml(r.none)}</span></td>
+            <td class="nbrub-so">${so[i].ok ? '✓ ' : ''}${so[i].txt}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <p class="nbrub-foot"><a href="${GUIDELINES_URL}" target="_blank" rel="noopener">Read the full assignment (Writer's Notebook Guidelines) →</a></p>
+    </div>`;
+  }
+
   function projectPanel(){
     const ord   = numberedEntries();
     const T     = turnin();
@@ -7882,10 +7956,7 @@ You: Really. The first line only has to exist, not be good.`;
     const anaLine = ana
       ? `<span class="pj-has">✓ kept</span>`
       : `<span class="pj-none">not written yet</span> ${jump('Threads →','threads')}`;
-    const flagOK = ['flag1','flag2','flag3'].map((k, i) => {
-      const e = T[k] && ord.find(x => x.id === T[k]);
-      return !!e && actOfDate(e.date) === i && wordsIn(e) >= FLAG_MIN_WORDS;
-    });
+    const flagOK = flagsCounting(ord, T);
     // ⚠ EACH ACT SHOWS ITS OWN (Todd, 2026-09-06): "each of the 'ones' from each act should
     // be listed/linked in its own column, and we should have one checked off from each
     // column." Right — and the objection I made to a candidate list does not survive the
@@ -8836,6 +8907,7 @@ You: Really. The first line only has to exist, not be good.`;
     if(noteMode === 'tags'){
       frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>What you are handing in, and where you stand on it. Below, every entry against every slot — click a box to mark a page; clicking one another page holds moves it here.</p>${toggle}</div>
         <div class="tagsgrid">
+          ${rubricSummary()}
           ${draftTray()}
           ${projectPanel()}
           <!-- ⚠ THE TAGS GRID IS GONE (Todd, 2026-09-06): "I still don't get this chart.

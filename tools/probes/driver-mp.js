@@ -47,6 +47,18 @@
     await sleep(400);
     var panel = document.querySelector('.pjtable');
     ok('M2 pressing it renders the panel', !!panel);
+    // The handout's grading table sits first, above the tray and the roster, and counts
+    // what is done. Four pages and two readings with three comments each are seeded, so
+    // six entries; the one flag is on a short Act I page, so it must NOT count.
+    var grid = document.querySelector('.tagsgrid');
+    var rub = document.querySelector('.nbrub');
+    ok('M14 the grading table is the first thing in My Progress', !!rub && grid && grid.firstElementChild === rub);
+    var rows = rub ? [].slice.call(rub.querySelectorAll('tbody tr')) : [];
+    var cell = function(i){ return rows[i] ? rows[i].querySelector('.nbrub-so').textContent.replace(/\s+/g,' ').trim() : ''; };
+    ok('M15 it has the handout\'s four rows', rows.length === 4, rows.map(function(r){ return r.querySelector('.nbrub-row').textContent.replace(/\s+/g,' ').trim(); }).join(' | '));
+    ok('M16 kept practice counts the entries against 20', /^6 of 20 entries/.test(cell(0)), cell(0));
+    ok('M17 required entries name what is missing', /^0 of 4 kept ?still to keep: Week 1 baseline/.test(cell(1)), cell(1));
+    ok('M18 a short flagged page does not count', /^0 of 3 flagged entries count/.test(cell(3)), cell(3));
     ok('M3 the notebook view is showing', !!document.querySelector('.nbview[data-mode="tags"].on'));
     var acts = document.querySelectorAll('.pj-act');
     ok('M4 row 4 draws three act columns', acts.length === 3, acts.length + ' columns');
