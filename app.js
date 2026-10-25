@@ -7473,7 +7473,7 @@ You: Really. The first line only has to exist, not be good.`;
       note:'Keep every movement you write — mark one as the required entry. Movement 3 counts too.' },
     letter: { row:'Look-Back Letter', pts:10,
       full:'“Written in our last class, to the writer who answered why do we write? on day one.”',
-      part:'“Present but perfunctory.”', none:'“Missing.”',
+      part:'“Written, but rushed.”', none:'“Missing.”',
       note:'Written in the last class, Wednesday 2 December, so the notebook is complete the day it is handed in.' },
   };
   function assignmentNote(slot, id){
@@ -7874,7 +7874,7 @@ You: Really. The first line only has to exist, not be good.`;
       none: 'Two or more missing.' },
     { row: 'Look-Back Letter', pts: 10,
       full: 'Written in our last class, to the writer who answered why do we write? on day one.',
-      part: 'Present but perfunctory.',
+      part: 'Written, but rushed.',
       none: 'Missing.' },
     { row: 'Thinking on the page', pts: 15,
       full: 'From your three flagged entries and your reading of a thread: the thinking moves. Entries turn — you arrive somewhere you were not heading. Your reading names something real that changed between the first entry and the last, and points at the evidence.',
