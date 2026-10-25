@@ -2831,6 +2831,9 @@ async function runReflection(rf, text, hooks) {
 
   // A jump target is either a lens of this view or a piece elsewhere in the app.
   function wireProjectLinks(){
+    frame.querySelectorAll('details.nbrub-more').forEach(d => d.addEventListener('toggle', () => {
+      if(d.open) NB_OPEN.add(d.dataset.sec); else NB_OPEN.delete(d.dataset.sec);
+    }));
     const th = document.getElementById('thAbout'), thb = document.getElementById('thAboutBtn');
     if(th && thb){
       th.style.display = 'none';
@@ -7881,7 +7884,13 @@ You: Really. The first line only has to exist, not be good.`;
       part: 'Real thinking is visible. You go past the first answer more than once, and the thread reading sees something, even if it stays general. Or: honest and present, but mostly arriving where you started.',
       none: 'The entries report rather than think, or perform a reflection they have not done. No thread reading, or one that only lists what the entries were about.' },
   ];
-  function rubricSummary(){
+  // Which sections are open survives a re-render. Every pick in them (a required entry, a
+  // flag) calls renderNote(), which redraws the whole view; without this the section you
+  // were working in would snap shut under your hand on every click.
+  const NB_OPEN = new Set();
+  const NB_MORE = ['Your entries and course readings', 'Your four required entries',
+                   'Your Look-Back Letter', 'Your flagged entries and thread reading'];
+  function rubricSummary(details){
     const ord  = numberedEntries();
     const T    = turnin();
     const days = new Set(ord.map(e => e.date)).size;
@@ -7914,10 +7923,17 @@ You: Really. The first line only has to exist, not be good.`;
               <span class="nbrub-band"><b>Partial:</b> ${escHtml(r.part)}</span>
               <span class="nbrub-band"><b>None:</b> ${escHtml(r.none)}</span></td>
             <td class="nbrub-so">${so[i].ok ? '✓ ' : ''}${so[i].txt}</td>
-          </tr>`).join('')}
+          </tr>
+          <tr class="nbrub-morerow"><td colspan="3">
+            <details class="nbrub-more" data-sec="${i}"${NB_OPEN.has(String(i)) ? ' open' : ''}>
+              <summary>${NB_MORE[i]}</summary>
+              <div class="nbrub-body">${details[i]}</div>
+            </details></td></tr>`).join('')}
         </tbody>
       </table>
-      <p class="nbrub-foot"><a href="${GUIDELINES_URL}" target="_blank" rel="noopener">Read the full assignment (Writer's Notebook Guidelines) →</a></p>
+      <p class="nbrub-foot"><a href="${GUIDELINES_URL}" target="_blank" rel="noopener">Read the full assignment (Writer's Notebook Guidelines) →</a>
+        <button class="pj-about" id="pjAbout">About this project →</button></p>
+      ${aboutProjectHTML()}
     </div>`;
   }
 
@@ -8039,20 +8055,6 @@ You: Really. The first line only has to exist, not be good.`;
              : `<span class="pj-none">${stray ? 'and nothing yet from this act to choose instead'
                                               : 'nothing kept in this act yet'}</span>`)}</div></div>`;
     }).join('');
-    // The points ride with the name. The handout scores these four rows out of 50 and
-    // names a band for each; a panel that shows the bands but not what they are worth
-    // makes the student hold half the rubric in their head. Same four rows, same order,
-    // same points as the table in Writers Notebook Guidelines.docx.
-    // `n` and `feeds` are gone, not misplaced: a373cfc took the per-row description column
-    // out because Todd crossed it out — "only include the stuff I've circled" — and the
-    // assignment moved behind About this project →. The arguments outlived the column and
-    // went on building prose the table threw away, including a Threads → link no one could
-    // ever click. Anything a row must SAY now belongs in its state cell, which is read.
-    const row = (name, pts, state, ok) => `
-      <tr class="${ok ? 'pj-ok' : ''}">
-        <td class="pj-name">${name}<span class="pj-pts">${pts} pts</span></td>
-        <td class="pj-state">${state}</td>
-      </tr>`;
 
     // The rubric bands, not a vague target: a student at 19 should know they are inside
     // the partial band and what closes it, rather than reading "expect 25-40" and
@@ -8081,7 +8083,7 @@ You: Really. The first line only has to exist, not be good.`;
         `<span class="pj-cov${n >= need ? ' ok' : ''}" title="${escHtml(
           `${n} of the ${total} ${name} readings count as entries. The notebook asks for at least ${need}.`)
         }">${name} ${n} of ${need}${n >= need ? ' ✓' : ''}</span>`;
-      return `<br><span class="pj-aim">Readings: ${bit(rom, COVER.romano, roster.filter(e=>e.kind==='romano').length + 1, 'Romano')}
+      return `<span class="pj-aim">Readings: ${bit(rom, COVER.romano, roster.filter(e=>e.kind==='romano').length + 1, 'Romano')}
         · ${bit(cur, COVER.currere, roster.filter(e=>e.kind==='currere').length, 'currere')}</span>`;
     })();
     const kept = ord.length
@@ -8089,24 +8091,19 @@ You: Really. The first line only has to exist, not be good.`;
          ${days} day${days === 1 ? '' : 's'} · ${words.toLocaleString()} words`
       : `nothing kept yet — ${jump('start with Why do we write? →','baseline')}`;
 
-    return `<div class="project">
-      <!-- No title. The lens above it is called My Progress and the head says what it
-           is for; a third "My progress" here was the same words a third time. The
-           About link keeps its place at the right of the row. -->
-      <p class="pj-txt"><button class="pj-about" id="pjAbout">About this project →</button></p>
-      ${rosterPanel()}
-      <table class="pjtable">
-        ${row('Kept practice', 20,
-              kept + `<br><span class="pj-aim">${band}</span>` + coverLine,
-              ord.length >= ENTRIES_BANDS.full)}
-        ${row('Required entries', 5,
-              ['baseline','currere','topicmap','sources'].map(k =>
-                `<div class="pj-slot"><span class="pj-slot-n">${escHtml(slotLabel(k))}</span>${slotPicker(k, jump)}</div>`).join(''),
-              req === 4)}
-        ${row('Look-Back Letter', 10,
-              `<div class="pj-slot">${slotPicker('letter', jump)}</div>`, !!letter)}
-        ${row('Thinking on the page', 15,
-              `<div class="pj-slot"><span class="pj-slot-n">Reading of a thread</span>${anaLine}</div>`
+    // ⚠ ONE TABLE, NOT TWO (Todd, 2026-10-25): "I notice there's a table with the required
+    // four parts up top . . . and another one down below. I think the below stuff should be
+    // moved underneath the appropriate heading/section in the top part, all accordionized
+    // and minimized by default." So this no longer draws a table. It returns the four
+    // detail blocks, in the handout's row order, and rubricSummary() puts each one in a
+    // closed section under its own row. The course-readings roster goes with Kept
+    // practice, because a reading with three comments is an entry there.
+    return [
+      kept + `<span class="pj-aim">${band}</span>` + coverLine + rosterPanel(),
+      ['baseline','currere','topicmap','sources'].map(k =>
+        `<div class="pj-slot"><span class="pj-slot-n">${escHtml(slotLabel(k))}</span>${slotPicker(k, jump)}</div>`).join(''),
+      `<div class="pj-slot">${slotPicker('letter', jump)}</div>`,
+      `<div class="pj-slot"><span class="pj-slot-n">Reading of a thread</span>${anaLine}</div>`
             // ⚠ THESE ARE HIS, AND HE COULD NOT TELL (Todd, 2026-09-06): "this is truly
             // confusing. So I should revise those three entries from July? Can't I pick any
             // three I want?" He can. The row listed his own choices under the heading "Read
@@ -8116,9 +8113,7 @@ You: Really. The first line only has to exist, not be good.`;
                  each act, at least ${FLAG_MIN_WORDS} words — pick the ones where something happened, not the ones
                  that are tidiest. Click an entry to read it; click its <em>○</em> to make it this act's.</span></div>`
             + `<div class="pj-acts">${actCols}</div>`,
-              flagOK.every(Boolean) && ana)}
-      </table>
-      ${aboutProjectHTML()}</div>`;
+    ];
   }
 
   function readiness(){
@@ -8907,9 +8902,8 @@ You: Really. The first line only has to exist, not be good.`;
     if(noteMode === 'tags'){
       frame.innerHTML = `<div class="head"><h1>Notebook</h1><p>What you are handing in, and where you stand on it. Below, every entry against every slot — click a box to mark a page; clicking one another page holds moves it here.</p>${toggle}</div>
         <div class="tagsgrid">
-          ${rubricSummary()}
+          ${rubricSummary(projectPanel())}
           ${draftTray()}
-          ${projectPanel()}
           <!-- ⚠ THE TAGS GRID IS GONE (Todd, 2026-09-06): "I still don't get this chart.
                It looks pretty, but I think I'd like to remove it. No one knows what that
                means! I guarantee you my students don't!" Eight abbreviated columns —
